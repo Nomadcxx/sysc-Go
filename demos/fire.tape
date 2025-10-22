@@ -9,6 +9,25 @@ Set Width 1200
 Set Height 600
 Set Theme "Dracula"
 
-Type "./syscgo -effect fire -theme dracula -duration 5"
+# Dracula theme
+Type "./syscgo -effect fire -theme dracula -duration 3"
 Enter
-Sleep 5.5s
+Sleep 3.2s
+Ctrl+C
+
+# Gruvbox theme
+Type "./syscgo -effect fire -theme gruvbox -duration 3"
+Enter
+Sleep 3.2s
+Ctrl+C
+
+# Nord theme
+Type "./syscgo -effect fire -theme nord -duration 3"
+Enter
+Sleep 3.2s
+Ctrl+C
+
+# Tokyo Night theme
+Type "./syscgo -effect fire -theme tokyo-night -duration 3"
+Enter
+Sleep 3.2s
