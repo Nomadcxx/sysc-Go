@@ -14,23 +14,25 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 ## Installation
 
 ```bash
-go get github.com/Nomadcxx/sysc-Go
+go install github.com/Nomadcxx/sysc-Go/cmd/syscgo@latest
 ```
 
 ## Quick Start
 
-```go
-package main
+Run any animation directly from command line:
 
-import (
-    "github.com/Nomadcxx/sysc-Go/animations"
-)
+```bash
+# Fire effect with Dracula theme (default)
+syscgo -effect fire
 
-func main() {
-    fire := animations.NewFire(80, 24)
-    fire.Render()
-}
+# Matrix rain with Nord theme for 30 seconds
+syscgo -effect matrix -theme nord -duration 30
+
+# Gruvbox fire effect (infinite loop)
+syscgo -effect fire -theme gruvbox -duration 0
 ```
+
+**Available themes:** dracula, gruvbox, nord, tokyo-night, catppuccin, material, solarized, monochrome, transishardjob
 
 ## Demo
 
