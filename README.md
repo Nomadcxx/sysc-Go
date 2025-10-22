@@ -16,6 +16,12 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 ### Rain
 ![ASCII Rain](assets/rain.gif)
 
+### Print *(in development)*
+
+### Pour *(in development)*
+
+### Decrypt *(in development)*
+
 ## Features
 
 - **Fire Effect** - DOOM PSX-style fire animation
