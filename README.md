@@ -2,6 +2,20 @@
 
 Terminal animation library for Go. Pure Go animations ready to use in your TUI applications.
 
+## Effect Showcase
+
+### Fire
+![Fire Effect](assets/fire.gif)
+
+### Matrix
+![Matrix Rain](assets/matrix.gif)
+
+### Fireworks
+![Fireworks](assets/fireworks.gif)
+
+### Rain
+![ASCII Rain](assets/rain.gif)
+
 ## Features
 
 - **Fire Effect** - DOOM PSX-style fire animation
