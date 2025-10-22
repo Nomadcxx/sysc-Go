@@ -4,31 +4,11 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 
 ## Features
 
-- **Fire Effect** - DOOM PSX-style fire animation
+- **Rain Effect** - ASCII character rain effect
 - **Matrix Rain** - Classic Matrix digital rain
 - **Fireworks** - Particle-based fireworks display
-- **ASCII Rain** - Character-based rain effect
+- **Fire Effect** - DOOM PSX-style fire animation
 - **Print Effects** - Typewriter-style text rendering (library use only)
-
-## Effect Showcase
-
-### Fire
-![Fire Effect](assets/fire.gif)
-
-### Matrix
-![Matrix Rain](assets/matrix.gif)
-
-### Fireworks
-![Fireworks](assets/fireworks.gif)
-
-### Rain
-![ASCII Rain](assets/rain.gif)
-
-### Print *(in development)*
-
-### Pour *(in development)*
-
-### Decrypt *(in development)*
 
 ## Installation
 
@@ -41,17 +21,37 @@ go install github.com/Nomadcxx/sysc-Go/cmd/syscgo@latest
 Run any animation directly from command line:
 
 ```bash
-# Fire effect with Dracula theme (default)
-syscgo -effect fire
+# Rain effect with Tokyo Night theme
+syscgo -effect rain -theme tokyo-night
 
 # Matrix rain with Nord theme for 30 seconds
 syscgo -effect matrix -theme nord -duration 30
 
-# Gruvbox fire effect (infinite loop)
-syscgo -effect fire -theme gruvbox -duration 0
+# Fire effect with Dracula theme (infinite loop)
+syscgo -effect fire -theme dracula -duration 0
 ```
 
 **Available themes:** dracula, gruvbox, nord, tokyo-night, catppuccin, material, solarized, monochrome, transishardjob
+
+## Effect Showcase
+
+### Rain
+![ASCII Rain](assets/rain.gif)
+
+### Matrix
+![Matrix Rain](assets/matrix.gif)
+
+### Fireworks
+![Fireworks](assets/fireworks.gif)
+
+### Fire
+![Fire Effect](assets/fire.gif)
+
+### Print *(in development)*
+
+### Pour *(in development)*
+
+### Decrypt *(in development)*
 
 ## Demo
 
