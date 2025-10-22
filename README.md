@@ -12,8 +12,22 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 
 ## Installation
 
+### CLI Tool
+
+**Via AUR (Arch Linux):**
+```bash
+yay -S syscgo
+```
+
+**Via Go:**
 ```bash
 go install github.com/Nomadcxx/sysc-Go/cmd/syscgo@latest
+```
+
+### As Library
+
+```bash
+go get github.com/Nomadcxx/sysc-Go
 ```
 
 ## Quick Start
