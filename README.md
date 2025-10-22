@@ -2,6 +2,14 @@
 
 Terminal animation library for Go. Pure Go animations ready to use in your TUI applications.
 
+## Features
+
+- **Fire Effect** - DOOM PSX-style fire animation
+- **Matrix Rain** - Classic Matrix digital rain
+- **Fireworks** - Particle-based fireworks display
+- **ASCII Rain** - Character-based rain effect
+- **Print Effects** - Typewriter-style text rendering (library use only)
+
 ## Effect Showcase
 
 ### Fire
@@ -21,14 +29,6 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 ### Pour *(in development)*
 
 ### Decrypt *(in development)*
-
-## Features
-
-- **Fire Effect** - DOOM PSX-style fire animation
-- **Matrix Rain** - Classic Matrix digital rain
-- **Fireworks** - Particle-based fireworks display
-- **ASCII Rain** - Character-based rain effect
-- **Print Effects** - Typewriter-style text rendering (library use only)
 
 ## Installation
 
