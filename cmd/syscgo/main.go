@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	effect := flag.String("effect", "fire", "Animation effect (fire, matrix, rain, fireworks, ticker)")
+	effect := flag.String("effect", "fire", "Animation effect (fire, matrix, rain, fireworks)")
 	theme := flag.String("theme", "dracula", "Color theme")
 	duration := flag.Int("duration", 10, "Duration in seconds (0 = infinite)")
 	flag.Parse()
@@ -36,9 +36,15 @@ func main() {
 	switch *effect {
 	case "fire":
 		runFire(width, height, *theme, frames)
+	case "matrix":
+		runMatrix(width, height, *theme, frames)
+	case "fireworks":
+		runFireworks(width, height, *theme, frames)
+	case "rain":
+		runRain(width, height, *theme, frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, matrix, rain, fireworks, ticker")
+		fmt.Println("Available: fire, matrix, rain, fireworks")
 		os.Exit(1)
 	}
 }
@@ -58,3 +64,52 @@ func runFire(width, height int, theme string, frames int) {
 		frame++
 	}
 }
+
+func runMatrix(width, height int, theme string, frames int) {
+	palette := animations.GetMatrixPalette(theme)
+	matrix := animations.NewMatrixEffect(width, height, palette)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		matrix.Update(frame)
+		output := matrix.Render()
+
+		fmt.Print("\033[H") // Move cursor to top
+		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runFireworks(width, height int, theme string, frames int) {
+	palette := animations.GetFireworksPalette(theme)
+	fireworks := animations.NewFireworksEffect(width, height, palette)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		fireworks.Update(frame)
+		output := fireworks.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runRain(width, height int, theme string, frames int) {
+	palette := animations.GetRainPalette(theme)
+	rain := animations.NewRainEffect(width, height, palette)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		rain.Update(frame)
+		output := rain.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+

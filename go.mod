@@ -5,6 +5,7 @@ go 1.24.2
 require (
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3.0.20250917201909-41ff0bf215ea
 	golang.org/x/term v0.26.0
+	gonum.org/v1/gonum v0.16.0
 )
 
 require (

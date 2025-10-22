@@ -8,8 +8,7 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 - **Matrix Rain** - Classic Matrix digital rain
 - **Fireworks** - Particle-based fireworks display
 - **ASCII Rain** - Character-based rain effect
-- **Ticker** - Scrolling text with colors
-- **Print Effects** - Typewriter-style text rendering
+- **Print Effects** - Typewriter-style text rendering (library use only)
 
 ## Installation
 
