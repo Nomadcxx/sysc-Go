@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Nomadcxx/sysc-Go/animations"
@@ -17,13 +18,82 @@ const banner = `▄▀▀▀▀ █   █ ▄▀▀▀▀ ▄▀▀▀▀    ▄
 Terminal Animation Library
 `
 
+// wrapText wraps text to fit within the specified width
+func wrapText(text string, width int) string {
+	if width <= 0 {
+		width = 80
+	}
+	
+	lines := strings.Split(text, "\n")
+	var wrappedLines []string
+	
+	for _, line := range lines {
+		// If line is empty, keep it
+		if strings.TrimSpace(line) == "" {
+			wrappedLines = append(wrappedLines, "")
+			continue
+		}
+		
+		// If line fits, keep it
+		if len(line) <= width {
+			wrappedLines = append(wrappedLines, line)
+			continue
+		}
+		
+		// Wrap long lines
+		words := strings.Fields(line)
+		currentLine := ""
+		
+		for _, word := range words {
+			// If word itself is longer than width, break it
+			if len(word) > width {
+				if currentLine != "" {
+					wrappedLines = append(wrappedLines, currentLine)
+					currentLine = ""
+				}
+				// Split long word
+				for len(word) > width {
+					wrappedLines = append(wrappedLines, word[:width])
+					word = word[width:]
+				}
+				currentLine = word
+				continue
+			}
+			
+			// Try adding word to current line
+			testLine := currentLine
+			if testLine != "" {
+				testLine += " "
+			}
+			testLine += word
+			
+			if len(testLine) <= width {
+				currentLine = testLine
+			} else {
+				// Start new line with this word
+				if currentLine != "" {
+					wrappedLines = append(wrappedLines, currentLine)
+				}
+				currentLine = word
+			}
+		}
+		
+		// Add remaining line
+		if currentLine != "" {
+			wrappedLines = append(wrappedLines, currentLine)
+		}
+	}
+	
+	return strings.Join(wrappedLines, "\n")
+}
+
 func showHelp() {
 	fmt.Print(banner)
 	fmt.Println("Usage: syscgo [options]")
 	fmt.Println("\nOptions:")
 	fmt.Println("  -effect string")
 	fmt.Println("        Animation effect (default: fire)")
-	fmt.Println("        Available: fire, matrix, rain, fireworks")
+	fmt.Println("        Available: fire, matrix, rain, fireworks, decrypt, pour, print, beams")
 	fmt.Println()
 	fmt.Println("  -theme string")
 	fmt.Println("        Color theme (default: dracula)")
@@ -41,20 +111,28 @@ func showHelp() {
 	fmt.Println("  -duration int")
 	fmt.Println("        Duration in seconds (0 = infinite, default: 10)")
 	fmt.Println()
+	fmt.Println("  -file string")
+	fmt.Println("        Text file to decrypt (decrypt effect only)")
+	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  syscgo -effect fire -theme dracula")
 	fmt.Println("  syscgo -effect matrix -theme nord -duration 30")
 	fmt.Println("  syscgo -effect fireworks -theme gruvbox -duration 0")
+	fmt.Println("  syscgo -effect decrypt -theme tokyo-night -file message.txt -duration 15")
+	fmt.Println("  syscgo -effect pour -theme catppuccin -duration 10")
+	fmt.Println("  syscgo -effect print -theme dracula -duration 15")
+	fmt.Println("  syscgo -effect beams -theme nord -duration 20")
 	fmt.Println()
 }
 
 func main() {
-	effect := flag.String("effect", "fire", "Animation effect (fire, matrix, rain, fireworks)")
+	effect := flag.String("effect", "fire", "Animation effect (fire, matrix, rain, fireworks, decrypt)")
 	theme := flag.String("theme", "dracula", "Color theme")
 	duration := flag.Int("duration", 10, "Duration in seconds (0 = infinite)")
+	file := flag.String("file", "", "Text file to decrypt (decrypt effect only)")
 	help := flag.Bool("h", false, "Show help")
 	flag.BoolVar(help, "help", false, "Show help")
-	
+
 	flag.Usage = showHelp
 	flag.Parse()
 
@@ -70,8 +148,8 @@ func main() {
 	}
 
 	// Setup terminal
-	fmt.Print("\033[2J\033[H") // Clear screen
-	fmt.Print("\033[?25l")     // Hide cursor
+	fmt.Print("\033[2J\033[H")   // Clear screen
+	fmt.Print("\033[?25l")       // Hide cursor
 	defer fmt.Print("\033[?25h") // Show cursor on exit
 
 	// Calculate frame count (0 = infinite)
@@ -89,9 +167,17 @@ func main() {
 		runFireworks(width, height, *theme, frames)
 	case "rain":
 		runRain(width, height, *theme, frames)
+	case "decrypt":
+		runDecrypt(width, height, *theme, *file, frames)
+	case "pour":
+		runPour(width, height, *theme, *file, frames)
+	case "print":
+		runPrint(width, height, *theme, *file, frames)
+	case "beams":
+		runBeams(width, height, *theme, frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, matrix, rain, fireworks")
+		fmt.Println("Available: fire, matrix, rain, fireworks, decrypt, pour, print, beams")
 		os.Exit(1)
 	}
 }
@@ -102,7 +188,7 @@ func runFire(width, height int, theme string, frames int) {
 
 	frame := 0
 	for frames == 0 || frame < frames {
-		fire.Update(frame)
+		fire.Update()
 		output := fire.Render()
 
 		fmt.Print("\033[H") // Move cursor to top
@@ -118,7 +204,7 @@ func runMatrix(width, height int, theme string, frames int) {
 
 	frame := 0
 	for frames == 0 || frame < frames {
-		matrix.Update(frame)
+		matrix.Update()
 		output := matrix.Render()
 
 		fmt.Print("\033[H") // Move cursor to top
@@ -134,7 +220,7 @@ func runFireworks(width, height int, theme string, frames int) {
 
 	frame := 0
 	for frames == 0 || frame < frames {
-		fireworks.Update(frame)
+		fireworks.Update()
 		output := fireworks.Render()
 
 		fmt.Print("\033[H")
@@ -150,7 +236,7 @@ func runRain(width, height int, theme string, frames int) {
 
 	frame := 0
 	for frames == 0 || frame < frames {
-		rain.Update(frame)
+		rain.Update()
 		output := rain.Render()
 
 		fmt.Print("\033[H")
@@ -160,3 +246,239 @@ func runRain(width, height int, theme string, frames int) {
 	}
 }
 
+func runPour(width, height int, theme string, file string, frames int) {
+	// Get theme colors for pour effect
+	var gradientStops []string
+	
+	switch theme {
+	case "dracula":
+		gradientStops = []string{"#ff79c6", "#bd93f9", "#ffffff"}
+	case "gruvbox":
+		gradientStops = []string{"#fe8019", "#fabd2f", "#ffffff"}
+	case "nord":
+		gradientStops = []string{"#88c0d0", "#81a1c1", "#ffffff"}
+	case "tokyo-night":
+		gradientStops = []string{"#9ece6a", "#e0af68", "#ffffff"}
+	case "catppuccin":
+		gradientStops = []string{"#cba6f7", "#f5c2e7", "#ffffff"}
+	case "material":
+		gradientStops = []string{"#03dac6", "#bb86fc", "#ffffff"}
+	case "solarized":
+		gradientStops = []string{"#268bd2", "#2aa198", "#ffffff"}
+	case "monochrome":
+		gradientStops = []string{"#808080", "#c0c0c0", "#ffffff"}
+	case "transishardjob":
+		gradientStops = []string{"#55cdfc", "#f7a8b8", "#ffffff"}
+	default:
+		gradientStops = []string{"#8A008A", "#00D1FF", "#FFFFFF"}
+	}
+	
+	// Read text from file or use default
+	text := "POUR EFFECT\nDEMO TEXT\nTHIRD LINE"
+	if file != "" {
+		data, err := os.ReadFile(file)
+		if err == nil {
+			text = string(data)
+		}
+	}
+	
+	// Wrap text to fit terminal width (leave margin for centering)
+	text = wrapText(text, width-10)
+	
+	// Create pour effect with sample text centered in terminal
+	config := animations.PourConfig{
+		Width:                  width,
+		Height:                 height,
+		Text:                   text,
+		PourDirection:          "down",
+		PourSpeed:              3,
+		MovementSpeed:          0.2,
+		Gap:                    1,
+		StartingColor:          "#ffffff",
+		FinalGradientStops:     gradientStops,
+		FinalGradientSteps:     12,
+		FinalGradientFrames:    5,
+		FinalGradientDirection: "horizontal",
+	}
+	
+	pour := animations.NewPourEffect(config)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		pour.Update()
+		output := pour.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runPrint(width, height int, theme string, file string, frames int) {
+	// Get theme colors for print effect
+	var gradientStops []string
+	
+	switch theme {
+	case "dracula":
+		gradientStops = []string{"#ff79c6", "#bd93f9", "#8be9fd"}
+	case "gruvbox":
+		gradientStops = []string{"#fe8019", "#fabd2f", "#b8bb26"}
+	case "nord":
+		gradientStops = []string{"#88c0d0", "#81a1c1", "#5e81ac"}
+	case "tokyo-night":
+		gradientStops = []string{"#9ece6a", "#e0af68", "#bb9af7"}
+	case "catppuccin":
+		gradientStops = []string{"#cba6f7", "#f5c2e7", "#f5e0dc"}
+	case "material":
+		gradientStops = []string{"#03dac6", "#bb86fc", "#cf6679"}
+	case "solarized":
+		gradientStops = []string{"#268bd2", "#2aa198", "#859900"}
+	case "monochrome":
+		gradientStops = []string{"#808080", "#c0c0c0", "#ffffff"}
+	case "transishardjob":
+		gradientStops = []string{"#55cdfc", "#f7a8b8", "#ffffff"}
+	default:
+		gradientStops = []string{"#8A008A", "#00D1FF", "#FFFFFF"}
+	}
+	
+	// Read text from file or use default
+	text := "PRINT EFFECT\nDEMO TEXT\nTHIRD LINE"
+	if file != "" {
+		data, err := os.ReadFile(file)
+		if err == nil {
+			text = string(data)
+		}
+	}
+	
+	// Wrap text to fit terminal width (leave margin for centering)
+	text = wrapText(text, width-10)
+	
+	// Create print effect configuration
+	config := animations.PrintConfig{
+		Width:           width,
+		Height:          height,
+		Text:            text,
+		CharDelay:       30 * time.Millisecond,
+		PrintSpeed:      2,
+		PrintHeadSymbol: "█",
+		TrailSymbols:    []string{"░", "▒", "▓"},
+		GradientStops:   gradientStops,
+	}
+	
+	print := animations.NewPrintEffect(config)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		print.Update()
+		output := print.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		time.Sleep(30 * time.Millisecond)
+		frame++
+	}
+}
+
+func runBeams(width, height int, theme string, frames int) {
+	// Get theme colors for beams effect - reuse fire palette
+	palette := animations.GetFirePalette(theme)
+	
+	// Create beams effect configuration
+	config := animations.BeamsConfig{
+		Width:   width,
+		Height:  height,
+		Palette: palette,
+		Delay:   10,
+	}
+	
+	beams := animations.NewBeamsEffect(config)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		beams.Update()
+		output := beams.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runDecrypt(width, height int, theme string, file string, frames int) {
+	// Get theme colors for decrypt effect
+	var ciphertextColors []string
+	var gradientStops []string
+
+	switch theme {
+	case "dracula":
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#ff79c6"}
+	case "gruvbox":
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#fe8019"}
+	case "nord":
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#88c0d0"}
+	case "tokyo-night":
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#9ece6a"}
+	case "catppuccin":
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#cba6f7"}
+	case "material":
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#03dac6"}
+	case "solarized":
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#268bd2"}
+	case "monochrome":
+		ciphertextColors = []string{"#808080", "#a0a0a0", "#c0c0c0"}
+		gradientStops = []string{"#ffffff"}
+	case "transishardjob":
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#55cdfc"}
+	default:
+		ciphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+		gradientStops = []string{"#eda000"}
+	}
+
+	// Read text from file or use default
+	text := "DECRYPT ME"
+	if file != "" {
+		data, err := os.ReadFile(file)
+		if err == nil {
+			text = string(data)
+		}
+	}
+	
+	// Wrap text to fit terminal width (leave margin for centering)
+	text = wrapText(text, width-10)
+
+	// Create decrypt effect with sample text centered in terminal
+	config := animations.DecryptConfig{
+		Width:                  width,
+		Height:                 height,
+		Text:                   text,
+		Palette:                []string{}, // Not used in decrypt effect
+		TypingSpeed:            2,          // Slower for better visibility
+		CiphertextColors:       ciphertextColors,
+		FinalGradientStops:     gradientStops,
+		FinalGradientSteps:     12,
+		FinalGradientDirection: "vertical",
+	}
+
+	decrypt := animations.NewDecryptEffect(config)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		decrypt.Update()
+		output := decrypt.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}

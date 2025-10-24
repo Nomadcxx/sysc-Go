@@ -140,8 +140,8 @@ func (m *MatrixEffect) getTrailColor(position, length int) string {
 }
 
 // Update advances the Matrix simulation by one frame
-func (m *MatrixEffect) Update(frame int) {
-	m.frame = frame
+func (m *MatrixEffect) Update() {
+	m.frame++
 
 	// Update existing streaks
 	activeStreaks := m.streaks[:0] // Reuse slice for efficiency
@@ -150,24 +150,26 @@ func (m *MatrixEffect) Update(frame int) {
 			continue
 		}
 
-		// Increment counter
+		// Update streak movement counter
 		streak.Counter++
 
-		// Move streak if it's time
+		// Move streak when counter reaches speed threshold
 		if streak.Counter >= streak.Speed {
+			streak.Y++
 			streak.Counter = 0
-			streak.Y++ // Move down
 
-			// Deactivate if streak has moved well past screen
+			// Deactivate streak when it moves completely off screen
 			if streak.Y-streak.Length > m.height {
 				streak.Active = false
+				continue
 			}
 		}
 
-		if streak.Active {
-			activeStreaks = append(activeStreaks, streak)
-		}
+		// Add updated streak to active list
+		activeStreaks = append(activeStreaks, streak)
 	}
+
+	// Replace streak list with active streaks
 	m.streaks = activeStreaks
 
 	// Add new streaks randomly
@@ -251,4 +253,11 @@ func (m *MatrixEffect) Render() string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// Reset restarts the animation from the beginning
+func (m *MatrixEffect) Reset() {
+	m.frame = 0
+	m.streaks = m.streaks[:0]
+	m.init()
 }

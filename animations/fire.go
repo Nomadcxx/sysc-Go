@@ -89,7 +89,7 @@ func (f *FireEffect) spreadFire(from int) {
 }
 
 // Update advances the fire simulation by one frame
-func (f *FireEffect) Update(frame int) {
+func (f *FireEffect) Update() {
 	// Process all pixels from bottom to top
 	// (Fire spreads upward, must process bottom row first)
 	for y := f.height - 1; y > 0; y-- {

@@ -20,7 +20,7 @@ func main() {
 	fmt.Print("\033[?25l")     // Hide cursor
 
 	for i := 0; i < 200; i++ { // Run for 200 frames
-		fire.Update(i)
+		fire.Update()
 		output := fire.Render()
 
 		fmt.Print("\033[H") // Move cursor to top
