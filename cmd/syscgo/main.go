@@ -112,7 +112,7 @@ func showHelp() {
 	fmt.Println("        Duration in seconds (0 = infinite, default: 10)")
 	fmt.Println()
 	fmt.Println("  -file string")
-	fmt.Println("        Text file to decrypt (decrypt effect only)")
+	fmt.Println("        Text file for text-based effects (decrypt, pour, print, beams)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  syscgo -effect fire -theme dracula")
@@ -121,7 +121,7 @@ func showHelp() {
 	fmt.Println("  syscgo -effect decrypt -theme tokyo-night -file message.txt -duration 15")
 	fmt.Println("  syscgo -effect pour -theme catppuccin -duration 10")
 	fmt.Println("  syscgo -effect print -theme dracula -duration 15")
-	fmt.Println("  syscgo -effect beams -theme nord -duration 20")
+	fmt.Println("  syscgo -effect beams -theme nord -file message.txt -duration 20")
 	fmt.Println()
 }
 
@@ -174,7 +174,7 @@ func main() {
 	case "print":
 		runPrint(width, height, *theme, *file, frames)
 	case "beams":
-		runBeams(width, height, *theme, frames)
+		runBeams(width, height, *theme, *file, frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
 		fmt.Println("Available: fire, matrix, rain, fireworks, decrypt, pour, print, beams")
@@ -380,18 +380,75 @@ func runPrint(width, height int, theme string, file string, frames int) {
 	}
 }
 
-func runBeams(width, height int, theme string, frames int) {
-	// Get theme colors for beams effect - reuse fire palette
-	palette := animations.GetFirePalette(theme)
-	
+func runBeams(width, height int, theme string, file string, frames int) {
+	// Get theme colors for beams effect
+	var beamGradientStops []string
+	var finalGradientStops []string
+
+	switch theme {
+	case "dracula":
+		beamGradientStops = []string{"#ffffff", "#8be9fd", "#bd93f9"}
+		finalGradientStops = []string{"#6272a4", "#bd93f9", "#f8f8f2"}
+	case "gruvbox":
+		beamGradientStops = []string{"#ffffff", "#fabd2f", "#fe8019"}
+		finalGradientStops = []string{"#504945", "#fabd2f", "#ebdbb2"}
+	case "nord":
+		beamGradientStops = []string{"#ffffff", "#88c0d0", "#81a1c1"}
+		finalGradientStops = []string{"#434c5e", "#88c0d0", "#eceff4"}
+	case "tokyo-night":
+		beamGradientStops = []string{"#ffffff", "#7dcfff", "#bb9af7"}
+		finalGradientStops = []string{"#414868", "#7aa2f7", "#c0caf5"}
+	case "catppuccin":
+		beamGradientStops = []string{"#ffffff", "#89dceb", "#cba6f7"}
+		finalGradientStops = []string{"#45475a", "#cba6f7", "#cdd6f4"}
+	case "material":
+		beamGradientStops = []string{"#ffffff", "#89ddff", "#bb86fc"}
+		finalGradientStops = []string{"#546e7a", "#89ddff", "#eceff1"}
+	case "solarized":
+		beamGradientStops = []string{"#ffffff", "#2aa198", "#268bd2"}
+		finalGradientStops = []string{"#586e75", "#2aa198", "#fdf6e3"}
+	case "monochrome":
+		beamGradientStops = []string{"#ffffff", "#c0c0c0", "#808080"}
+		finalGradientStops = []string{"#3a3a3a", "#9a9a9a", "#ffffff"}
+	case "transishardjob":
+		beamGradientStops = []string{"#ffffff", "#55cdfc", "#f7a8b8"}
+		finalGradientStops = []string{"#55cdfc", "#f7a8b8", "#ffffff"}
+	default:
+		beamGradientStops = []string{"#ffffff", "#00D1FF", "#8A008A"}
+		finalGradientStops = []string{"#4A4A4A", "#00D1FF", "#FFFFFF"}
+	}
+
+	// Read text from file or use default
+	text := "BEAMS EFFECT"
+	if file != "" {
+		data, err := os.ReadFile(file)
+		if err == nil {
+			text = string(data)
+		}
+	}
+
+	// Wrap text to fit terminal width (leave margin for centering)
+	text = wrapText(text, width-10)
+
 	// Create beams effect configuration
 	config := animations.BeamsConfig{
-		Width:   width,
-		Height:  height,
-		Palette: palette,
-		Delay:   10,
+		Width:                width,
+		Height:               height,
+		Text:                 text,
+		BeamRowSymbols:       []rune{'▂', '▁', '_'},
+		BeamColumnSymbols:    []rune{'▌', '▍', '▎', '▏'},
+		BeamDelay:            2,
+		BeamRowSpeedRange:    [2]int{20, 80},
+		BeamColumnSpeedRange: [2]int{15, 30},
+		BeamGradientStops:    beamGradientStops,
+		BeamGradientSteps:    5,
+		BeamGradientFrames:   1,
+		FinalGradientStops:   finalGradientStops,
+		FinalGradientSteps:   8,
+		FinalGradientFrames:  1,
+		FinalWipeSpeed:       3,
 	}
-	
+
 	beams := animations.NewBeamsEffect(config)
 
 	frame := 0
