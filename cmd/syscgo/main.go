@@ -113,6 +113,7 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("  -file string")
 	fmt.Println("        Text file for text-based effects (decrypt, pour, print, beams)")
+	fmt.Println("        If omitted with beams effect, runs as full-screen background animation")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  syscgo -effect fire -theme dracula")
@@ -121,6 +122,7 @@ func showHelp() {
 	fmt.Println("  syscgo -effect decrypt -theme tokyo-night -file message.txt -duration 15")
 	fmt.Println("  syscgo -effect pour -theme catppuccin -duration 10")
 	fmt.Println("  syscgo -effect print -theme dracula -duration 15")
+	fmt.Println("  syscgo -effect beams -theme nord -duration 0")
 	fmt.Println("  syscgo -effect beams -theme nord -file message.txt -duration 20")
 	fmt.Println()
 }
@@ -129,7 +131,7 @@ func main() {
 	effect := flag.String("effect", "fire", "Animation effect (fire, matrix, rain, fireworks, decrypt)")
 	theme := flag.String("theme", "dracula", "Color theme")
 	duration := flag.Int("duration", 10, "Duration in seconds (0 = infinite)")
-	file := flag.String("file", "", "Text file to decrypt (decrypt effect only)")
+	file := flag.String("file", "", "Text file for text-based effects (decrypt, pour, print, beams)")
 	help := flag.Bool("h", false, "Show help")
 	flag.BoolVar(help, "help", false, "Show help")
 
@@ -418,17 +420,15 @@ func runBeams(width, height int, theme string, file string, frames int) {
 		finalGradientStops = []string{"#4A4A4A", "#00D1FF", "#FFFFFF"}
 	}
 
-	// Read text from file or use default
-	text := "BEAMS EFFECT"
+	// Read text from file if provided (empty = background mode)
+	text := ""
 	if file != "" {
 		data, err := os.ReadFile(file)
 		if err == nil {
-			text = string(data)
+			// Wrap text to fit terminal width (leave margin for centering)
+			text = wrapText(string(data), width-10)
 		}
 	}
-
-	// Wrap text to fit terminal width (leave margin for centering)
-	text = wrapText(text, width-10)
 
 	// Create beams effect configuration
 	config := animations.BeamsConfig{

@@ -80,6 +80,7 @@ type BeamGroup struct {
 	beamGradientStops  []string
 	beamGradientSteps  int
 	beamGradientFrames int
+	beamLength         int // Length of visible beam trail
 }
 
 // BeamsConfig holds configuration for the beams effect
@@ -137,17 +138,31 @@ func NewBeamsEffect(config BeamsConfig) *BeamsEffect {
 		config.FinalWipeSpeed = 3 // Activate multiple diagonal groups per frame
 	}
 
+	// Adjust speeds for background mode
+	rowSpeedRange := config.BeamRowSpeedRange
+	colSpeedRange := config.BeamColumnSpeedRange
+	beamDelay := config.BeamDelay
+	gradientSteps := config.BeamGradientSteps
+
+	if config.Text == "" {
+		// Background mode: much faster, denser beams
+		rowSpeedRange = [2]int{40, 120}
+		colSpeedRange = [2]int{30, 60}
+		beamDelay = 1
+		gradientSteps = 3
+	}
+
 	b := &BeamsEffect{
 		width:                config.Width,
 		height:               config.Height,
 		text:                 config.Text,
 		beamRowSymbols:       config.BeamRowSymbols,
 		beamColumnSymbols:    config.BeamColumnSymbols,
-		beamDelay:            config.BeamDelay,
-		beamRowSpeedRange:    config.BeamRowSpeedRange,
-		beamColumnSpeedRange: config.BeamColumnSpeedRange,
+		beamDelay:            beamDelay,
+		beamRowSpeedRange:    rowSpeedRange,
+		beamColumnSpeedRange: colSpeedRange,
 		beamGradientStops:    config.BeamGradientStops,
-		beamGradientSteps:    config.BeamGradientSteps,
+		beamGradientSteps:    gradientSteps,
 		beamGradientFrames:   config.BeamGradientFrames,
 		finalGradientStops:   config.FinalGradientStops,
 		finalGradientSteps:   config.FinalGradientSteps,
@@ -168,27 +183,62 @@ func NewBeamsEffect(config BeamsConfig) *BeamsEffect {
 
 // init initializes characters and beam groups
 func (b *BeamsEffect) init() {
+	if b.text == "" {
+		// Background mode: fill entire terminal with invisible positions
+		b.initBackgroundMode()
+	} else {
+		// Text mode: use provided text
+		b.initTextMode()
+	}
+
+	// Create row groups
+	b.createRowGroups()
+
+	// Create column groups
+	b.createColumnGroups()
+
+	// Shuffle groups for random activation
+	b.shuffleGroups()
+
+	// Create diagonal groups for final wipe
+	b.createDiagonalGroups()
+}
+
+// initTextMode initializes with centered text
+func (b *BeamsEffect) initTextMode() {
 	lines := strings.Split(b.text, "\n")
 
-	// Calculate centered position for text
+	// Calculate centered position for text block
 	startY := (b.height - len(lines)) / 2
 	if startY < 0 {
 		startY = 0
 	}
 
+	// Find the longest line for centering the entire block
+	maxWidth := 0
+	for _, line := range lines {
+		runes := []rune(line)
+		if len(runes) > maxWidth {
+			maxWidth = len(runes)
+		}
+	}
+
+	// Center based on longest line
+	blockStartX := (b.width - maxWidth) / 2
+	if blockStartX < 0 {
+		blockStartX = 0
+	}
+
 	// Create characters from text
 	for lineIdx, line := range lines {
-		startX := (b.width - len(line)) / 2
-		if startX < 0 {
-			startX = 0
-		}
+		runes := []rune(line)
 
-		for charIdx, char := range line {
+		for charIdx, char := range runes {
 			if char == ' ' || char == '\t' {
 				continue
 			}
 
-			x := startX + charIdx
+			x := blockStartX + charIdx
 			y := startY + lineIdx
 
 			if x >= b.width || y >= b.height {
@@ -215,18 +265,33 @@ func (b *BeamsEffect) init() {
 			})
 		}
 	}
+}
 
-	// Create row groups
-	b.createRowGroups()
+// initBackgroundMode initializes full-screen background mode
+func (b *BeamsEffect) initBackgroundMode() {
+	// Create beam gradients
+	beamGradient := b.createGradient(b.beamGradientStops, b.beamGradientSteps)
+	fadeGradient := b.createFadeGradient(beamGradient[len(beamGradient)-1], 3)
 
-	// Create column groups
-	b.createColumnGroups()
-
-	// Shuffle groups for random activation
-	b.shuffleGroups()
-
-	// Create diagonal groups for final wipe
-	b.createDiagonalGroups()
+	// Fill terminal with dense distribution for glowing effect
+	// Every position for maximum density
+	for y := 0; y < b.height; y++ {
+		for x := 0; x < b.width; x++ {
+			b.chars = append(b.chars, BeamCharacter{
+				original:         ' ',
+				x:                x,
+				y:                y,
+				visible:          false,
+				currentSymbol:    ' ',
+				currentColor:     "",
+				sceneActive:      "",
+				sceneFrame:       0,
+				beamGradient:     beamGradient,
+				fadeGradient:     fadeGradient,
+				brightenGradient: nil, // No final brighten in background mode
+			})
+		}
+	}
 }
 
 // createRowGroups creates beam groups for each row
@@ -264,6 +329,7 @@ func (b *BeamsEffect) createRowGroups() {
 			beamGradientStops:  b.beamGradientStops,
 			beamGradientSteps:  b.beamGradientSteps,
 			beamGradientFrames: b.beamGradientFrames,
+			beamLength:         len(b.beamRowSymbols),
 		})
 	}
 }
@@ -303,6 +369,7 @@ func (b *BeamsEffect) createColumnGroups() {
 			beamGradientStops:  b.beamGradientStops,
 			beamGradientSteps:  b.beamGradientSteps,
 			beamGradientFrames: b.beamGradientFrames,
+			beamLength:         len(b.beamColumnSymbols),
 		})
 	}
 }
@@ -506,7 +573,28 @@ func (b *BeamsEffect) updateGroup(group *BeamGroup) bool {
 		}
 		char.sceneFrame = 0
 		char.visible = true
-		char.currentSymbol = group.symbols[b.rng.Intn(len(group.symbols))]
+
+		// Use symbol based on position in beam for gradient effect
+		// Most recent chars get thickest symbol, trailing chars get thinner
+		symbolIndex := 0 // Default to thickest
+		if len(group.symbols) > 0 {
+			symbolIndex = 0 // Head of beam is always thickest
+		}
+		char.currentSymbol = group.symbols[symbolIndex]
+
+		// Update trailing characters to use progressively thinner symbols
+		for j := 1; j < group.beamLength && group.currentCharIndex-j >= 0; j++ {
+			trailCharIdx := group.charIndices[group.currentCharIndex-j]
+			trailChar := &b.chars[trailCharIdx]
+
+			if trailChar.sceneActive == "beam_row" || trailChar.sceneActive == "beam_column" {
+				symbolIdx := j
+				if symbolIdx >= len(group.symbols) {
+					symbolIdx = len(group.symbols) - 1
+				}
+				trailChar.currentSymbol = group.symbols[symbolIdx]
+			}
+		}
 
 		group.currentCharIndex++
 	}
@@ -516,6 +604,13 @@ func (b *BeamsEffect) updateGroup(group *BeamGroup) bool {
 
 // updateFinalWipePhase handles the final diagonal wipe
 func (b *BeamsEffect) updateFinalWipePhase() {
+	// In background mode, skip final wipe and go straight to hold
+	if b.text == "" {
+		b.phase = "hold"
+		b.holdCounter = 0
+		return
+	}
+
 	// Activate diagonal groups at specified speed
 	for i := 0; i < b.finalWipeSpeed && b.currentDiag < len(b.diagonalGroups); i++ {
 		for _, charIdx := range b.diagonalGroups[b.currentDiag] {
@@ -556,8 +651,14 @@ func (b *BeamsEffect) updateFinalWipePhase() {
 func (b *BeamsEffect) updateHoldPhase() {
 	b.holdCounter++
 
+	// In background mode, loop immediately without hold
+	holdDuration := b.holdFrames
+	if b.text == "" {
+		holdDuration = 0
+	}
+
 	// After hold period, reset the animation
-	if b.holdCounter >= b.holdFrames {
+	if b.holdCounter >= holdDuration {
 		b.Reset()
 	}
 }
