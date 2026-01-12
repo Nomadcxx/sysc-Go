@@ -4,6 +4,73 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 
 ![Matrix Rain Showcase](assets/matrix.gif)
 
+## FLOYD Agent TUI
+
+FLOYD is a Bubble Tea-based terminal UI for interacting with GLM-4.7 (via GLM Coding Plan). It provides an async chat interface with streaming responses and vim-style input.
+
+### Installation
+
+```bash
+go install github.com/Nomadcxx/sysc-Go/cmd/agent-tui@latest
+```
+
+### Configuration
+
+FLOYD reads your API key from `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "your-api-key-here"
+  }
+}
+```
+
+Or set the `ANTHROPIC_AUTH_TOKEN` environment variable.
+
+### Usage
+
+```bash
+# Start the agent TUI
+agent-tui
+
+# With a specific theme
+agent-tui --theme catppuccin
+
+# With a specific API key
+agent-tui --api-key your-key-here
+```
+
+### Keybindings
+
+| Key | Action |
+|-----|--------|
+| `esc` | Switch to normal mode |
+| `i` | Switch to insert mode (from normal) |
+| `enter` | Send message |
+| `ctrl+j/k` | Navigate input history |
+| `ctrl+l` | Clear conversation |
+| `ctrl+r` | Refresh viewport |
+| `ctrl+s` | Toggle auto-scroll |
+| `ctrl+c` | Quit (or cancel current operation) |
+| `q` | Quit (from normal mode) |
+
+### Features
+
+- **Streaming responses** - Real-time token streaming from GLM-4.7
+- **Reasoning mode** - GLM-4.7 shows thought process before responding
+- **Vim-style input** - Normal/insert modes with vim keybindings
+- **Conversation history** - Persistent chat history with scrollback
+- **Auto-scroll** - Automatically follows new responses
+- **Multiple themes** - catppuccin, dracula, gruvbox, nord, tokyo-night, and more
+
+### Model
+
+FLOYD uses the GLM Coding Plan via the Anthropic-compatible API endpoint:
+- Endpoint: `https://api.z.ai/api/anthropic`
+- Model: `claude-opus-4` → maps to GLM-4.7
+- Format: Anthropic API with streaming support
+
 ## Effects
 
 ### Animations
