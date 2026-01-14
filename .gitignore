@@ -26,6 +26,8 @@ go.work
 
 # Development
 .beads/
+.archive/
+sysc_src/
 
 # OS
 .DS_Store
@@ -43,3 +45,6 @@ flf2bit
 DESIGN_*.md
 NOTES.md
 TODO.md
+
+# Node / JS
+node_modules/

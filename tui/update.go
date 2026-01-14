@@ -39,10 +39,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textarea.SetHeight(m.height - 10)
 		}
 		//  Resize animation if running
-		if m.animationRunning && m.currentAnim != nil {
-			// Recreate animation with new dimensions
+		if m.animationRunning {
+			// Recreate animation with new dimensions (or create first time)
 			m.currentAnim = m.createAnimation()
 		}
+		m = m.ensureFloydViewportSize()
 		return m, nil
 
 	case TickMsg:
@@ -81,6 +82,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tickCmd()
 		}
 		return m, nil
+
+	case floydStreamMsg:
+		m = m.handleFloydStream(msg)
+		if m.floydStream != nil && !msg.done {
+			return m, waitForFloydChunk(m.floydStream)
+		}
+		return m, nil
 	}
 
 	return m, nil
@@ -88,6 +96,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleKeyPress processes keyboard input
 func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle FLOYD console mode first
+	if m.floydMode {
+		return m.handleFloydKeyPress(msg)
+	}
+
 	// Handle BIT editor mode separately
 	if m.bitEditorMode {
 		return m.handleBitEditorKeyPress(msg)
@@ -119,6 +132,11 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "esc":
 		return m, tea.Quit
+
+	case "ctrl+k":
+		m = m.prepareFloydMode()
+		m.floydMode = true
+		return m, nil
 
 	case "ctrl+b":
 		// Launch BIT editor

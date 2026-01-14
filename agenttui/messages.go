@@ -71,3 +71,24 @@ type FocusChangeMsg struct {
 type AgentModeMsg struct {
 	Mode string // "chat", "tool", "config"
 }
+
+// SubAgentSpawnMsg indicates a sub-agent has been spawned
+type SubAgentSpawnMsg struct {
+	AgentID   string
+	AgentType string
+	Task      string
+}
+
+// SubAgentCompleteMsg indicates a sub-agent has completed
+type SubAgentCompleteMsg struct {
+	AgentID string
+	Output  string
+	Error   error
+}
+
+// SubAgentStatusMsg updates the status of a sub-agent
+type SubAgentStatusMsg struct {
+	AgentID string
+	Status  string
+	Info    string
+}

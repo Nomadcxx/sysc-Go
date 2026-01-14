@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "FloydChrome - Browser Automation for FLOYD",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzu6QNe2ZFRoP9Rf4DWDxF1jYAlO2L1F6xMAOit3kMT2KvcoezcTZJalSZjbYI01xORl/tpc3qrbv89sySx6VentyqEtXHzpkAVR+YcU3G3hKKeKHKpKtqieY/Xt+PsMVOa4sJWVaVlTBKQJoK1y9X2vWXHOiIA7uXySUNS3+RCwtlw/2ehcHamJb+uyzR6TIztcbI3f9ieYbzruQAB2VLUBUCj3QJod6n04GiGBYEERStuJYrsR04V1MOgRTY+gc5a2fBHEqZWlO+UNBsqO5ogRmmuM6QQSuqOQt4ODbEV5R8MQ0kp6Xv1JbrfpYTSXtcKi5BKyjsM1zcnPuM8/m7QIDAQAB",
+  "version": "1.0.0",
+  "description": "Connect FLOYD AI agent to your browser for automated testing and workflows",
+  "permissions": [
+    "nativeMessaging",
+    "debugger",
+    "scripting",
+    "tabs",
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
+  "externally_connectable": {
+    "ids": ["*"]
+  },
+  "action": {
+    "default_title": "FloydChrome - Open Side Panel"
+  }
+}

@@ -207,7 +207,9 @@ func GetParticlePalette(themeName string) []string {
 	case "eldritch":
 		return []string{"#37f499", "#04d1f9", "#a48cf2", "#f265b5"}
 	case "dark":
-		return []string{"#ffffff", "#cccccc", "#999999", "#666666"}
+		return []string{"#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"}
+	case "white-bricks":
+		return []string{"#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#FFFFFF"}
 	default:
 		return []string{"#ffffff", "#00ffff", "#ff00ff", "#ffff00"}
 	}
@@ -239,7 +241,9 @@ func GetRainPalette(themeName string) []string {
 	case "eldritch":
 		return []string{"#04d1f9", "#37f499", "#f7c67f", "#f265b5", "#a48cf2"}
 	case "dark":
-		return []string{"#ffffff", "#cccccc", "#999999", "#666666"}
+		return []string{"#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"}
+	case "white-bricks":
+		return []string{"#333333", "#555555", "#777777", "#999999", "#BBBBBB", "#DDDDDD", "#FFFFFF"}
 	default:
 		return []string{"#00ff00", "#00cc00", "#009900", "#006600"}
 	}

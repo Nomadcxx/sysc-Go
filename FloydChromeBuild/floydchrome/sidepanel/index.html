@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FloydChrome - Standalone Agent</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>FloydChrome</h1>
+      <div class="status" id="status">
+        <span class="status-indicator" id="statusIndicator"></span>
+        <span id="statusText">Initializing...</span>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-button active" data-tab="agent">Agent</button>
+      <button class="tab-button" data-tab="tools">Tools</button>
+      <button class="tab-button" data-tab="logs">Logs</button>
+    </div>
+
+    <div class="tab-content active" id="agentTab">
+      <div class="agent-panel">
+        <div class="input-area">
+          <textarea 
+            id="taskInput" 
+            placeholder="What would you like FLOYD to do in the browser?"
+            rows="4"
+          ></textarea>
+          <button id="executeButton" class="execute-button">Execute</button>
+        </div>
+        <div class="output-area" id="outputArea">
+          <p class="placeholder">Enter a task above to get started</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="toolsTab">
+      <div class="tools-list" id="toolsList">
+        <p>Loading tools...</p>
+      </div>
+    </div>
+
+    <div class="tab-content" id="logsTab">
+      <div class="logs-container" id="logsContainer">
+        <p>No logs yet</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

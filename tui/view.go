@@ -12,6 +12,11 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
+	// FLOYD agent console takes over entire view
+	if m.floydMode {
+		return m.renderFloydMode()
+	}
+
 	// Check if terminal is too small
 	if m.width < 100 || m.height < 30 {
 		warning := fmt.Sprintf(
@@ -28,6 +33,11 @@ func (m Model) View() string {
 	// If in BIT editor mode, render BIT editor view
 	if m.bitEditorMode {
 		return m.renderBitEditorView()
+	}
+
+	// If animation is running, show full screen animation
+	if m.animationRunning && m.currentAnim != nil {
+		return m.renderCanvas()
 	}
 
 	// If in editor mode, render editor view
@@ -63,39 +73,20 @@ func (m Model) View() string {
 
 // renderCanvas renders the animation preview viewport
 func (m Model) renderCanvas() string {
-	var content string
 	if m.animationRunning && m.currentAnim != nil {
-		// Render actual animation frame (raw content)
-		content = m.currentAnim.Render()
+		// Render actual animation frame (raw content) full screen
+		return m.currentAnim.Render()
 	} else {
 		// Show welcome/instructions
-		content = m.renderWelcome()
+		return m.renderWelcome()
 	}
-
-	// Calculate viewport dimensions - 80% of terminal height, full width minus padding
-	viewportHeight := int(float64(m.height) * 0.8)
-	viewportWidth := m.width - 10 // Leave some margin
-
-	// Wrap raw content in a styled box WITHOUT transforming the content itself
-	// Pattern from installer/sysc-greet: only border, NO padding/align on ASCII
-	// Set explicit dimensions for 80% height viewport
-	// NO Align() here - that distorts ASCII. Centering happens at outer container.
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#88C0D0")).
-		Width(viewportWidth).
-		Height(viewportHeight).
-		Render(content)
 }
 
 // renderWelcome renders the welcome screen
 func (m Model) renderWelcome() string {
 	// Render ASCII art as raw string to preserve exact spacing
 	// Pattern from sysc-greet: keep ASCII in raw backticks to prevent distortion
-	welcome := `▄▀▀▀▀ █   █ ▄▀▀▀▀ ▄▀▀▀▀       ▄▀▀▀▀ ▄▀▀▀▄    ▄▀    ▄▀
- ▀▀▀▄ ▀▀▀▀█  ▀▀▀▄ █     ▀▀▀▀▀ █ ▀▀█ █   █  ▄▀    ▄▀
-▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀   ▀▀▀▀        ▀▀▀   ▀▀▀  ▀     ▀
-             /// SEE YOU SPACE COWBOY//
+	welcome := floydHeaderCommand + `
 
 Terminal Animation Library - Interactive TUI
 

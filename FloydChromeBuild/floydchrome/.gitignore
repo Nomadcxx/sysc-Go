@@ -1,0 +1,25 @@
+# Chrome Extension
+*.crx
+*.pem
+.DS_Store
+
+# Native Messaging
+native-messaging/com.floyd.chrome.json
+native-messaging/floyd-chrome-host
+
+# Logs
+*.log
+
+# Node modules (if using build tools)
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

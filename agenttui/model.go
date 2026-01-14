@@ -2,6 +2,7 @@ package agenttui
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -49,6 +50,7 @@ type AgentModel struct {
 	// Agent integration
 	client      agent.GLMClient
 	processor   *agent.StreamProcessor
+	orchestrator *agent.Orchestrator
 
 	// Header
 	headerText string
@@ -65,10 +67,10 @@ func NewAgentModel() AgentModel {
 
 	history := NewHistoryStore(10000)
 
-	// Add initial system message
+	// Add initial system message with FLOYD persona
 	history.Append(Message{
 		Role:      RoleSystem,
-		Content:   "FLOYD Agent TUI initialized. Type your message to begin.",
+		Content:   "You are FLOYD, a professional coding assistant. You are concise, helpful, and accurate. You write working code, avoid word salad, and get straight to the point.",
 		Timestamp: time.Now(),
 	})
 
@@ -94,10 +96,11 @@ func NewAgentModel() AgentModel {
 		maxHistory:   10000,
 		headerText:   "FLOYD Agent Console",
 		headerSub:    "GLM Coding Plan (via Anthropic proxy)",
-		tickInterval: 16 * time.Millisecond, // ~60 FPS
+		tickInterval: 33 * time.Millisecond, // ~30 FPS (sufficient for TUI, reduces overhead)
 		lastTick:     time.Now(),
 		client:       client,
 		processor:    agent.NewStreamProcessor(client),
+		orchestrator: agent.NewOrchestrator(client),
 	}
 }
 
@@ -106,8 +109,9 @@ func (m AgentModel) Init() tea.Cmd {
 	// Focus input (doesn't return a command)
 	m.input.Focus()
 
+	// Don't waitForStream here - streamChan is nil until sendToAgent is called
+	// The TickMsg loop will keep the UI alive until user submits a message
 	return tea.Batch(
-		m.waitForStream(),
 		m.waitForTool(),
 		m.tick(),
 	)
@@ -129,11 +133,12 @@ func (m *AgentModel) waitForStream() tea.Cmd {
 		m.streamChanMu.Unlock()
 
 		if ch == nil {
-			// No active stream channel, just send a tick
-			return TickMsg(time.Now())
+			// No active stream channel - this shouldn't happen during streaming
+			// Return a special message that won't cause issues
+			return StreamChunkMsg{Done: false}
 		}
 
-		// Wait for data or timeout
+		// Wait for data with a longer timeout to avoid busy loops
 		select {
 		case <-m.ctx.Done():
 			return StreamChunkMsg{Done: true}
@@ -149,12 +154,18 @@ func (m *AgentModel) waitForStream() tea.Cmd {
 				return StreamChunkMsg{Done: true}
 			}
 			return msg
-		case <-time.After(50 * time.Millisecond):
-			// Timeout - return tick to keep UI alive
-			return TickMsg(time.Now())
+		case <-time.After(500 * time.Millisecond):
+			// Timeout - return self-retry command to continue waiting
+			// This avoids creating a tick loop
+			return waitForStreamRetryMsg{}
 		}
 	}
 }
+
+// waitForStreamRetryMsg is a special message that causes waitForStream to retry
+type waitForStreamRetryMsg struct{}
+
+func (waitForStreamRetryMsg) retry() {} // Marker method
 
 // waitForTool returns a command that waits for tool completion
 func (m AgentModel) waitForTool() tea.Cmd {
@@ -273,7 +284,7 @@ func (m *AgentModel) sendToAgent(content string) tea.Cmd {
 	m.streaming = true
 
 	// Build message history for API
-	messages := m.history.GetMessagesForAPI(false)
+	messages := m.history.GetMessagesForAPI(true)  // Include system prompts!
 
 	// Add the new user message
 	messages = append(messages, agent.Message{
@@ -283,8 +294,9 @@ func (m *AgentModel) sendToAgent(content string) tea.Cmd {
 
 	// Build request
 	req := agent.ChatRequest{
-		Messages:  messages,
-		MaxTokens: 4096,
+		Messages:    messages,
+		MaxTokens:   8192,
+		Temperature: 0.7,
 	}
 
 	// Create a NEW channel for this request to avoid concurrency issues
@@ -337,6 +349,7 @@ func (m *AgentModel) sendToAgent(content string) tea.Cmd {
 		}()
 
 		// Return first chunk immediately to trigger UI update
+		// After this is processed by handleStreamChunk, waitForStream() will be returned
 		return StreamChunkMsg{Token: "", Done: false}
 	}
 }
@@ -386,4 +399,61 @@ func (m *AgentModel) IsToolRunning() bool {
 // GetContext returns the model's context
 func (m *AgentModel) GetContext() context.Context {
 	return m.ctx
+}
+
+// SpawnSubAgent creates a new sub-agent with the given type and task
+func (m *AgentModel) SpawnSubAgent(agentType agent.AgentType, task string) tea.Cmd {
+	return func() tea.Msg {
+		// Build context from current history
+		contextData := map[string]any{
+			"history_size": m.history.Len(),
+			"streaming":    m.streaming,
+			"theme":        m.theme,
+		}
+
+		subAgent, err := m.orchestrator.Spawn(agentType, task, contextData)
+		if err != nil {
+			return StatusMsg{Message: "Failed to spawn sub-agent: " + err.Error(), Timeout: 3 * time.Second}
+		}
+
+		m.SetStatus(fmt.Sprintf("Spawned %s agent: %s", agentType, subAgent.ID), 2*time.Second)
+
+		return SubAgentSpawnMsg{
+			AgentID:   subAgent.ID,
+			AgentType: string(agentType),
+			Task:      task,
+		}
+	}
+}
+
+// CollectSubAgentResults retrieves results from a completed sub-agent
+func (m *AgentModel) CollectSubAgentResults(agentID string) tea.Cmd {
+	return func() tea.Msg {
+		agent, err := m.orchestrator.CollectResults(agentID)
+		if err != nil {
+			return SubAgentCompleteMsg{
+				AgentID: agentID,
+				Error:   err,
+			}
+		}
+
+		// Add the output as a system message to the viewport
+		m.viewport.AppendSystem(fmt.Sprintf("[Sub-Agent %s - %s]", agent.Type, agent.ID))
+		m.viewport.AppendSystem(agent.Output)
+
+		return SubAgentCompleteMsg{
+			AgentID: agentID,
+			Output:  agent.Output,
+		}
+	}
+}
+
+// ListSubAgents returns all active sub-agents
+func (m *AgentModel) ListSubAgents() []*agent.SubAgent {
+	return m.orchestrator.ListAgents()
+}
+
+// CleanupOldSubAgents removes agents older than the specified duration
+func (m *AgentModel) CleanupOldSubAgents(olderThan time.Duration) int {
+	return m.orchestrator.Cleanup(olderThan)
 }

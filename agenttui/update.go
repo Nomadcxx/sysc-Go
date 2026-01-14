@@ -1,6 +1,7 @@
 package agenttui
 
 import (
+	"fmt"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,6 +30,10 @@ func (m AgentModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StreamChunkMsg:
 		return m.handleStreamChunk(msg)
+
+	case waitForStreamRetryMsg:
+		// waitForStream timed out - retry waiting without creating a tick loop
+		return m, m.waitForStream()
 
 	case ToolStartMsg:
 		return m.handleToolStart(msg)
@@ -64,6 +69,15 @@ func (m AgentModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case AgentModeMsg:
 		return m.handleAgentModeChange(msg)
+
+	case SubAgentSpawnMsg:
+		return m.handleSubAgentSpawn(msg)
+
+	case SubAgentCompleteMsg:
+		return m.handleSubAgentComplete(msg)
+
+	case SubAgentStatusMsg:
+		return m.handleSubAgentStatus(msg)
 	}
 
 	// Default: pass through to components
@@ -73,9 +87,12 @@ func (m AgentModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.input, cmd = m.input.Update(msg)
 	cmds = append(cmds, cmd)
 
-	// Update viewport
-	m.viewport, cmd = m.viewport.Update(msg)
-	cmds = append(cmds, cmd)
+	// Update viewport ONLY when streaming or for specific messages
+	// This prevents rebuilding history on every keystroke
+	if m.streaming {
+		m.viewport, cmd = m.viewport.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 
 	return m, tea.Batch(cmds...)
 }
@@ -225,6 +242,49 @@ func (m AgentModel) handleFocusChange(msg FocusChangeMsg) (tea.Model, tea.Cmd) {
 func (m AgentModel) handleAgentModeChange(msg AgentModeMsg) (tea.Model, tea.Cmd) {
 	// For now, just log the mode change
 	m.SetStatus("Mode: "+msg.Mode, 2*time.Second)
+	return m, nil
+}
+
+// handleSubAgentSpawn handles sub-agent spawn events
+func (m AgentModel) handleSubAgentSpawn(msg SubAgentSpawnMsg) (tea.Model, tea.Cmd) {
+	// Add notification to viewport
+	m.viewport.AppendSystem(fmt.Sprintf("[Spawned %s agent: %s]", msg.AgentType, msg.AgentID))
+	m.viewport.AppendSystem(fmt.Sprintf("Task: %s", msg.Task))
+
+	// Start a goroutine to wait for completion and collect results
+	go func() {
+		result, err := m.orchestrator.WaitForCompletion(msg.AgentID, 5*time.Minute)
+		if err != nil {
+			// Send error message
+			// In a real implementation, we'd send this through a channel
+			return
+		}
+		// Add to viewport when complete
+		m.viewport.AppendSystem(fmt.Sprintf("[%s agent completed]", msg.AgentType))
+		m.viewport.AppendSystem(result.Output)
+	}()
+
+	return m, nil
+}
+
+// handleSubAgentComplete handles sub-agent completion events
+func (m AgentModel) handleSubAgentComplete(msg SubAgentCompleteMsg) (tea.Model, tea.Cmd) {
+	if msg.Error != nil {
+		m.viewport.AppendError(fmt.Sprintf("Sub-Agent %s failed: %v", msg.AgentID, msg.Error))
+		m.SetStatus("Sub-agent failed", 2*time.Second)
+	} else {
+		m.SetStatus("Sub-agent completed", 2*time.Second)
+	}
+	return m, nil
+}
+
+// handleSubAgentStatus handles sub-agent status updates
+func (m AgentModel) handleSubAgentStatus(msg SubAgentStatusMsg) (tea.Model, tea.Cmd) {
+	status := fmt.Sprintf("[%s] %s", msg.AgentID, msg.Status)
+	if msg.Info != "" {
+		status += ": " + msg.Info
+	}
+	m.SetStatus(status, 0)
 	return m, nil
 }
 

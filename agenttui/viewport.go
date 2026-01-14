@@ -2,6 +2,7 @@ package agenttui
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,20 +19,39 @@ type ViewportComponent struct {
 	autoScroll  bool
 	lineCount   int
 	lastToken   string
+
+	// Performance optimization: cache history content to avoid reformatting on every token
+	cachedHistoryContent string
+	cachedHistoryMu     sync.RWMutex
+	lastHistoryUpdate   time.Time
+	tokenCount          int  // Tokens since last viewport update
+	tickCount           int  // Ticks since last viewport update
 }
+
+// Viewport update throttling - only update viewport every N tokens or M milliseconds
+const (
+	tokensPerViewportUpdate = 5     // Update viewport every 5 tokens during streaming
+	msBetweenViewportUpdates = 100  // Or every 100ms max
+	maxHistoryLinesToShow   = 500   // Limit history to prevent slowdown
+)
 
 // NewViewportComponent creates a new viewport component
 func NewViewportComponent() ViewportComponent {
-	vp := viewport.New(0, 0)
-	vp.HighPerformanceRendering = true
+	// Create viewport with default non-zero dimensions
+	// IMPORTANT: HighPerformanceRendering is disabled because it causes View() to return
+	// only newlines instead of actual content. We need the full content for streaming display.
+	vp := viewport.New(80, 20)
+	vp.HighPerformanceRendering = false
 
 	return ViewportComponent{
-		Model:      vp,
-		history:    NewHistoryStore(10000),
-		builder:    &strings.Builder{},
-		streaming:  false,
-		autoScroll: true,
-		lineCount:  0,
+		Model:             vp,
+		history:           NewHistoryStore(10000),
+		builder:           &strings.Builder{},
+		streaming:         false,
+		autoScroll:        true,
+		lineCount:         0,
+		cachedHistoryContent: "",
+		lastHistoryUpdate:  time.Now(),
 	}
 }
 
@@ -67,6 +87,17 @@ func (v *ViewportComponent) StopStreaming() {
 		v.history.Append(msg)
 		v.builder = &strings.Builder{}
 	}
+
+	// Invalidate cache and force final viewport update
+	v.invalidateCache()
+	v.Model.SetContent(v.rebuildHistoryContent())
+
+	if v.autoScroll {
+		v.Model.GotoBottom()
+	}
+
+	// Reset token counter
+	v.tokenCount = 0
 }
 
 // AppendToken adds a token to the streaming content
@@ -77,11 +108,23 @@ func (v *ViewportComponent) AppendToken(token string) {
 
 	v.lastToken = token
 	v.builder.WriteString(token)
+	v.tokenCount++
 
-	// Update viewport content incrementally
-	v.Model.SetContent(v.getDisplayContent())
+	// Throttle viewport updates - only update every N tokens or after time threshold
+	shouldUpdate := v.tokenCount >= tokensPerViewportUpdate ||
+		time.Since(v.lastHistoryUpdate) > time.Duration(msBetweenViewportUpdates)*time.Millisecond
 
-	// Auto-scroll during streaming
+	if shouldUpdate {
+		v.updateViewport()
+	}
+}
+
+// updateViewport updates the viewport content (call directly when forcing an update)
+func (v *ViewportComponent) updateViewport() {
+	v.Model.SetContent(v.getDisplayContentOptimized())
+	v.tokenCount = 0
+	v.lastHistoryUpdate = time.Now()
+
 	if v.autoScroll {
 		v.Model.GotoBottom()
 	}
@@ -90,11 +133,21 @@ func (v *ViewportComponent) AppendToken(token string) {
 // AppendMessage adds a complete message to the viewport
 func (v *ViewportComponent) AppendMessage(msg Message) {
 	v.history.Append(msg)
-	v.Model.SetContent(v.getDisplayContent())
+	// Invalidate cache when new message is added
+	v.invalidateCache()
+	v.Model.SetContent(v.getDisplayContentOptimized())
 
 	if v.autoScroll {
 		v.Model.GotoBottom()
 	}
+}
+
+// invalidateCache clears the cached history content
+func (v *ViewportComponent) invalidateCache() {
+	v.cachedHistoryMu.Lock()
+	v.cachedHistoryContent = ""
+	v.lastHistoryUpdate = time.Now()
+	v.cachedHistoryMu.Unlock()
 }
 
 // AppendSystem adds a system message
@@ -117,28 +170,59 @@ func (v *ViewportComponent) AppendError(text string) {
 	v.AppendMessage(msg)
 }
 
-// getDisplayContent returns the current display content
+// getDisplayContent returns the current display content (deprecated - use getDisplayContentOptimized)
 func (v *ViewportComponent) getDisplayContent() string {
+	return v.getDisplayContentOptimized()
+}
+
+// getDisplayContentOptimized returns the display content with caching and history limiting
+func (v *ViewportComponent) getDisplayContentOptimized() string {
+	v.cachedHistoryMu.RLock()
+	cached := v.cachedHistoryContent
+	v.cachedHistoryMu.RUnlock()
+
+	// If we have cached history and we're streaming, just append the builder
+	if v.streaming && cached != "" && v.builder != nil && v.builder.Len() > 0 {
+		return cached + "│ " + v.builder.String() + "\n"
+	}
+
+	// Need to rebuild history content
+	return v.rebuildHistoryContent()
+}
+
+// rebuildHistoryContent rebuilds the history content from scratch and caches it
+func (v *ViewportComponent) rebuildHistoryContent() string {
 	var sb strings.Builder
 
-	// Add history messages
+	// Build history content, limiting to recent messages
+	lineCount := 0
 	for msg := range v.history.Iter() {
-		sb.WriteString(msg.Formatted())
+		formatted := msg.Formatted()
+		sb.WriteString(formatted)
 		sb.WriteString("\n")
+		lineCount += strings.Count(formatted, "\n") + 1
+
+		// Limit history to prevent slowdown
+		if lineCount >= maxHistoryLinesToShow {
+			sb.WriteString("│ ... (earlier messages truncated for performance)\n")
+			break
+		}
 	}
 
-	// Add streaming content if active
-	if v.streaming && v.builder != nil && v.builder.Len() > 0 {
-		sb.WriteString("│ ")
-		sb.WriteString(v.builder.String())
-	}
+	// Cache the result
+	result := sb.String()
 
-	return sb.String()
+	v.cachedHistoryMu.Lock()
+	v.cachedHistoryContent = result
+	v.cachedHistoryMu.Unlock()
+
+	return result
 }
 
 // RefreshContent rebuilds the viewport content from history
 func (v *ViewportComponent) RefreshContent() {
-	v.Model.SetContent(v.getDisplayContent())
+	v.invalidateCache()
+	v.Model.SetContent(v.getDisplayContentOptimized())
 }
 
 // AtBottom returns whether the viewport is at the bottom
