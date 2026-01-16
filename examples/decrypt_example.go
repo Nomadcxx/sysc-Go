@@ -1,3 +1,5 @@
+//go:build decrypt_example
+
 package main
 
 import (

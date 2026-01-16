@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"strings"
 	"time"
 
 	"github.com/Nomadcxx/sysc-Go/animations"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -72,6 +74,28 @@ type Model struct {
 	bitColorPicker    bool     // Color picker open
 	bitShowFontList   bool     // Font browser open
 
+	// FLOYD agent console
+	floydMode         bool
+	floydTools        []FloydTool
+	floydSelectedTool int
+	floydPromptActive bool
+	floydPromptLabel  string
+	floydPromptKind   FloydToolKind
+	floydInput        textinput.Model
+	floydContent      textarea.Model
+	floydAwaitContent bool
+	floydWritePath    string
+	floydStatus       string
+	floydDir          string
+	floydMasterPlan   string
+	floydStack        string
+	floydRecentLog    string
+	floydViewport     viewport.Model
+	floydPinned       bool
+	floydStreaming    bool
+	floydStream       chan floydStreamMsg
+	floydBuilder      strings.Builder
+
 	// Styles
 	styles Styles
 }
@@ -120,6 +144,23 @@ func NewModel() Model {
 	bitInput.Width = 40
 	bitInput.Focus()
 
+	// Initialize FLOYD console inputs
+	floydInput := textinput.New()
+	floydInput.Placeholder = "Enter command or path..."
+	floydInput.CharLimit = 2048
+	floydInput.Width = 60
+
+	floydContent := textarea.New()
+	floydContent.Placeholder = "Enter file content here. Press Ctrl+D when finished."
+	floydContent.CharLimit = 20000
+	floydContent.SetWidth(80)
+	floydContent.SetHeight(10)
+	floydContent.ShowLineNumbers = true
+
+	floydViewport := viewport.New(80, 12)
+	floydViewport.SetContent("(no output yet)")
+	floydViewport.HighPerformanceRendering = true
+
 	// Discover available .bit fonts
 	bitFonts := ListAvailableFonts()
 	if len(bitFonts) == 0 {
@@ -166,6 +207,8 @@ func NewModel() Model {
 			"eldritch",
 			"dark",
 			"default",
+			"white-bricks",
+			"warm-luxury",
 		},
 		files: files,
 		durations: []string{
@@ -175,12 +218,12 @@ func NewModel() Model {
 			"60s",
 			"infinite",
 		},
-		selectedAnimation: 0,
-		selectedTheme:     0,
-		selectedFile:      2, // Default to first .txt file after both editors
+		selectedAnimation: 3, // matrix-art
+		selectedTheme:     4, // catppuccin
+		selectedFile:      2, // FLOYD.txt (likely)
 		selectedDuration:  4, // infinite by default
 		focusedSelector:   0,
-		animationRunning:  false,
+		animationRunning:  true, // Start immediately!
 		currentAnim:       nil,
 		animFrames:        0,
 		editorMode:        false,
@@ -214,6 +257,21 @@ func NewModel() Model {
 		bitFocusedControl: 0,
 		bitColorPicker:    false,
 		bitShowFontList:   false,
+		floydMode:         false,
+		floydTools:        defaultFloydTools(),
+		floydSelectedTool: 0,
+		floydPromptActive: false,
+		floydPromptLabel:  "",
+		floydPromptKind:   ToolBash,
+		floydInput:        floydInput,
+		floydContent:      floydContent,
+		floydAwaitContent: false,
+		floydWritePath:    "",
+		floydStatus:       "Select a tool and press Enter to run it.",
+		floydViewport:     floydViewport,
+		floydPinned:       true,
+		floydStreaming:    false,
+		floydStream:       nil,
 		styles:            NewStyles(),
 	}
 }

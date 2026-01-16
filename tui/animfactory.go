@@ -36,9 +36,9 @@ func (m *Model) createAnimation() animations.Animation {
 	themeName := m.themes[m.selectedTheme]
 	fileName := m.files[m.selectedFile]
 
-	// Use full available width for viewport
-	width := m.width - 10 // Leave small margin for UI elements
-	height := m.canvasHeight
+	// Use full screen for animation
+	width := m.width
+	height := m.height
 
 	// Handle editor modes
 	if fileName == "BIT Text Editor" {

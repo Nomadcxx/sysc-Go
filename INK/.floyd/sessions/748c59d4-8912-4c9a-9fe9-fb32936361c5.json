@@ -1,0 +1,20 @@
+{
+  "id": "748c59d4-8912-4c9a-9fe9-fb32936361c5",
+  "created": 1768342399966,
+  "updated": 1768342488790,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful AI assistant."
+    },
+    {
+      "role": "user",
+      "content": "tool check"
+    },
+    {
+      "role": "user",
+      "content": "/help"
+    }
+  ],
+  "workingDirectory": "/Volumes/Storage/FLOYD_CLI/INK"
+}

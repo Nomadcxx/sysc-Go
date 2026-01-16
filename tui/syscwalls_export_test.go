@@ -130,9 +130,9 @@ func TestExportToSyscWalls_ConfigUpdate(t *testing.T) {
 		t.Error("Config missing [animation] section")
 	}
 
-	// Should set type to beam-text
-	if !strings.Contains(configStr, "type = beam-text") {
-		t.Error("Config should set beam-text as type")
+	// Should set effect to beam-text
+	if !strings.Contains(configStr, "effect = beam-text") {
+		t.Error("Config should set beam-text as effect")
 	}
 
 	// Check config file permissions

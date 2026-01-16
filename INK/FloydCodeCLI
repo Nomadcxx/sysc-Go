@@ -1,0 +1,87 @@
+Based on a detailed review of Claude Code's design, workflows, and the underlying Claude Agent SDK, I have constructed a comprehensive Product Requirements Document (PRD) for its architecture. This blueprint will guide your development of an agentic CLI using Ink.
+
+Executive Summary: The "Agent-First" Paradigm
+Claude Code is not a traditional chatbot in the terminal. It is an agentic coding tool built on the principle of giving an AI "a computer"—the same tools (terminal, file system, APIs) that a human developer uses. Its architecture is designed around a persistent, stateful loop where the agent can autonomously gather context, take action, and verify its work.
+
+🏗️ Core Architecture Blueprint
+The system is built on a modular, MCP (Model Context Protocol)-centric design that separates the intelligent agent from its executable tools. The agent's core loop is the engine of this design.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Key Architectural Components:
+
+The Agent Loop: The core operational pattern is Gather Context → Take Action → Verify Work → Repeat. The CLI must facilitate this loop, not just single-turn Q&A.
+
+MCP as the Glue: MCP is the standardized protocol for tool integration. Your CLI will be an MCP client that can connect to any MCP server (like the one you would build for Chrome). This makes tools discoverable, secure, and composable.
+
+Stateful Sessions: Conversations are stateful, with automatic context management (compaction) and the ability to resume, fork, or continue sessions (--resume, --continue flags). Session state is tied to the working directory.
+
+Safety by Default: A conservative, permission-based system governs all actions (file edits, commands). Users can customize an allowlist via settings or --allowedTools.
+
+🛠️ Critical Subsystems & Implementation Modules
+Your architecture must implement the following subsystems, informed by Claude Code's public specifications and best practices.
+
+Module	Purpose & Key Specs	Implementation Notes
+1. Ink TUI Renderer	Provides the interactive terminal UI. Must support streaming text, a message list, and input.	Use Ink's <Text>, <Box>, and useInput. Implement streaming for real-time response feel.
+2. Session Manager	Manages conversation state, context window, and persistence.	Key functions: createSession(directory), getSession(id), compactContext(session). Store sessions in ~/.your_cli/sessions/.
+3. MCP Client Engine	Core protocol handling. Discovers, lists, and calls tools from connected MCP servers.	Must handle the MCP JSON-RPC protocol over stdio or SSE. Start with the @modelcontextprotocol/sdk.
+4. Tool Orchestrator	Bridges the LLM's tool calls to the MCP client. Manages --tools allow/deny lists and permission prompts.	Parse LLM's tool-use requests, match to MCP tool, execute, return result to LLM. Integrate with Permission Manager.
+5. Permission Manager	Gatekeeper for all actions. Presents prompts, checks settings.json allowlists, honors --dangerously-skip-permissions.	Maintain a cached allowlist. The --allowedTools flag syntax is tool-specific (e.g., "Edit", "Bash(git commit:*)").
+6. Local Configuration	Loads project and user settings (CLAUDE.md, .claude/settings.json).	The CLAUDE.md file is a key context source loaded automatically. Settings control hooks, allowed tools, and prompts.
+⚙️ The Agent Loop in Practice
+Your CLI's logic should implement this loop, as described in Anthropic's engineering blog:
+
+Gather Context: The agent reads CLAUDE.md, explores files (using Read, Grep tools), and can spin up subagents (via --agents flag) for parallel research.
+
+Take Action: The agent uses tools (file Edit, Bash commands, custom MCP tools). Code generation is a primary action mode for precise tasks.
+
+Verify Work: The agent runs tests, linters, or uses visual feedback (e.g., via a Chrome MCP) to check its output. Hooks (in .claude/settings.json) can automate this (e.g., run prettier after edits).
+
+🧩 Integration with Your Chrome Extension
+Your existing Chrome extension project fits perfectly as an MCP Server. Your new Ink-based CLI will be the MCP Client.
+
+Connection: Launch the CLI with a flag like --mcp-config chrome.json, where the config points to your extension's Native Messaging host.
+
+Result: The agent in your CLI will have access to click, navigate, and read_page tools, enabling full browser automation loops.
+
+🚀 Recommended Technology Stack & Next Steps
+Here is a practical stack to begin implementation:
+
+Layer	Recommended Technology	Reference / Note
+UI Framework	Ink (React for CLIs)	The user's specified choice; used by Claude Code itself.
+Runtime	Node.js	Standard for CLI tools and MCP.
+MCP SDK	@modelcontextprotocol/sdk	Official SDK for building MCP clients and servers.
+Anthropic API	@anthropic-ai/sdk	For core LLM calls with streaming and tool-use support.
+Project Scaffold	create-ink-app --typescript	Quickstart for an Ink-based CLI.
+Next Steps for Your Development:
+
+Scaffold a new Ink project with create-ink-app.
+
+Build the core chat loop with streaming using the Anthropic SDK.
+
+Implement a basic MCP client that can list tools from a simple server.
+
+Integrate the two: route the LLM's tool calls to your MCP client module.
+
+Connect your Chrome extension as an MCP server for end-to-end testing.
+
+This architecture provides a robust, scalable foundation for an agentic CLI. By adopting the MCP standard, your tool will be instantly compatible with a growing ecosystem of servers and integrations.
+
+If you would like to drill down into the specifics of implementing the MCP client-server handshake or designing the permission manager, I can provide further detailed guidance.

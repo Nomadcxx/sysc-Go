@@ -1,0 +1,17 @@
+{
+  "name": "floydchrome",
+  "version": "1.0.0",
+  "description": "Browser automation extension for FLOYD AI coding agent",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "chrome-extension",
+    "browser-automation",
+    "ai-agent",
+    "mcp"
+  ],
+  "author": "FLOYD Project",
+  "license": "MIT"
+}
