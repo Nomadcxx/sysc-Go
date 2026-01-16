@@ -217,6 +217,7 @@ func TestSaveCurrentSession_VeryLargeHistory(t *testing.T) {
 
 	m := NewModelWithSession("test_session.json")
 	m.SessionPath = sessionPath
+	m.Messages = nil // Clear any existing messages
 
 	// Add 10,000 messages
 	for i := 0; i < 10000; i++ {
@@ -360,6 +361,7 @@ func TestSaveCurrentSession_WithToolMessages(t *testing.T) {
 
 	m := NewModelWithSession("test_session.json")
 	m.SessionPath = sessionPath
+	m.Messages = nil // Clear any existing messages
 
 	// Add various message types
 	m.AddUserMessage("Run tests")
@@ -410,8 +412,8 @@ func TestAtomicWrite_CrashSimulation(t *testing.T) {
 
 	// Create a new session with different content
 	newSession := Session{
-		Messages: []string{"USER: new message", "FLOYD: new response"},
-		History:  []string{"new message"},
+		Messages: []string{"USER: brand new important message for the session", "FLOYD: brand new detailed response"},
+		History:  []string{"brand new important message"},
 	}
 
 	// Write the new session
@@ -436,7 +438,7 @@ func TestAtomicWrite_CrashSimulation(t *testing.T) {
 
 	// Verify content changed
 	if len(newData) <= initialSize {
-		t.Error("File size did not increase after writing new content")
+		t.Errorf("File size did not increase after writing new content (was %d, now %d)", initialSize, len(newData))
 	}
 }
 

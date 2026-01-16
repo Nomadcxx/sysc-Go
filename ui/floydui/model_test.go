@@ -94,17 +94,20 @@ func TestKeyMsgCtrlCQuits(t *testing.T) {
 		Type: tea.KeyCtrlC,
 	}
 
-	newModel, cmd := m.Update(keyMsg)
+	newModel, _ := m.Update(keyMsg)
+	model := newModel.(Model)
 
+	// First Ctrl+C sets ModeExitSummary (two-step exit for safety)
+	if model.Mode != ModeExitSummary {
+		t.Errorf("Ctrl+C should set ModeExitSummary, got: %v", model.Mode)
+	}
+
+	// Second Ctrl+C should return tea.Quit
+	secondModel, cmd := model.Update(keyMsg)
 	if cmd == nil {
-		t.Error("Ctrl+C should return a quit command")
+		t.Error("Second Ctrl+C should return tea.Quit")
 	}
-
-	// Verify it's the quit command
-	// We can't directly test the command, but we can check if it's non-nil
-	if newModel.(Model).Input.Value() != m.Input.Value() {
-		t.Error("Input should not change on Ctrl+C")
-	}
+	_ = secondModel
 }
 
 // TestKeyMsgWithSpecialCharacters tests various special keys

@@ -66,7 +66,7 @@ func main() {
 	fmt.Println("════════════════════════════════════════════════════════════")
 	fmt.Println("  Type your message and press Enter.")
 	fmt.Println("  Ctrl+C to exit.")
-	fmt.Println("════════════════════════════════════════════════════════════\n")
+	fmt.Println("════════════════════════════════════════════════════════════")
 
 	reader := bufio.NewReader(os.Stdin)
 
@@ -156,8 +156,7 @@ func handleCommand(input string, pm *floyd.ProtocolManager) {
 		fmt.Println("✅ Cleared.")
 
 	case "help", "h", "?":
-		fmt.Println(`
-╔════════════════════════════════════════════════════════════╗
+		fmt.Println(`╔════════════════════════════════════════════════════════════╗
 ║                      FLOYD CLI - HELP                       ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -168,8 +167,7 @@ COMMANDS:
   /init            - Initialize .floyd/ workspace
   /tools           - List available tools
 
-Just type your message and press Enter to chat with FLOYD.
-`)
+Just type your message and press Enter to chat with FLOYD.`)
 
 	case "status":
 		status := pm.WorkspaceStatus()

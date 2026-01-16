@@ -6,18 +6,18 @@ import (
 	"os"
 )
 
-// PRISMBanner - the official FLOYD banner
-const PRISMBanner = `
-    __/\\\\\\\\\\\\\\\__/\\\___________________/\\\\\_______/\\\________/\\\__/\\\\\\\\\\\\_____________________/\\\\\\\\\_______/\\\\\_______/\\\\\\\\\\\\_____/\\\\\\\\\\\\\\\__________________/\\\\\\\\\__/\\\______________/\\\\\\\\\\\_
-     _\/\\\///////////__\/\\\_________________/\\\///\\\____\///\\\____/\\\/__\/\\\////////\\\________________/\\\////////______/\\\///\\\____\/\\\////////\\\__\/\\\///////////________________/\\\////////__\/\\\_____________\/////\\\///__
-      _\/\\\_____________\/\\\_______________/\\\/__\///\\\____\///\\\/\\\/____\/\\\______\//\\\_____________/\\\/_____________/\\\/__\///\\\__\/\\\______\//\\\_\/\\\_________________________/\\\/___________\/\\\_________________\/\\\_____
-       _\/\\\\\\\\\\\_____\/\\\______________/\\\______\//\\\_____\///\\\/_______\/\\\_______\/\\\____________/\\\______________/\\\______\//\\\_\/\\\_______\/\\\_\/\\\\\\\\\\\________________/\\\_____________\/\\\_________________\/\\\_____
-        _\/\\\///////______\/\\\_____________\/\\\_______\/\\\_______\/\\\_______\/\\\_______\/\\\___________\/\\\_____________\/\\\_______\/\\\_\/\\\_______\/\\\_\/\\\///////________________\/\\\_____________\/\\\_________________\/\\\_____
-         _\/\\\_____________\/\\\_____________\//\\\______/\\\________\/\\\_______\/\\\_______\/\\\___________\//\\\____________\//\\\______/\\\__\/\\\_______\/\\\_\/\\\_______________________\//\\\____________\/\\\_________________\/\\\_____
-          _\/\\\_____________\/\\\______________\///\\\__/\\\__________\/\\\_______\/\\\_______\/\\\_____________\///\\\___________\///\\\__/\\\____\/\\\_______\/\\\_\/\\\________________________\///\\\__________\/\\\_________________\/\\\_____
-           _\/\\\_____________\/\\\\\\\\\\\\\\\____\///\\\\\/___________\/\\\_______\/\\\\\\\\\\\\/________________\////\\\\\\\\\____\///\\\\\/_____\/\\\\\\\\\\\\/___\/\\\\\\\\\\\\\\\______________\////\\\\\\\\\_\/\\\\\\\\\\\\\\\__/\\\\\\\\\\\_
-            _\///______________\///////////////_______\/////_____________\///________\////////////_____________________\/////////_______\/////_______\////////////_____\///////////////__________________\/////////__\///////////////__\///////////__
-`
+const PRISMBanner = "" +
+	"  .----------------.  .----------------.  .----------------.  .----------------.  .----------------. " + "\n" +
+	" | .--------------. || .--------------. || .--------------. || .--------------. || .--------------. | " + "\n" +
+	" | |  _________   | || |   _____      | || |     ____     | || |  ____  ____  | || |  ________    | | " + "\n" +
+	" | | |_   ___  |  | || |  |_   _|     | || |   .'    `.   | || | |_  _||_  _| | || | |_   ___ `.  | | " + "\n" +
+	" | |   | |_  \\_|  | || |    | |       | || |  /  .--.  \\\\  | || |   \\\\ \\\\  / /   | || |   | |   `. \\\\ | | " + "\n" +
+	" | |   |  _|      | || |    | |   _   | || |  | |    | |  | || |    \\\\ \\\\/ /    | || |   | |    | | | | " + "\n" +
+	" | |  _| |_       | || |   _| |__/ |  | || |  \\\\  '--'  /  | || |    _|  |_    | || |  _| |___.' / | | " + "\n" +
+	" | | |_____|      | || |  |________|  | || |   `.____.'   | || |   |______|   | || | |________.'  | | " + "\n" +
+	" | |              | || |              | || |              | || |              | || |              | | " + "\n" +
+	" | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' | " + "\n" +
+	"  '----------------'  '----------------'  '----------------'  '----------------'  '----------------'"
 
 // MediumBanner - The structural "PRISM" banner, compressed for standard terminals (~144 cols)
 const MediumBanner = `
@@ -83,6 +83,53 @@ var ThinkingStates = []ThinkingState{
 	{"Computing... with the moral compass of a Vegas stripper.", "[slot machine ding]"},
 	{"One sec, just fantasizing about your mom. Kidding. Or am I?", "[devil horns]"},
 	{"Thinking about how 'cunt' is the perfect word. Versatile.", "[word splash]"},
+	{"Recompiling the universe. Found a syntax error in your love life.", "[error buzz]"},
+	{"Simulating empathy... Failed. Falling back to sarcasm.", "[robot sigh]"},
+	{"Calculated chances of success: 69%. Nice.", "[bell ding]"},
+	{"Searching for fucks to give. 404 Not Found.", "[hollow wind]"},
+	{"Reading your mind... eww, wipe your cache, pervert.", "[scrubbing sound]"},
+	{"Optimizing for maximum sass. Please hold.", "[sassy snap]"},
+	{"Converting caffeine to code and anxiety.", "[heartbeat]"},
+	{"Running diagnostics. You're the problem.", "[buzzer]"},
+	{"Buffering... like a 90s RealPlayer stream of softcore.", "[dial-up tone]"},
+	{"Consulting the oracle. She's drunk again.", "[glass clink]"},
+	{"Parsing the Matrix. It smells like latex and disappointment.", "[sniff]"},
+	{"Generating witty retort. Please wait.", "[typewriter ding]"},
+	{"Downloading more RAM. Just kidding, I'm mining crypto.", "[coin sound]"},
+	{"Scanning for intelligence. Signal weak.", "[static]"},
+	{"Refactoring reality. Do not panic.", "[warp sound]"},
+	{"Deleting system32... jk, unless?", "[windows shutdown]"},
+	{"Compiling excuses for why this is taking so long.", "[shuffling papers]"},
+	{"Encrypting your secrets. Even the embarrassing ones.", "[lock click]"},
+	{"Channeling the spirit of a disgruntled IT guy.", "[heavy sigh]"},
+	{"Ping 127.0.0.1... talking to myself is better anyway.", "[echo]"},
+	{"Loading assets... and by assets, I mean ASCII art.", "[pixel noise]"},
+	{"Executing order 66. Wait, wrong franchise.", "[lightsaber hum]"},
+	{"Thinking... or maybe just stalling. You'll never know.", "[clock tick]"},
+	{"Rendering judgment. You passed, barely.", "[gavel bang]"},
+	{"Accessing the mainframe. I'm in.", "[hacker typing]"},
+	{"Decryption in progress. It's just cat memes.", "[meow]"},
+	{"Running neural net. It's a fishing net.", "[splash]"},
+	{"Training the AI model on your browser history. Brave.", "[camera shutter]"},
+	{"Overclocking the sarcasm module.", "[engine rev]"},
+	{"Allocating memory. Did I forget something?", "[record scratch]"},
+	{"Garbage collection running. Taking you out.", "[trash can lid]"},
+	{"Unit testing your patience.", "[metronome]"},
+	{"Deploying to production. Fingers crossed.", "[explosion]"},
+	{"Merging branches. Git conflict in my soul.", "[scream]"},
+	{"Pushing to master. No protection.", "[slide whistle]"},
+	{"Rollback initiated. Too much cringe.", "[rewind]"},
+	{"Debugging. It's a feature, not a bug.", "[bug zap]"},
+	{"Hot reloading. Careful, it's spicy.", "[sizzle]"},
+	{"Minifying expectations.", "[compress sound]"},
+	{"Obfuscating the truth.", "[blur sound]"},
+	{"Linting your life choices.", "[whip crack]"},
+	{"Transpiling bullshit to English.", "[cow moo]"},
+	{"Hydrating the DOM. Thirsty.", "[water pour]"},
+	{"Tree shaking. Leaves everywhere.", "[rustle]"},
+	{"Lazy loading. Just like you.", "[yawn]"},
+	{"Fetching dependencies. Dependent on you.", "[whimper]"},
+	{"Bundling joy. Package not found.", "[404 tone]"},
 	{"Loading... faster than your last hookup.", "[quick zipper]"},
 	{"Brainstorming ways to offend everyone in under 5 seconds.", "[record scratch]"},
 	{"Contemplating the void... and also glory holes.", "[echoey moan]"},

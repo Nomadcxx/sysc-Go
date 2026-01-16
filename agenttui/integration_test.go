@@ -1,7 +1,10 @@
+//go:build integration
+
 package agenttui
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -10,11 +13,16 @@ import (
 
 // TestActualAPIStream tests the real API call
 func TestActualAPIStream(t *testing.T) {
+	// Skip if not running integration tests
+	if os.Getenv("RUN_INTEGRATION_TESTS") != "1" {
+		t.Skip("Skipping integration test - set RUN_INTEGRATION_TESTS=1 to run")
+	}
+
 	m := NewAgentModel()
 
 	// Check if client is configured
 	if m.client == nil {
-		t.Skip("No client configured")
+		t.Skip("No client configured - set ANTHROPIC_AUTH_TOKEN, GLM_API_KEY, or ZHIPU_API_KEY")
 	}
 
 	t.Log("Client initialized, testing API stream...")

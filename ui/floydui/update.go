@@ -50,8 +50,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Global Hotkeys (Priority 1)
 		switch msg.String() {
 		case "ctrl+c":
-			m.Quitting = true
-			return m, tea.Quit
+			if m.Mode == ModeExitSummary {
+				m.Quitting = true
+				_ = m.SaveCurrentSession()
+				return m, tea.Quit
+			}
+			m.Mode = ModeExitSummary
+			return m, nil
 		case "ctrl+p":
 			m.Mode = ModeCommand
 			// Reset to Commands
@@ -75,6 +80,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Palette.SetItems(items)
 			return m, nil
 		case "esc":
+			if m.Mode == ModeExitSummary {
+				m.Mode = ModeChat
+				return m, nil
+			}
 			if m.Mode != ModeChat {
 				m.Mode = ModeChat
 				// Reset palette filtering if needed
@@ -455,9 +464,16 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.StreamCancel != nil {
 			m.StreamCancel()
 		}
-		// Save session before quitting
-		_ = m.SaveCurrentSession()
-		return m, tea.Quit
+		
+		// If already in summary mode, really quit
+		if m.Mode == ModeExitSummary {
+			_ = m.SaveCurrentSession()
+			return m, tea.Quit
+		}
+
+		// Otherwise, show summary
+		m.Mode = ModeExitSummary
+		return m, nil
 
 	case tea.KeyCtrlH:
 		m.ShowHelp = !m.ShowHelp
@@ -512,8 +528,8 @@ func (m Model) handleCommand(input string) (tea.Model, tea.Cmd) {
 
 	switch cmdName {
 	case "exit", "quit", "q":
-		_ = m.SaveCurrentSession()
-		return m, tea.Quit
+		m.Mode = ModeExitSummary
+		return m, nil
 
 	case "clear", "cls":
 		m.ClearMessages()

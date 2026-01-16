@@ -70,6 +70,7 @@ func (a *adapter) Execute(ctx context.Context, args map[string]interface{}) (str
 
 	// Run the tool and collect streaming output
 	ch := make(chan floydtools.StreamMsg, 100)
+	doneCh := make(chan struct{})
 
 	// Start the tool in a goroutine
 	go a.tool.Run(input)(ch)

@@ -31,7 +31,6 @@ import (
 	"github.com/Nomadcxx/sysc-Go/agent/floyd"
 	agentloop "github.com/Nomadcxx/sysc-Go/agent/loop"
 	agenttools "github.com/Nomadcxx/sysc-Go/agent/tools"
-	"github.com/Nomadcxx/sysc-Go/agent/prompt"
 )
 
 const (
@@ -182,11 +181,9 @@ func runAgent(ctx context.Context, goal string, config CLIConfig) error {
 // processEvents handles streaming events from the agent
 func processEvents(ctx context.Context, eventChan <-chan agentloop.StreamingEvent, config CLIConfig) error {
 	var (
-		lastType     agentloop.EventType
 		tokenBuffer  strings.Builder
 		toolCount    int
 		resultCount  int
-		totalTokens  int
 	)
 
 	for {
@@ -221,9 +218,7 @@ func processEvents(ctx context.Context, eventChan <-chan agentloop.StreamingEven
 
 			case agentloop.EventTypeToolResult:
 				resultCount++
-				status := "success"
 				if event.IsError {
-					status = "error"
 					printEvent("TOOL_ERROR", fmt.Sprintf("%s: %s", event.ToolName, truncateString(event.ToolContent, 100)), nil)
 				} else if config.Verbose {
 					printEvent("TOOL_RESULT", fmt.Sprintf("%s: %s", event.ToolName, truncateString(event.ToolContent, 100)), nil)
@@ -231,7 +226,6 @@ func processEvents(ctx context.Context, eventChan <-chan agentloop.StreamingEven
 					// Just show success indicator
 					fmt.Printf("   ✓ %s completed\n", event.ToolName)
 				}
-				mapSet(event.Data, "status", status)
 
 			case agentloop.EventTypeIteration:
 				if event.Iteration > 0 {
@@ -268,8 +262,6 @@ func processEvents(ctx context.Context, eventChan <-chan agentloop.StreamingEven
 				}
 				return fmt.Errorf("agent error: %w", event.Error)
 			}
-
-			lastType = event.Type
 		}
 	}
 }
@@ -277,7 +269,7 @@ func processEvents(ctx context.Context, eventChan <-chan agentloop.StreamingEven
 // printHeader displays the CLI header
 func printHeader(goal string, config CLIConfig) {
 	fmt.Printf("\n%s╔════════════════════════════════════════════════════════════╗%s\n", colorCyan, colorReset)
-	fmt.Printf("%s║%s  FLOYD Agent Engine - CLI Test Harness v%s%s           %s║%s\n", colorCyan, colorReset, version, colorCyan, colorReset, colorCyan, colorReset)
+	fmt.Printf("%s║%s  FLOYD Agent Engine - CLI Test Harness v%s%s           %s║%s\n", colorCyan, colorReset, version, colorCyan, colorReset, colorReset)
 	fmt.Printf("%s╚════════════════════════════════════════════════════════════╝%s\n", colorCyan, colorReset)
 	fmt.Printf("\n%sGoal:%s %s\n", colorYellow, colorReset, truncateString(goal, 60))
 	fmt.Printf("%sModel:%s %s\n", colorGray, colorReset, config.Model)
@@ -329,7 +321,7 @@ func printEvent(eventType, message string, data map[string]interface{}) {
 // printSummary displays execution summary
 func printSummary(toolCount, resultCount int, stopReason string) {
 	fmt.Printf("\n%s╔════════════════════════════════════════════════════════════╗%s\n", colorGreen, colorReset)
-	fmt.Printf("%s║%s  Execution Summary%s                                           %s║%s\n", colorGreen, colorReset, colorGreen, colorReset, colorGreen, colorReset)
+	fmt.Printf("%s║%s  Execution Summary%s                                           %s║%s\n", colorGreen, colorReset, colorGreen, colorReset, colorReset)
 	fmt.Printf("%s╠════════════════════════════════════════════════════════════╣%s\n", colorGreen, colorReset)
 	fmt.Printf("%s║%s  Tools called:     %s%-3d%s                                      %s║%s\n", colorGreen, colorReset, colorYellow, toolCount, colorReset, colorGreen, colorReset)
 	fmt.Printf("%s║%s  Tools completed:  %s%-3d%s                                      %s║%s\n", colorGreen, colorReset, colorGreen, resultCount, colorReset, colorGreen, colorReset)

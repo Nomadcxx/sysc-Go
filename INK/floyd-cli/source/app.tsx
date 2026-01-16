@@ -7,6 +7,7 @@ import {MCPClientManager} from './mcp/client.js';
 import {SessionManager} from './agent/session.js';
 import {ConfigLoader} from './utils/config.js';
 import {PermissionManager} from './agent/permissions.js';
+import {floydTheme, floydRoles} from './theme.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -21,11 +22,38 @@ type AppProps = {
 	chrome?: boolean;
 };
 
+const floydBlocksLines = [
+	'████  ██   ███   ██   ██  █████',
+	'█     ██  █   █  ██   ██  █    ',
+	'████  ██  █████  ██   ██  ████ ',
+	'█     ██  █   █   ██ ██   █    ',
+	'████  ██  █   █    ███    █████',
+];
+
+const floydBlockColors = [
+	'17',
+	'18',
+	'19',
+	'20',
+	'21',
+];
+
+const floydGradientText = 'FLOYD';
+
+const floydGradientColors = [
+	'#FF60FF',
+	'#D457FF',
+	'#B85CFF',
+	'#9054FF',
+	'#6B50FF',
+];
+
 export default function App({name = 'User', chrome = false}: AppProps) {
 	const [input, setInput] = useState('');
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [isThinking, setIsThinking] = useState(false);
 	const [status, setStatus] = useState('Initializing...');
+	const [showHelp, setShowHelp] = useState(false);
 	const engineRef = useRef<AgentEngine | null>(null);
 	const {exit} = useApp();
 
@@ -118,46 +146,163 @@ export default function App({name = 'User', chrome = false}: AppProps) {
 		}
 	};
 
-	useInput((_input, key) => {
+	useInput((inputKey, key) => {
 		if (key.escape) {
-			exit();
+			if (showHelp) {
+				setShowHelp(false);
+			} else {
+				exit();
+			}
+		}
+
+		if (inputKey === '?') {
+			setShowHelp(value => !value);
 		}
 	});
 
+	if (showHelp) {
+		return (
+			<Box
+				flexDirection="column"
+				padding={1}
+				width="100%"
+				height="100%"
+				borderStyle="round"
+				borderColor={floydTheme.colors.borderFocus}
+			>
+				<Text bold color={floydRoles.headerTitle}>
+					FLOYD Help
+				</Text>
+				<Box marginTop={1} flexDirection="column">
+					<Text color={floydTheme.colors.fgBase}>
+						?: toggle this help view
+					</Text>
+					<Text color={floydTheme.colors.fgBase}>
+						Enter: send message
+					</Text>
+					<Text color={floydTheme.colors.fgBase}>
+						Esc: close help or exit
+					</Text>
+				</Box>
+				<Box marginTop={1}>
+					<Text color={floydRoles.hint} dimColor>
+						Floyd uses a CharmTone-inspired theme with floating frames and blocks.
+					</Text>
+				</Box>
+			</Box>
+		);
+	}
+
 	return (
 		<Box flexDirection="column" padding={1} width="100%" height="100%">
-			<Box borderStyle="round" borderColor="cyan" paddingX={1} marginBottom={1}>
-				<Text bold color="cyan">
-					FLOYD CLI
-				</Text>
-				<Text> | {status}</Text>
+			<Box flexDirection="column" marginBottom={1}>
+				{floydBlocksLines.map((line, rowIndex) => (
+					<Box key={rowIndex}>
+						{Array.from(line).map((ch, colIndex) => {
+							const colorIndex =
+								colIndex < 5
+									? floydBlockColors[0]
+									: colIndex < 11
+										? floydBlockColors[1]
+										: colIndex < 17
+											? floydBlockColors[2]
+											: colIndex < 23
+												? floydBlockColors[3]
+												: floydBlockColors[4];
+
+							const prefix = `\u001B[48;5;${colorIndex}m`;
+							const suffix = '\u001B[0m';
+
+							return (
+								<Text key={colIndex}>
+									{ch === ' ' ? ' ' : `${prefix} ${suffix}`}
+								</Text>
+							);
+						})}
+					</Box>
+				))}
+			</Box>
+			<Box
+				borderStyle="round"
+				borderColor={floydTheme.colors.borderFocus}
+				paddingX={1}
+				marginBottom={1}
+			>
+				<Box width="100%" justifyContent="space-between">
+					<Box>
+						{Array.from(floydGradientText).map((ch, index) => (
+							<Text
+								key={index}
+								bold
+								color={floydGradientColors[index] ?? floydRoles.headerTitle}
+							>
+								{ch}
+							</Text>
+						))}
+						<Text color={floydRoles.headerStatus}> CLI</Text>
+					</Box>
+					<Text color={floydRoles.headerStatus}>
+						{process.cwd()} • {status}
+					</Text>
+				</Box>
 			</Box>
 
 			<Box flexDirection="column" flexGrow={1} overflowY="hidden">
 				{messages.map((msg, index) => (
-					<Box key={index} flexDirection="column" marginBottom={1}>
-						<Text bold color={msg.role === 'user' ? 'green' : 'blue'}>
-							{msg.role === 'user' ? name : 'Floyd'}:
-						</Text>
-						<Text>
-							{typeof msg.content === 'string'
-								? msg.content
-								: JSON.stringify(msg.content)}
-						</Text>
+					<Box
+						key={index}
+						flexDirection="column"
+						marginBottom={1}
+						borderStyle="single"
+						borderColor={
+							msg.role === 'assistant'
+								? floydTheme.colors.border
+								: floydTheme.colors.borderFocus
+						}
+						paddingX={1}
+						paddingY={0}
+					>
+						<Box>
+							<Text
+								bold
+								color={
+									msg.role === 'user'
+										? floydRoles.userLabel
+										: msg.role === 'assistant'
+											? floydRoles.assistantLabel
+											: msg.role === 'system'
+												? floydRoles.systemLabel
+												: floydRoles.toolLabel
+								}
+							>
+								{msg.role === 'user' ? name : 'Floyd'}:
+							</Text>
+						</Box>
+						<Box marginTop={0}>
+							<Text color={floydTheme.colors.fgBase}>
+								{typeof msg.content === 'string'
+									? msg.content
+									: JSON.stringify(msg.content)}
+							</Text>
+						</Box>
 					</Box>
 				))}
 			</Box>
 
 			{isThinking && (
 				<Box marginBottom={1}>
-					<Text color="yellow">
+					<Text color={floydRoles.thinking}>
 						<Spinner type="dots" /> Thinking...
 					</Text>
 				</Box>
 			)}
 
-			<Box borderStyle="single" borderColor="gray" paddingX={1}>
-				<Text color="green">❯ </Text>
+			<Box
+				borderStyle="single"
+				borderColor={floydTheme.colors.border}
+				paddingX={1}
+			>
+				<Text color={floydRoles.inputPrompt}>❯ </Text>
 				<TextInput
 					value={input}
 					onChange={setInput}
@@ -167,7 +312,7 @@ export default function App({name = 'User', chrome = false}: AppProps) {
 			</Box>
 
 			<Box marginTop={1}>
-				<Text color="gray" dimColor>
+				<Text color={floydRoles.hint} dimColor>
 					Press Esc to exit
 				</Text>
 			</Box>

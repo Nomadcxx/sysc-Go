@@ -1,3 +1,5 @@
+//go:build bubbletea_fire
+
 package main
 
 import (

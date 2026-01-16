@@ -73,8 +73,9 @@ func TestInvalidTheme(t *testing.T) {
 	}
 
 	// Also check if theme changed (it shouldn't)
-	if m.CurrentTheme.Name != "Legacy Silver" {
-		t.Errorf("Theme should remain Legacy Silver, got: %q", m.CurrentTheme.Name)
+	// Note: DefaultTheme is "Showcase Slate" (midnight theme)
+	if m.CurrentTheme.Name != "Showcase Slate" {
+		t.Errorf("Theme should remain Showcase Slate, got: %q", m.CurrentTheme.Name)
 	}
 
 	if !errorFound && m.Input.Value() == "" {
@@ -307,22 +308,13 @@ func TestExitCommandVariations(t *testing.T) {
 			m.Input.SetValue(tt.command)
 
 			enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
-			newModel, cmd := m.Update(enterMsg)
+			newModel, _ := m.Update(enterMsg)
+			model := newModel.(Model)
 
-			if cmd == nil {
-				t.Errorf("%s: Should return quit command", tt.name)
+			// Exit commands should set ModeExitSummary (two-step exit for safety)
+			if model.Mode != ModeExitSummary {
+				t.Errorf("%s: Should set ModeExitSummary, got: %v", tt.name, model.Mode)
 			}
-
-			// Verify it's the tea.Quit command
-			// We can check if the model would quit by examining the command
-			if cmd != nil {
-				// Execute the command to check return value
-				msg := cmd()
-				if msg != tea.Quit() {
-					t.Errorf("%s: Expected tea.Quit message", tt.name)
-				}
-			}
-			_ = newModel
 		})
 	}
 }
@@ -380,9 +372,9 @@ func TestThemeWithSpecialCharacters(t *testing.T) {
 	m = newModel.(Model)
 
 	// Should not crash, should handle gracefully
-	// Theme should remain unchanged
-	if m.CurrentTheme.Name != "Legacy Silver" {
-		t.Errorf("Theme should remain Legacy Silver after invalid input, got: %q", m.CurrentTheme.Name)
+	// Theme should remain unchanged (default is Showcase Slate)
+	if m.CurrentTheme.Name != "Showcase Slate" {
+		t.Errorf("Theme should remain Showcase Slate after invalid input, got: %q", m.CurrentTheme.Name)
 	}
 
 }

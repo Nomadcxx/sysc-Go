@@ -24,6 +24,7 @@ type StyleSet struct {
 	ToolResult       lipgloss.Style
 	ToolResultError  lipgloss.Style
 	Progress         lipgloss.Style
+	AuditBox         lipgloss.Style
 }
 
 // GenerateStyles creates all styles based on the given theme
@@ -99,15 +100,23 @@ func GenerateStyles(t Theme) StyleSet {
 			MarginTop(1),
 
 		ToolResult: lipgloss.NewStyle().
-			Foreground(t.Green),
+			Foreground(t.Subtle).
+			MarginLeft(2),
 
 		ToolResultError: lipgloss.NewStyle().
 			Foreground(t.Error).
-			Bold(true),
+			MarginLeft(2),
 
 		Progress: lipgloss.NewStyle().
-			Foreground(t.Accent).
-			Width(40),
+			Foreground(t.Muted).
+			Italic(true),
+
+		AuditBox: lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(t.Accent).
+			Padding(1, 3).
+			Align(lipgloss.Center).
+			Width(60),
 	}
 }
 

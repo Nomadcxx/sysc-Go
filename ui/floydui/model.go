@@ -63,6 +63,7 @@ const (
 	ModeChat AppMode = iota
 	ModeCommand
 	ModeModelSelect
+	ModeExitSummary
 )
 
 // Model is the shared FLOYD UI model
