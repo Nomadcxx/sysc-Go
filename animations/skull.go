@@ -4,6 +4,8 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // skullArt is the ASCII skull template
@@ -367,10 +369,88 @@ func (s *SkullAnimation) updateAsh() {
 
 // Render returns the current frame as a string
 func (s *SkullAnimation) Render() string {
-	// TODO: Render ash background
-	// TODO: Render skull with current colors
-	// TODO: Render text if in TextEntrance or Hold phase
-	return ""
+	// Create buffer
+	buffer := make([][]rune, s.height)
+	colors := make([][]string, s.height)
+	for i := range buffer {
+		buffer[i] = make([]rune, s.width)
+		colors[i] = make([]string, s.width)
+		for j := range buffer[i] {
+			buffer[i][j] = ' '
+			colors[i][j] = ""
+		}
+	}
+
+	// Render ash particles (background layer)
+	ashColor1 := s.palette[5] // ash1_dark
+	ashColor2 := s.palette[6] // ash2_darker
+
+	for _, p := range s.ashParticles {
+		x := int(p.x)
+		y := int(p.y)
+		if x >= 0 && x < s.width && y >= 0 && y < s.height {
+			buffer[y][x] = p.char
+			if p.layer == 0 {
+				colors[y][x] = ashColor1
+			} else {
+				colors[y][x] = ashColor2
+			}
+		}
+	}
+
+	// Render skull (middle layer)
+	for _, char := range s.skullChars {
+		x := int(char.currentX)
+		y := int(char.currentY)
+		if x >= 0 && x < s.width && y >= 0 && y < s.height {
+			buffer[y][x] = char.char
+
+			// Color based on phase and accent type
+			color := s.getSkullCharColor(char)
+			colors[y][x] = color
+		}
+	}
+
+	// TODO: Render text (foreground layer)
+
+	// Build output with lipgloss styling
+	var sb strings.Builder
+	for y := 0; y < s.height; y++ {
+		for x := 0; x < s.width; x++ {
+			char := string(buffer[y][x])
+			color := colors[y][x]
+
+			if color != "" {
+				style := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
+				sb.WriteString(style.Render(char))
+			} else {
+				sb.WriteString(char)
+			}
+		}
+		if y < s.height-1 {
+			sb.WriteString("\n")
+		}
+	}
+
+	return sb.String()
+}
+
+// getSkullCharColor returns the color for a skull character based on phase
+func (s *SkullAnimation) getSkullCharColor(char SkullChar) string {
+	switch s.phase {
+	case PhaseDrip:
+		// Muted base color during drip
+		return s.palette[0]
+
+	case PhaseIllumination, PhaseTextEntrance, PhaseHold:
+		// Check if character is in illuminated accent region
+		// TODO: Implement accent region checking
+		// For now, return base color
+		return s.palette[0]
+
+	default:
+		return s.palette[0]
+	}
 }
 
 // Reset restarts the animation
