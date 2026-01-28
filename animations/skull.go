@@ -1,6 +1,7 @@
 package animations
 
 import (
+	"math"
 	"math/rand"
 	"strings"
 )
@@ -132,7 +133,13 @@ func newSkullAnimation(width, height int, palette []string, theme string, withTe
 	// Initialize skull art
 	s.skullArt = skullArt
 	s.parseSkullArt()
-	// TODO: Initialize ash particles
+
+	// Initialize ash particles (start with ~50 particles)
+	s.ashParticles = []AshParticle{}
+	for i := 0; i < 50; i++ {
+		s.spawnAshParticle()
+	}
+
 	// TODO: Initialize text characters if withText
 
 	return s
@@ -183,6 +190,54 @@ func (s *SkullAnimation) parseSkullArt() {
 			}
 		}
 	}
+}
+
+// spawnAshParticle creates a new ash particle at the top
+func (s *SkullAnimation) spawnAshParticle() {
+	// Density breathing effect (10% variation)
+	densityMod := 0.9 + 0.1*math.Sin(float64(s.frameCount)/100.0)
+
+	// Skip spawn randomly based on density
+	if rand.Float64() > densityMod {
+		return
+	}
+
+	// Random layer: 70% light, 30% dense
+	layer := 0
+	if rand.Float64() < 0.3 {
+		layer = 1
+	}
+
+	var char rune
+	var velocityY, opacity float64
+
+	if layer == 0 {
+		// Light ash
+		chars := []rune{'.', ',', '\'', '·'}
+		char = chars[rand.Intn(len(chars))]
+		velocityY = 0.5 + rand.Float64()   // 0.5-1.5
+		opacity = 0.4 + rand.Float64()*0.3 // 0.4-0.7
+	} else {
+		// Dense ash
+		chars := []rune{'▒', '░', '·', '*'}
+		char = chars[rand.Intn(len(chars))]
+		velocityY = 0.3 + rand.Float64()*0.5 // 0.3-0.8
+		opacity = 0.6 + rand.Float64()*0.3   // 0.6-0.9
+	}
+
+	particle := AshParticle{
+		x:         float64(rand.Intn(s.width)),
+		y:         0,
+		char:      char,
+		velocityY: velocityY,
+		driftPhase: rand.Float64() * 2 * math.Pi, // Random starting phase
+		driftAmp:   0.1 + rand.Float64()*0.4,     // 0.1-0.5 for variety
+		driftFreq:  0.05 + rand.Float64()*0.05,   // 0.05-0.1
+		layer:      layer,
+		opacity:    opacity,
+	}
+
+	s.ashParticles = append(s.ashParticles, particle)
 }
 
 // Update advances the animation by one frame
