@@ -186,12 +186,49 @@ func (s *SkullAnimation) parseSkullArt() {
 					currentY:   startY,
 					velocity:   0.3 + rand.Float64()*0.5, // 0.3-0.8
 					locked:     false,
-					accentType: 0, // TODO: Set based on position
+					accentType: s.identifyAccentType(finalX, finalY),
 				}
 				s.skullChars = append(s.skullChars, char)
 			}
 		}
 	}
+}
+
+// identifyAccentType determines if a character is in an accent region
+// Returns: 0=none, 1=top, 2=eyes, 3=cheeks, 4=teeth
+func (s *SkullAnimation) identifyAccentType(finalX, finalY int) int {
+	// Calculate relative position within skull
+	relY := finalY - s.skullOffsetY
+
+	// Top details: upper portion (crown/forehead)
+	if relY >= 0 && relY <= 8 {
+		return 1
+	}
+
+	// Eyes: middle-upper region, specific columns (approximate based on skull art)
+	if relY >= 9 && relY <= 12 {
+		// Estimate eye positions based on ~50 char skull width
+		// Left eye around cols 8-15, right eye around cols 36-43
+		relX := finalX - ((s.width - 50) / 2)
+		if (relX >= 8 && relX <= 18) || (relX >= 32 && relX <= 42) {
+			return 2
+		}
+	}
+
+	// Cheekbones: middle region, outer columns
+	if relY >= 13 && relY <= 18 {
+		relX := finalX - ((s.width - 50) / 2)
+		if (relX >= 5 && relX <= 12) || (relX >= 38 && relX <= 45) {
+			return 3
+		}
+	}
+
+	// Teeth: lower region (bottom jaw)
+	if relY >= 19 && relY <= 25 {
+		return 4
+	}
+
+	return 0 // No accent
 }
 
 // spawnAshParticle creates a new ash particle at the top
