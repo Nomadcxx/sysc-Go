@@ -112,7 +112,8 @@ func newBurnAnimation(width, height int, palette []string, theme string, withTex
 	// Initialize characters
 	b.initializeCharacters()
 
-	// TODO: Generate spanning tree
+	// Generate spanning tree
+	b.generateSpanningTree()
 
 	return b
 }
@@ -273,6 +274,113 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// extractMin finds and removes edge with minimum weight from slice
+func extractMin(queue []Edge) (Edge, []Edge) {
+	if len(queue) == 0 {
+		return Edge{}, queue
+	}
+
+	minIdx := 0
+	minWeight := queue[0].weight
+
+	for i, edge := range queue {
+		if edge.weight < minWeight {
+			minWeight = edge.weight
+			minIdx = i
+		}
+	}
+
+	minEdge := queue[minIdx]
+	// Remove from queue
+	queue = append(queue[:minIdx], queue[minIdx+1:]...)
+
+	return minEdge, queue
+}
+
+// generateSpanningTree builds spanning tree using Prim's algorithm
+func (b *BurnAnimation) generateSpanningTree() {
+	if len(b.chars) == 0 {
+		return
+	}
+
+	// Select center-biased origin
+	origin := b.selectCenterBiasedOrigin()
+
+	// Prim's MST
+	visited := make(map[int]bool)
+	edges := []TreeEdge{}
+	priorityQueue := []Edge{{from: origin, to: origin, weight: 0}}
+
+	for len(priorityQueue) > 0 && len(visited) < len(b.chars) {
+		var edge Edge
+		edge, priorityQueue = extractMin(priorityQueue)
+
+		if visited[edge.to] {
+			continue
+		}
+
+		visited[edge.to] = true
+		edges = append(edges, TreeEdge{from: edge.from, to: edge.to})
+
+		// Add neighbors with random weights
+		neighbors := b.getNeighbors(edge.to)
+		for _, neighbor := range neighbors {
+			if !visited[neighbor] {
+				weight := rand.Float64() // Random for varied spread
+				priorityQueue = append(priorityQueue, Edge{
+					from:   edge.to,
+					to:     neighbor,
+					weight: weight,
+				})
+			}
+		}
+	}
+
+	b.spanningTree = edges
+	b.extractBurnOrder()
+}
+
+// extractBurnOrder performs BFS on spanning tree to get ignition sequence
+func (b *BurnAnimation) extractBurnOrder() {
+	if len(b.spanningTree) == 0 {
+		return
+	}
+
+	// Build adjacency list from spanning tree
+	adj := make(map[int][]int)
+	for _, edge := range b.spanningTree {
+		adj[edge.from] = append(adj[edge.from], edge.to)
+		adj[edge.to] = append(adj[edge.to], edge.from)
+	}
+
+	// BFS from origin (first edge's 'from')
+	origin := b.spanningTree[0].from
+	visited := make(map[int]bool)
+	queue := []int{origin}
+	order := []int{}
+
+	for len(queue) > 0 {
+		node := queue[0]
+		queue = queue[1:]
+
+		if visited[node] {
+			continue
+		}
+
+		visited[node] = true
+		order = append(order, node)
+
+		// Add neighbors
+		for _, neighbor := range adj[node] {
+			if !visited[neighbor] {
+				queue = append(queue, neighbor)
+			}
+		}
+	}
+
+	b.burnOrder = order
 }
 
 // Update advances the animation by one frame
