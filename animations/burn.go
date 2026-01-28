@@ -1,6 +1,7 @@
 package animations
 
 import (
+	"math/rand"
 	"strings"
 )
 
@@ -108,7 +109,9 @@ func newBurnAnimation(width, height int, palette []string, theme string, withTex
 	b.flameSequence = []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}      // 8 stages
 	b.smokeSymbols = b.getSmokeSymbols()
 
-	// TODO: Initialize characters
+	// Initialize characters
+	b.initializeCharacters()
+
 	// TODO: Generate spanning tree
 
 	return b
@@ -127,6 +130,81 @@ func (b *BurnAnimation) getSmokeSymbols() []rune {
 		return []rune{'░', '·', '.'}
 	default:
 		return []rune{'·', '.', '░'}
+	}
+}
+
+// initializeCharacters creates the character array
+func (b *BurnAnimation) initializeCharacters() {
+	b.chars = []BurnChar{}
+
+	if b.withText {
+		b.initializeTextChars()
+	} else {
+		b.initializeRandomChars()
+	}
+}
+
+// initializeTextChars parses and positions user text
+func (b *BurnAnimation) initializeTextChars() {
+	if b.textContent == "" {
+		return
+	}
+
+	lines := strings.Split(b.textContent, "\n")
+	maxWidth := 0
+	for _, line := range lines {
+		if len(line) > maxWidth {
+			maxWidth = len(line)
+		}
+	}
+
+	// Center text
+	textHeight := len(lines)
+	offsetY := (b.height - textHeight) / 2
+	offsetX := (b.width - maxWidth) / 2
+
+	for y, line := range lines {
+		for x, ch := range line {
+			if ch != ' ' && ch != '\n' && ch != '\r' {
+				b.chars = append(b.chars, BurnChar{
+					char:          ch,
+					x:             offsetX + x,
+					y:             offsetY + y,
+					ignitionFrame: -1, // Not yet ignited
+					burnStage:     0,
+					colorIndex:    0,
+					stageFrame:    0,
+					colorFrame:    0,
+					active:        false,
+				})
+			}
+		}
+	}
+}
+
+// initializeRandomChars fills canvas with random ASCII
+func (b *BurnAnimation) initializeRandomChars() {
+	// Printable ASCII characters
+	chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-=_+[]{}|;:,.<>?/"
+
+	for y := 0; y < b.height; y++ {
+		for x := 0; x < b.width; x++ {
+			// ~30% fill density for background effect
+			if rand.Float64() < 0.3 {
+				ch := rune(chars[rand.Intn(len(chars))])
+				b.chars = append(b.chars, BurnChar{
+					char:          ch,
+					x:             x,
+					y:             y,
+					ignitionFrame: -1,
+					burnStage:     0,
+					colorIndex:    0,
+					stageFrame:    0,
+					colorFrame:    0,
+					active:        false,
+				})
+			}
+		}
 	}
 }
 

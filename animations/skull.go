@@ -244,8 +244,125 @@ func (s *SkullAnimation) spawnAshParticle() {
 func (s *SkullAnimation) Update() {
 	s.frameCount++
 
-	// TODO: Update based on phase
-	// TODO: Update ash particles continuously
+	// Update ash continuously (all phases)
+	s.updateAsh()
+
+	// Phase-specific updates
+	switch s.phase {
+	case PhaseDrip:
+		s.updateDrip()
+	case PhaseIllumination:
+		s.updateIllumination()
+	case PhaseTextEntrance:
+		if s.withText {
+			s.updateTextEntrance()
+		}
+	case PhaseHold:
+		s.updateHold()
+	}
+}
+
+// updateDrip handles Phase 1: skull characters dripping into place
+func (s *SkullAnimation) updateDrip() {
+	allLocked := true
+
+	for i := range s.skullChars {
+		char := &s.skullChars[i]
+
+		if !char.locked {
+			// Apply gravity (simple acceleration)
+			char.velocity += 0.02 // Small acceleration
+			char.currentY += char.velocity
+
+			// Check if reached final position
+			if char.currentY >= float64(char.finalY) {
+				char.currentY = float64(char.finalY)
+				char.locked = true
+			} else {
+				allLocked = false
+			}
+		}
+	}
+
+	// Transition to illumination phase when all locked (around frame 110)
+	if allLocked || s.frameCount >= 120 {
+		s.phase = PhaseIllumination
+	}
+}
+
+// updateIllumination handles Phase 2: accent point illumination
+func (s *SkullAnimation) updateIllumination() {
+	// TODO: Implement illumination sequence
+
+	// Temporary: transition after 80 frames
+	if s.frameCount >= 190 {
+		if s.withText {
+			s.phase = PhaseTextEntrance
+		} else {
+			s.phase = PhaseHold
+		}
+	}
+}
+
+// updateTextEntrance handles Phase 3: text sliding in
+func (s *SkullAnimation) updateTextEntrance() {
+	// TODO: Implement text sliding
+
+	// Temporary: transition after 40 frames
+	if s.frameCount >= 230 {
+		s.phase = PhaseHold
+	}
+}
+
+// updateHold handles Phase 4: hold state before reset
+func (s *SkullAnimation) updateHold() {
+	// Hold for 200 frames (10 seconds)
+	if s.frameCount >= 430 { // 110 + 80 + 40 + 200
+		s.Reset()
+	}
+}
+
+// updateAsh updates all ash particles (wind drift, falling, lifecycle)
+func (s *SkullAnimation) updateAsh() {
+	// Update existing particles
+	toKeep := []AshParticle{}
+	for _, p := range s.ashParticles {
+		// Update vertical position
+		p.y += p.velocityY
+
+		// Update horizontal drift (sine wave)
+		p.driftPhase += p.driftFreq
+		p.x += math.Sin(p.driftPhase) * p.driftAmp
+
+		// Fade as it falls (for light ash)
+		if p.layer == 0 && p.y > float64(s.height)*0.7 {
+			fadeStart := float64(s.height) * 0.7
+			fadeRange := float64(s.height) * 0.3
+			fadeProgress := (p.y - fadeStart) / fadeRange
+			p.opacity *= (1.0 - fadeProgress*0.5) // Fade to 50% opacity
+		}
+
+		// Keep if still on screen (with accumulation zone at bottom)
+		accumZone := 3
+		if p.layer == 1 {
+			// Dense ash accumulates at bottom
+			if p.y < float64(s.height+accumZone) {
+				toKeep = append(toKeep, p)
+			}
+		} else {
+			// Light ash disappears at bottom
+			if p.y < float64(s.height) {
+				toKeep = append(toKeep, p)
+			}
+		}
+	}
+	s.ashParticles = toKeep
+
+	// Spawn new particles (2-4 per frame)
+	spawnCount := 2 + rand.Intn(3)
+	for i := 0; i < spawnCount; i++ {
+		s.spawnAshParticle()
+	}
 }
 
 // Render returns the current frame as a string
