@@ -385,3 +385,36 @@ func GetBurnPalette(themeName string) []string {
 		}
 	}
 }
+
+// GetSkullPalette returns theme-specific skull colors
+// Returns: [base_muted, accent1_dark, accent2_mid, accent3_bright, accent4_brightest, ash1_dark, ash2_darker]
+func GetSkullPalette(themeName string) []string {
+	switch strings.ToLower(themeName) {
+	case "dracula":
+		return []string{"#44475a", "#6272a4", "#bd93f9", "#8be9fd", "#f8f8f2", "#282a36", "#1a1c26"}
+	case "catppuccin", "catppuccin-mocha":
+		return []string{"#45475a", "#585b70", "#cba6f7", "#89dceb", "#cdd6f4", "#1e1e2e", "#11111b"}
+	case "nord":
+		return []string{"#434c5e", "#4c566a", "#81a1c1", "#88c0d0", "#eceff4", "#2e3440", "#242831"}
+	case "tokyo-night", "tokyonight":
+		return []string{"#414868", "#565f89", "#7aa2f7", "#7dcfff", "#c0caf5", "#1a1b26", "#16161e"}
+	case "gruvbox":
+		return []string{"#504945", "#665c54", "#83a598", "#8ec07c", "#ebdbb2", "#282828", "#1d2021"}
+	case "material":
+		return []string{"#546e7a", "#607d8b", "#82aaff", "#89ddff", "#eceff1", "#263238", "#1e272c"}
+	case "solarized":
+		return []string{"#586e75", "#657b83", "#268bd2", "#2aa198", "#fdf6e3", "#002b36", "#001f27"}
+	case "monochrome":
+		return []string{"#5a5a5a", "#7a7a7a", "#9a9a9a", "#bababa", "#ffffff", "#1a1a1a", "#0a0a0a"}
+	case "transishardjob":
+		return []string{"#55cdfc", "#f7a8b8", "#ffffff", "#ffffff", "#ffffff", "#2a2a2a", "#1a1a1a"}
+	case "rama":
+		return []string{"#8d99ae", "#d90429", "#ef233c", "#edf2f4", "#ffffff", "#2b2d42", "#1a1c2a"}
+	case "eldritch":
+		return []string{"#7081d0", "#04d1f9", "#37f499", "#f7c67f", "#ebfafa", "#212337", "#1a1b2a"}
+	case "dark":
+		return []string{"#666666", "#999999", "#cccccc", "#ffffff", "#ffffff", "#000000", "#000000"}
+	default:
+		return []string{"#5a5a5a", "#7a7a7a", "#9a9a9a", "#c0c0c0", "#ffffff", "#1a1a1a", "#0a0a0a"}
+	}
+}
