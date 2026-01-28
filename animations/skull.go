@@ -1,6 +1,39 @@
 package animations
 
-// TODO: imports will be added in next tasks
+import (
+	"math/rand"
+	"strings"
+)
+
+// skullArt is the ASCII skull template
+const skullArt = `
+                ..::::::::::::::...
+           ..:-----------------------:.
+         :------------------------------::
+       :----:------------------------------:
+     .-----------------------------------:---
+     ----:-------------------------------:----
+    :----::-----------------------------::----.
+    .-:-:.:-----------------------------:.-::-.
+     :-  .--.      .:-::---::-:.      :--.  -:
+      : .--            :---.           .--. :
+       .:--.         .:-:.:-:.         :--:.
+      .------:....::---.   .---:.....:------.
+       ..::::--------:       :--------::::..
+         . :.   :-----:::-:::-----.   ..
+         -: -:   ::::::::.:::.::::   :: :
+         :: :--. ..:::::-.-::::... .--: :
+          :.  .--:::-...:::.:.::::--.  :.
+          ..    :::-------------::.    :
+          .      ...::-:::::-:...      .
+          ..     :-.     :.    --      .
+          ..      -.     .:    ::      .
+                  ..            .
+                  .      .      .
+                  ..     .      .
+                  ..     .      .
+                                .
+`
 
 // AnimationPhase represents the current state of the skull animation
 type AnimationPhase int
@@ -96,12 +129,60 @@ func newSkullAnimation(width, height int, palette []string, theme string, withTe
 		frameCount:  0,
 	}
 
-	// TODO: Initialize skull art
-	// TODO: Initialize skull characters with drip positions
+	// Initialize skull art
+	s.skullArt = skullArt
+	s.parseSkullArt()
 	// TODO: Initialize ash particles
 	// TODO: Initialize text characters if withText
 
 	return s
+}
+
+// parseSkullArt converts ASCII art to SkullChar array with positions
+func (s *SkullAnimation) parseSkullArt() {
+	lines := strings.Split(strings.TrimSpace(s.skullArt), "\n")
+	skullHeight := len(lines)
+
+	// Position skull in bottom half of terminal
+	s.skullOffsetY = s.height - skullHeight - 2 // 2 rows padding from bottom
+	if s.skullOffsetY < 0 {
+		s.skullOffsetY = 0
+	}
+
+	// Find max line width for centering
+	maxWidth := 0
+	for _, line := range lines {
+		if len(line) > maxWidth {
+			maxWidth = len(line)
+		}
+	}
+	offsetX := (s.width - maxWidth) / 2
+
+	// Parse each character
+	s.skullChars = []SkullChar{}
+	for y, line := range lines {
+		for x, ch := range line {
+			if ch != ' ' && ch != '\n' && ch != '\r' {
+				finalY := s.skullOffsetY + y
+				finalX := offsetX + x
+
+				// Random starting position above screen
+				startY := float64(finalY) - float64(5+rand.Intn(10))
+
+				char := SkullChar{
+					char:       ch,
+					finalX:     finalX,
+					finalY:     finalY,
+					currentX:   float64(finalX),
+					currentY:   startY,
+					velocity:   0.3 + rand.Float64()*0.5, // 0.3-0.8
+					locked:     false,
+					accentType: 0, // TODO: Set based on position
+				}
+				s.skullChars = append(s.skullChars, char)
+			}
+		}
+	}
 }
 
 // Update advances the animation by one frame
