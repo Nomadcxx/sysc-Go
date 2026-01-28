@@ -142,7 +142,10 @@ func newSkullAnimation(width, height int, palette []string, theme string, withTe
 		s.spawnAshParticle()
 	}
 
-	// TODO: Initialize text characters if withText
+	// Initialize text if withText mode
+	if withText {
+		s.parseText()
+	}
 
 	return s
 }
@@ -229,6 +232,96 @@ func (s *SkullAnimation) identifyAccentType(finalX, finalY int) int {
 	}
 
 	return 0 // No accent
+}
+
+// parseText converts text into TextChar array with sliding positions
+func (s *SkullAnimation) parseText() {
+	if !s.withText || s.textContent == "" {
+		return
+	}
+
+	lines := strings.Split(s.textContent, "\n")
+	maxWidth := 0
+	for _, line := range lines {
+		if len(line) > maxWidth {
+			maxWidth = len(line)
+		}
+	}
+
+	// Center text in terminal
+	textHeight := len(lines)
+	offsetY := (s.height - textHeight) / 2
+	offsetX := (s.width - maxWidth) / 2
+	centerX := s.width / 2
+
+	s.textChars = []TextChar{}
+	for y, line := range lines {
+		for x, ch := range line {
+			if ch != ' ' && ch != '\n' && ch != '\r' {
+				finalX := offsetX + x
+				finalY := offsetY + y
+
+				// Determine starting position (left or right of center)
+				var startX float64
+				if finalX < centerX {
+					startX = -5 // Off-screen left
+				} else {
+					startX = float64(s.width + 5) // Off-screen right
+				}
+
+				textChar := TextChar{
+					char:     ch,
+					finalX:   finalX,
+					finalY:   finalY,
+					startX:   startX,
+					currentX: startX,
+					progress: 0.0,
+				}
+				s.textChars = append(s.textChars, textChar)
+			}
+		}
+	}
+}
+
+// SetTextGradient sets the gradient colors for text rendering
+func (s *SkullAnimation) SetTextGradient(gradient []string) {
+	s.textGradient = gradient
+}
+
+// getTextCharColor returns gradient color for text character
+func (s *SkullAnimation) getTextCharColor(char TextChar) string {
+	if len(s.textGradient) == 0 {
+		return s.palette[4] // Fallback to brightest
+	}
+
+	// Calculate gradient position based on X coordinate
+	// Find min and max X for normalization
+	minX := s.width
+	maxX := 0
+	for _, tc := range s.textChars {
+		if tc.finalX < minX {
+			minX = tc.finalX
+		}
+		if tc.finalX > maxX {
+			maxX = tc.finalX
+		}
+	}
+
+	if maxX <= minX {
+		return s.textGradient[0]
+	}
+
+	// Normalize position: 0.0 (left) to 1.0 (right)
+	t := float64(char.finalX-minX) / float64(maxX-minX)
+
+	// Map to gradient index
+	gradLen := len(s.textGradient)
+	idx := int(t * float64(gradLen-1))
+	if idx >= gradLen {
+		idx = gradLen - 1
+	}
+
+	return s.textGradient[idx]
 }
 
 // spawnAshParticle creates a new ash particle at the top
@@ -331,10 +424,14 @@ func (s *SkullAnimation) updateDrip() {
 
 // updateIllumination handles Phase 2: accent point illumination
 func (s *SkullAnimation) updateIllumination() {
-	// TODO: Implement illumination sequence
+	// Phase starts at frame 111, runs for 80 frames (until frame 190)
+	relFrame := s.frameCount - 111
 
-	// Temporary: transition after 80 frames
-	if s.frameCount >= 190 {
+	// No illumination updates needed - color is determined in render
+	// based on frame count and accent type
+
+	// Transition to next phase after 80 frames
+	if relFrame >= 80 {
 		if s.withText {
 			s.phase = PhaseTextEntrance
 		} else {
@@ -345,20 +442,52 @@ func (s *SkullAnimation) updateIllumination() {
 
 // updateTextEntrance handles Phase 3: text sliding in
 func (s *SkullAnimation) updateTextEntrance() {
-	// TODO: Implement text sliding
+	// Phase starts at frame 191, runs for 40 frames (until frame 230)
+	relFrame := s.frameCount - 191
 
-	// Temporary: transition after 40 frames
-	if s.frameCount >= 230 {
+	// Update text character positions
+	for i := range s.textChars {
+		char := &s.textChars[i]
+
+		// Progress: 0.0 to 1.0 over 40 frames
+		char.progress = float64(relFrame) / 40.0
+		if char.progress > 1.0 {
+			char.progress = 1.0
+		}
+
+		// Apply easing
+		easedProgress := easeOutBack(char.progress)
+
+		// Interpolate position
+		finalX := float64(char.finalX)
+		char.currentX = char.startX + (finalX-char.startX)*easedProgress
+	}
+
+	// Transition to hold phase after 40 frames
+	if relFrame >= 40 {
 		s.phase = PhaseHold
 	}
 }
 
 // updateHold handles Phase 4: hold state before reset
 func (s *SkullAnimation) updateHold() {
+	// Determine when hold phase started
+	holdStart := 190 // After drip (110) + illumination (80)
+	if s.withText {
+		holdStart = 230 // After drip (110) + illumination (80) + text (40)
+	}
+
 	// Hold for 200 frames (10 seconds)
-	if s.frameCount >= 430 { // 110 + 80 + 40 + 200
+	if s.frameCount >= holdStart+200 {
 		s.Reset()
 	}
+}
+
+// easeOutBack implements out-back easing (overshoot and settle)
+func easeOutBack(t float64) float64 {
+	c1 := 1.70158
+	c3 := c1 + 1
+	return 1 + c3*math.Pow(t-1, 3) + c1*math.Pow(t-1, 2)
 }
 
 // updateAsh updates all ash particles (wind drift, falling, lifecycle)
@@ -448,7 +577,17 @@ func (s *SkullAnimation) Render() string {
 		}
 	}
 
-	// TODO: Render text (foreground layer)
+	// Render text (foreground layer, skull-text only)
+	if s.withText && (s.phase == PhaseTextEntrance || s.phase == PhaseHold) {
+		for _, tchar := range s.textChars {
+			x := int(tchar.currentX)
+			y := tchar.finalY
+			if x >= 0 && x < s.width && y >= 0 && y < s.height {
+				buffer[y][x] = tchar.char
+				colors[y][x] = s.getTextCharColor(tchar)
+			}
+		}
+	}
 
 	// Build output with lipgloss styling
 	var sb strings.Builder
@@ -474,27 +613,65 @@ func (s *SkullAnimation) Render() string {
 
 // getSkullCharColor returns the color for a skull character based on phase
 func (s *SkullAnimation) getSkullCharColor(char SkullChar) string {
-	switch s.phase {
-	case PhaseDrip:
-		// Muted base color during drip
-		return s.palette[0]
-
-	case PhaseIllumination, PhaseTextEntrance, PhaseHold:
-		// Check if character is in illuminated accent region
-		// TODO: Implement accent region checking
-		// For now, return base color
-		return s.palette[0]
-
-	default:
+	// During drip, use base muted color
+	if s.phase == PhaseDrip {
 		return s.palette[0]
 	}
+
+	// During illumination, text entrance, and hold: accent colors
+	if char.accentType == 0 {
+		return s.palette[0] // Base color for non-accent
+	}
+
+	// Check if this accent region is illuminated yet
+	relFrame := s.frameCount - 111 // Illumination starts at frame 111
+
+	// Top details: frames 0-19 (111-130)
+	if char.accentType == 1 && relFrame >= 0 {
+		return s.palette[1] // accent1_dark
+	}
+
+	// Eyes: frames 20-44 (131-155)
+	if char.accentType == 2 && relFrame >= 20 {
+		return s.palette[2] // accent2_mid
+	}
+
+	// Cheekbones: frames 45-64 (156-175)
+	if char.accentType == 3 && relFrame >= 45 {
+		return s.palette[3] // accent3_bright
+	}
+
+	// Teeth: frames 65-79 (176-190)
+	if char.accentType == 4 && relFrame >= 65 {
+		return s.palette[4] // accent4_brightest
+	}
+
+	// Not yet illuminated
+	return s.palette[0]
 }
 
 // Reset restarts the animation
 func (s *SkullAnimation) Reset() {
 	s.phase = PhaseDrip
 	s.frameCount = 0
-	// TODO: Reset skull character positions
-	// Note: ash particles continue (don't reset)
-	// TODO: Reset text character positions if withText
+
+	// Reset skull characters to starting drip positions
+	for i := range s.skullChars {
+		char := &s.skullChars[i]
+		char.currentY = float64(char.finalY) - float64(5+rand.Intn(10))
+		char.currentX = float64(char.finalX)
+		char.velocity = 0.3 + rand.Float64()*0.5
+		char.locked = false
+	}
+
+	// Reset text characters if withText
+	if s.withText {
+		for i := range s.textChars {
+			char := &s.textChars[i]
+			char.currentX = char.startX
+			char.progress = 0.0
+		}
+	}
+
+	// DO NOT reset ash particles - they continue seamlessly
 }
