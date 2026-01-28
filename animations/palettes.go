@@ -310,3 +310,78 @@ func GetScreensaverPalette(themeName string) []string {
 		return []string{"#1a1a1a", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#f8fafc"}
 	}
 }
+
+// GetBurnPalette returns theme-specific burn colors
+// Returns: [9 burn gradient, 2 smoke colors, 1 background]
+// Indices 0-8: Burn progression (white hot → dark ember)
+// Indices 9-10: Smoke colors (primary, secondary)
+// Index 11: Background/canvas color
+func GetBurnPalette(themeName string) []string {
+	switch strings.ToLower(themeName) {
+	case "dracula":
+		return []string{
+			"#f8f8f2", "#f5f5dc", "#dda0dd", "#da70d6", "#ba55d3", "#9370db", "#8b008b", "#4b0082", "#1a0033",
+			"#6272a4", "#44475a", "#282a36",
+		}
+	case "catppuccin", "catppuccin-mocha":
+		return []string{
+			"#cdd6f4", "#f5e0dc", "#f5c2e7", "#f38ba8", "#eba0ac", "#f38ba8", "#89b4fa", "#45475a", "#1e1e2e",
+			"#6c7086", "#45475a", "#1e1e2e",
+		}
+	case "nord":
+		return []string{
+			"#eceff4", "#e5e9f0", "#d8dee9", "#88c0d0", "#81a1c1", "#5e81ac", "#4c566a", "#3b4252", "#2e3440",
+			"#4c566a", "#3b4252", "#2e3440",
+		}
+	case "tokyo-night", "tokyonight":
+		return []string{
+			"#c0caf5", "#bb9af7", "#7dcfff", "#7aa2f7", "#2ac3de", "#0db9d7", "#1abc9c", "#16a085", "#1a1b26",
+			"#565f89", "#414868", "#1a1b26",
+		}
+	case "gruvbox":
+		return []string{
+			"#fbf1c7", "#ebdbb2", "#fabd2f", "#fe8019", "#d65d0e", "#fb4934", "#cc241d", "#9d0006", "#282828",
+			"#665c54", "#504945", "#282828",
+		}
+	case "material":
+		return []string{
+			"#eceff1", "#cfd8dc", "#ffcb6b", "#f78c6c", "#f07178", "#ff5370", "#c3002f", "#870000", "#263238",
+			"#607d8b", "#546e7a", "#263238",
+		}
+	case "solarized":
+		return []string{
+			"#fdf6e3", "#eee8d5", "#b58900", "#cb4b16", "#dc322f", "#d33682", "#6c71c4", "#268bd2", "#002b36",
+			"#657b83", "#586e75", "#002b36",
+		}
+	case "monochrome":
+		return []string{
+			"#ffffff", "#e0e0e0", "#c0c0c0", "#a0a0a0", "#808080", "#606060", "#404040", "#202020", "#000000",
+			"#808080", "#606060", "#000000",
+		}
+	case "transishardjob":
+		return []string{
+			"#ffffff", "#f7a8b8", "#f7a8b8", "#55cdfc", "#55cdfc", "#f7a8b8", "#55cdfc", "#3a3a3a", "#1a1a1a",
+			"#808080", "#606060", "#1a1a1a",
+		}
+	case "rama":
+		return []string{
+			"#ffffff", "#fff5e1", "#ffebcd", "#ffd700", "#ff8c00", "#ff4500", "#dc143c", "#8b0000", "#2b1a1a",
+			"#6b6b6b", "#4a4a4a", "#2b2d42",
+		}
+	case "eldritch":
+		return []string{
+			"#ebfafa", "#f7c67f", "#f265b5", "#f16c75", "#a48cf2", "#7081d0", "#04d1f9", "#37f499", "#212337",
+			"#7081d0", "#292e42", "#212337",
+		}
+	case "dark":
+		return []string{
+			"#ffffff", "#cccccc", "#999999", "#808080", "#666666", "#4d4d4d", "#333333", "#1a1a1a", "#000000",
+			"#666666", "#4d4d4d", "#000000",
+		}
+	default:
+		return []string{
+			"#ffffff", "#e0e0e0", "#c0c0c0", "#a0a0a0", "#808080", "#606060", "#404040", "#202020", "#000000",
+			"#808080", "#606060", "#000000",
+		}
+	}
+}
