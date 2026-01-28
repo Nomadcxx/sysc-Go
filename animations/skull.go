@@ -358,10 +358,10 @@ func (s *SkullAnimation) spawnAshParticle() {
 	}
 
 	particle := AshParticle{
-		x:         float64(rand.Intn(s.width)),
-		y:         0,
-		char:      char,
-		velocityY: velocityY,
+		x:          float64(rand.Intn(s.width)),
+		y:          0,
+		char:       char,
+		velocityY:  velocityY,
 		driftPhase: rand.Float64() * 2 * math.Pi, // Random starting phase
 		driftAmp:   0.1 + rand.Float64()*0.4,     // 0.1-0.5 for variety
 		driftFreq:  0.05 + rand.Float64()*0.05,   // 0.05-0.1
