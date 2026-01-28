@@ -304,9 +304,11 @@ func main() {
 	// 	runBlackhole(width, height, *theme, "", frames)
 	case "aquarium":
 		runAquarium(width, height, *theme, frames)
+	case "skull":
+		runSkull(width, height, *theme, frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, fire-text, matrix, rain, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium")
+		fmt.Println("Available: fire, fire-text, matrix, rain, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, skull")
 		os.Exit(1)
 	}
 }
@@ -1269,6 +1271,32 @@ func runAquarium(width, height int, theme string, frames int) {
 
 		fmt.Print("[H")
 		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runSkull(width, height int, theme string, frames int) {
+	palette := animations.GetSkullPalette(theme)
+	skull := animations.NewSkullEffect(width, height, palette, theme)
+
+	quit := setupKeyboardInterrupt()
+	defer close(quit)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		select {
+		case <-quit:
+			return
+		default:
+		}
+
+		skull.Update()
+		output := skull.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		os.Stdout.Sync()
 		time.Sleep(50 * time.Millisecond)
 		frame++
 	}
