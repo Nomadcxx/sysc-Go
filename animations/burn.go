@@ -208,6 +208,73 @@ func (b *BurnAnimation) initializeRandomChars() {
 	}
 }
 
+// selectCenterBiasedOrigin picks origin with center bias (70% center, 30% anywhere)
+func (b *BurnAnimation) selectCenterBiasedOrigin() int {
+	if len(b.chars) == 0 {
+		return 0
+	}
+
+	// Calculate center region (middle 40% of canvas)
+	centerMinX := int(float64(b.width) * 0.3)
+	centerMaxX := int(float64(b.width) * 0.7)
+	centerMinY := int(float64(b.height) * 0.3)
+	centerMaxY := int(float64(b.height) * 0.7)
+
+	// 70% chance to pick from center region
+	if rand.Float64() < 0.7 {
+		// Find chars in center region
+		centerChars := []int{}
+		for i, char := range b.chars {
+			if char.x >= centerMinX && char.x <= centerMaxX &&
+				char.y >= centerMinY && char.y <= centerMaxY {
+				centerChars = append(centerChars, i)
+			}
+		}
+
+		if len(centerChars) > 0 {
+			return centerChars[rand.Intn(len(centerChars))]
+		}
+	}
+
+	// 30% chance or no center chars: pick anywhere
+	return rand.Intn(len(b.chars))
+}
+
+// getNeighbors returns indices of characters within Manhattan distance 1
+func (b *BurnAnimation) getNeighbors(charIndex int) []int {
+	if charIndex < 0 || charIndex >= len(b.chars) {
+		return []int{}
+	}
+
+	char := b.chars[charIndex]
+	neighbors := []int{}
+
+	// Check all characters for 4-directional neighbors
+	for i, other := range b.chars {
+		if i == charIndex {
+			continue
+		}
+
+		// Manhattan distance = 1 (up, down, left, right)
+		dx := abs(other.x - char.x)
+		dy := abs(other.y - char.y)
+
+		if (dx == 1 && dy == 0) || (dx == 0 && dy == 1) {
+			neighbors = append(neighbors, i)
+		}
+	}
+
+	return neighbors
+}
+
+// abs returns the absolute value of an integer
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // Update advances the animation by one frame
 func (b *BurnAnimation) Update() {
 	b.frameCount++
