@@ -1,12 +1,26 @@
 package animations
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
+
+// hexToAnsiRGB converts hex color (#RRGGBB) to ANSI RGB format "r;g;b"
+func hexToAnsiRGB(hex string) string {
+	if len(hex) < 7 || hex[0] != '#' {
+		return "255;255;255"
+	}
+
+	// Parse r, g, b from hex
+	var r, g, b int
+	fmt.Sscanf(hex[1:3], "%x", &r)
+	fmt.Sscanf(hex[3:5], "%x", &g)
+	fmt.Sscanf(hex[5:7], "%x", &b)
+
+	return fmt.Sprintf("%d;%d;%d", r, g, b)
+}
 
 // skullArt is the ASCII skull template
 const skullArt = `
@@ -660,23 +674,37 @@ func (s *SkullAnimation) Render() string {
 		}
 	}
 
-	// Build output with lipgloss styling
+	// Build output with ANSI color codes (more efficient than lipgloss per-character)
 	var sb strings.Builder
+	currentColor := ""
+
 	for y := 0; y < s.height; y++ {
 		for x := 0; x < s.width; x++ {
-			char := string(buffer[y][x])
+			char := buffer[y][x]
 			color := colors[y][x]
 
-			if color != "" {
-				style := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
-				sb.WriteString(style.Render(char))
-			} else {
-				sb.WriteString(char)
+			if color != currentColor {
+				if color != "" {
+					// Set new color using ANSI escape code
+					sb.WriteString("\033[38;2;")
+					sb.WriteString(hexToAnsiRGB(color))
+					sb.WriteString("m")
+				} else {
+					// Reset color
+					sb.WriteString("\033[0m")
+				}
+				currentColor = color
 			}
+			sb.WriteRune(char)
 		}
 		if y < s.height-1 {
 			sb.WriteString("\n")
 		}
+	}
+
+	// Reset color at end
+	if currentColor != "" {
+		sb.WriteString("\033[0m")
 	}
 
 	return sb.String()
