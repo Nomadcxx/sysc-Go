@@ -621,6 +621,45 @@ func (s *SkullAnimation) Render() string {
 		}
 	}
 
+	// Clear ash where skull will be (create solid skull background)
+	// Find skull bounds
+	if len(s.skullChars) > 0 {
+		minX, maxX := s.width, 0
+		minY, maxY := s.height, 0
+		for _, char := range s.skullChars {
+			if char.finalX < minX {
+				minX = char.finalX
+			}
+			if char.finalX > maxX {
+				maxX = char.finalX
+			}
+			if char.finalY < minY {
+				minY = char.finalY
+			}
+			if char.finalY > maxY {
+				maxY = char.finalY
+			}
+		}
+		// Clear the skull bounding box with base skull color
+		for y := minY; y <= maxY && y >= 0 && y < s.height; y++ {
+			for x := minX; x <= maxX && x >= 0 && x < s.width; x++ {
+				// Check if this position has a skull character
+				hasChar := false
+				for _, char := range s.skullChars {
+					if int(char.currentX) == x && char.finalY == y {
+						hasChar = true
+						break
+					}
+				}
+				if !hasChar {
+					// Fill with space using skull base color
+					buffer[y][x] = ' '
+					colors[y][x] = s.palette[0]
+				}
+			}
+		}
+	}
+
 	// Render skull (middle layer)
 	for _, char := range s.skullChars {
 		x := int(char.currentX)
