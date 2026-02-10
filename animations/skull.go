@@ -10,32 +10,33 @@ import (
 
 // skullArt is the ASCII skull template
 const skullArt = `
-                ..::::::::::::::...
-           ..:-----------------------:.
-         :------------------------------::
-       :----:------------------------------:
-     .-----------------------------------:---
-     ----:-------------------------------:----
-    :----::-----------------------------::----.
-    .-:-:.:-----------------------------:.-::-.
-     :-  .--.      .:-::---::-:.      :--.  -:
-      : .--            :---.           .--. :
-       .:--.         .:-:.:-:.         :--:.
-      .------:....::---.   .---:.....:------.
-       ..::::--------:       :--------::::..
-         . :.   :-----:::-:::-----.   ..
-         -: -:   ::::::::.:::.::::   :: :
-         :: :--. ..:::::-.-::::... .--: :
-          :.  .--:::-...:::.:.::::--.  :.
-          ..    :::-------------::.    :
-          .      ...::-:::::-:...      .
-          ..     :-.     :.    --      .
-          ..      -.     .:    ::      .
-                  ..            .
-                  .      .      .
-                  ..     .      .
-                  ..     .      .
-                                .
+                ▄▄▟██████████▄▄▄▖
+            ▗▄███████████▄▄▄▄▄▛▀▀▜▙▄▖
+          ▄▟█████████████████████▙▄█▀▙▄
+        ▄████████████████████████████▙██▄
+      ▗▟██████████████████████████████████▖
+      ▟████████████████████████████████████▄
+      ██████████████████████████████████████
+      ██████████████████████████████████████
+      ███▛██████████████████████████████▀███
+      ███▌  ▀▜██████████████████████▛▀   ██▛
+      ▜██▌     ▀▀████████████████▀▘     ▐██▌
+      ▐██▙        ▝▀▜████████▛▀▘        ▟██
+       ▜██▙▄▄▖        ▝▜██▌▘         ▄▄▟██▛
+        ▀██████████████▛▜▛▜███████████████▄
+       ▗▄█████████████▛ ▐▌ ▜██████████████▛
+       ▐██████████████▌▗██▖▗███████████████
+       ▝██████▀▘  ▐███████▙██████    ▝████▛
+        ▝▜▀▀▜▄▖   ▐██████████████    ▝█▛▀▘
+                  ▝██▛▜██ ██ ▟██▛
+                   ███▐██ ██ ███
+                   ▜██▐██ ██ ██▛
+                   ▐██▐██ ██ ██▌
+                   ▐██▐██ ██ ██▌
+                   ▐██▐██ █▌▐██▌
+                    ██ ██ █▌▐██▌
+                    ██ █▌▐█▘▐██
+                    ▀▛ ▜▌▝▛ ▐▛▀
 `
 
 // AnimationPhase represents the current state of the skull animation
@@ -161,11 +162,45 @@ func (s *SkullAnimation) parseSkullArt() {
 		s.skullOffsetY = 0
 	}
 
-	// Find max line width for centering
+	// Find minimum leading whitespace to trim consistently
+	minLeading := -1
+	for _, line := range lines {
+		// Count leading spaces
+		leading := 0
+		for _, ch := range line {
+			if ch == ' ' {
+				leading++
+			} else {
+				break
+			}
+		}
+		// Skip empty lines
+		if len(strings.TrimSpace(line)) == 0 {
+			continue
+		}
+		if minLeading == -1 || leading < minLeading {
+			minLeading = leading
+		}
+	}
+	if minLeading == -1 {
+		minLeading = 0
+	}
+
+	// Find max line width after trimming leading spaces
 	maxWidth := 0
 	for _, line := range lines {
-		if len(line) > maxWidth {
-			maxWidth = len(line)
+		trimmed := line
+		if len(line) >= minLeading {
+			trimmed = line[minLeading:]
+		}
+		contentWidth := 0
+		for _, ch := range trimmed {
+			if ch != ' ' {
+				contentWidth++
+			}
+		}
+		if contentWidth > maxWidth {
+			maxWidth = contentWidth
 		}
 	}
 	offsetX := (s.width - maxWidth) / 2
@@ -173,7 +208,12 @@ func (s *SkullAnimation) parseSkullArt() {
 	// Parse each character
 	s.skullChars = []SkullChar{}
 	for y, line := range lines {
-		for x, ch := range line {
+		// Trim the minimum leading spaces from this line
+		trimmedLine := line
+		if len(line) >= minLeading {
+			trimmedLine = line[minLeading:]
+		}
+		for x, ch := range trimmedLine {
 			if ch != ' ' && ch != '\n' && ch != '\r' {
 				finalY := s.skullOffsetY + y
 				finalX := offsetX + x
@@ -243,8 +283,9 @@ func (s *SkullAnimation) parseText() {
 	lines := strings.Split(s.textContent, "\n")
 	maxWidth := 0
 	for _, line := range lines {
-		if len(line) > maxWidth {
-			maxWidth = len(line)
+		lineLen := len([]rune(line))
+		if lineLen > maxWidth {
+			maxWidth = lineLen
 		}
 	}
 
@@ -256,9 +297,10 @@ func (s *SkullAnimation) parseText() {
 
 	s.textChars = []TextChar{}
 	for y, line := range lines {
-		for x, ch := range line {
+		col := 0
+		for _, ch := range line {
 			if ch != ' ' && ch != '\n' && ch != '\r' {
-				finalX := offsetX + x
+				finalX := offsetX + col
 				finalY := offsetY + y
 
 				// Determine starting position (left or right of center)
@@ -279,6 +321,7 @@ func (s *SkullAnimation) parseText() {
 				}
 				s.textChars = append(s.textChars, textChar)
 			}
+			col++
 		}
 	}
 }
@@ -579,6 +622,34 @@ func (s *SkullAnimation) Render() string {
 
 	// Render text (foreground layer, skull-text only)
 	if s.withText && (s.phase == PhaseTextEntrance || s.phase == PhaseHold) {
+		// First, clear a rectangle area where text will be to prevent skull showing through
+		// Calculate text bounds
+		if len(s.textChars) > 0 {
+			minX, maxX := s.width, 0
+			minY, maxY := s.height, 0
+			for _, tchar := range s.textChars {
+				if tchar.finalX < minX {
+					minX = tchar.finalX
+				}
+				if tchar.finalX > maxX {
+					maxX = tchar.finalX
+				}
+				if tchar.finalY < minY {
+					minY = tchar.finalY
+				}
+				if tchar.finalY > maxY {
+					maxY = tchar.finalY
+				}
+			}
+			// Clear the text area (fill with spaces)
+			for y := minY; y <= maxY && y >= 0 && y < s.height; y++ {
+				for x := minX; x <= maxX && x >= 0 && x < s.width; x++ {
+					buffer[y][x] = ' '
+					colors[y][x] = ""
+				}
+			}
+		}
+		// Now render the actual text characters
 		for _, tchar := range s.textChars {
 			x := int(tchar.currentX)
 			y := tchar.finalY
