@@ -7,21 +7,6 @@ import (
 	"strings"
 )
 
-// hexToAnsiRGB converts hex color (#RRGGBB) to ANSI RGB format "r;g;b"
-func hexToAnsiRGB(hex string) string {
-	if len(hex) < 7 || hex[0] != '#' {
-		return "255;255;255"
-	}
-
-	// Parse r, g, b from hex
-	var r, g, b int
-	fmt.Sscanf(hex[1:3], "%x", &r)
-	fmt.Sscanf(hex[3:5], "%x", &g)
-	fmt.Sscanf(hex[5:7], "%x", &b)
-
-	return fmt.Sprintf("%d;%d;%d", r, g, b)
-}
-
 // skullArt is the ASCII skull template
 const skullArt = `
                 ▄▄▟██████████▄▄▄▖
@@ -592,161 +577,129 @@ func (s *SkullAnimation) updateAsh() {
 
 // Render returns the current frame as a string
 func (s *SkullAnimation) Render() string {
-	// Create buffer
-	buffer := make([][]rune, s.height)
-	colors := make([][]string, s.height)
-	for i := range buffer {
-		buffer[i] = make([]rune, s.width)
-		colors[i] = make([]string, s.width)
-		for j := range buffer[i] {
-			buffer[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	var output strings.Builder
 
-	// Render ash particles (background layer)
-	ashColor1 := s.palette[5] // ash1_dark
-	ashColor2 := s.palette[6] // ash2_darker
-
-	for _, p := range s.ashParticles {
-		x := int(p.x)
-		y := int(p.y)
-		if x >= 0 && x < s.width && y >= 0 && y < s.height {
-			buffer[y][x] = p.char
-			if p.layer == 0 {
-				colors[y][x] = ashColor1
-			} else {
-				colors[y][x] = ashColor2
-			}
-		}
-	}
-
-	// Clear ash where skull will be (create solid skull background)
-	// Find skull bounds
-	if len(s.skullChars) > 0 {
-		minX, maxX := s.width, 0
-		minY, maxY := s.height, 0
-		for _, char := range s.skullChars {
-			if char.finalX < minX {
-				minX = char.finalX
-			}
-			if char.finalX > maxX {
-				maxX = char.finalX
-			}
-			if char.finalY < minY {
-				minY = char.finalY
-			}
-			if char.finalY > maxY {
-				maxY = char.finalY
-			}
-		}
-		// Clear the skull bounding box with base skull color
-		for y := minY; y <= maxY && y >= 0 && y < s.height; y++ {
-			for x := minX; x <= maxX && x >= 0 && x < s.width; x++ {
-				// Check if this position has a skull character
-				hasChar := false
-				for _, char := range s.skullChars {
-					if int(char.currentX) == x && char.finalY == y {
-						hasChar = true
-						break
-					}
-				}
-				if !hasChar {
-					// Fill with space using skull base color
-					buffer[y][x] = ' '
-					colors[y][x] = s.palette[0]
-				}
-			}
-		}
-	}
-
-	// Render skull (middle layer)
+	// Build a map of skull characters by position for quick lookup
+	skullMap := make(map[[2]int]SkullChar)
 	for _, char := range s.skullChars {
 		x := int(char.currentX)
 		y := int(char.currentY)
 		if x >= 0 && x < s.width && y >= 0 && y < s.height {
-			buffer[y][x] = char.char
-
-			// Color based on phase and accent type
-			color := s.getSkullCharColor(char)
-			colors[y][x] = color
+			skullMap[[2]int{x, y}] = char
 		}
 	}
 
-	// Render text (foreground layer, skull-text only)
+	// Build a map of text characters by position (if applicable)
+	textMap := make(map[[2]int]TextChar)
 	if s.withText && (s.phase == PhaseTextEntrance || s.phase == PhaseHold) {
-		// First, clear a rectangle area where text will be to prevent skull showing through
-		// Calculate text bounds
-		if len(s.textChars) > 0 {
-			minX, maxX := s.width, 0
-			minY, maxY := s.height, 0
-			for _, tchar := range s.textChars {
-				if tchar.finalX < minX {
-					minX = tchar.finalX
-				}
-				if tchar.finalX > maxX {
-					maxX = tchar.finalX
-				}
-				if tchar.finalY < minY {
-					minY = tchar.finalY
-				}
-				if tchar.finalY > maxY {
-					maxY = tchar.finalY
-				}
-			}
-			// Clear the text area (fill with spaces)
-			for y := minY; y <= maxY && y >= 0 && y < s.height; y++ {
-				for x := minX; x <= maxX && x >= 0 && x < s.width; x++ {
-					buffer[y][x] = ' '
-					colors[y][x] = ""
-				}
-			}
-		}
-		// Now render the actual text characters
 		for _, tchar := range s.textChars {
 			x := int(tchar.currentX)
 			y := tchar.finalY
 			if x >= 0 && x < s.width && y >= 0 && y < s.height {
-				buffer[y][x] = tchar.char
-				colors[y][x] = s.getTextCharColor(tchar)
+				textMap[[2]int{x, y}] = tchar
 			}
 		}
 	}
 
-	// Build output with ANSI color codes (more efficient than lipgloss per-character)
-	var sb strings.Builder
-	currentColor := ""
+	// Build a map of ash particles by position
+	ashMap := make(map[[2]int]AshParticle)
+	for _, p := range s.ashParticles {
+		x := int(p.x)
+		y := int(p.y)
+		if x >= 0 && x < s.width && y >= 0 && y < s.height {
+			ashMap[[2]int{x, y}] = p
+		}
+	}
 
+	// Find skull bounds for filling gaps
+	var skullMinX, skullMaxX, skullMinY, skullMaxY int
+	hasSkullBounds := false
+	if len(s.skullChars) > 0 {
+		skullMinX, skullMaxX = s.width, 0
+		skullMinY, skullMaxY = s.height, 0
+		for _, char := range s.skullChars {
+			if char.finalX < skullMinX {
+				skullMinX = char.finalX
+			}
+			if char.finalX > skullMaxX {
+				skullMaxX = char.finalX
+			}
+			if char.finalY < skullMinY {
+				skullMinY = char.finalY
+			}
+			if char.finalY > skullMaxY {
+				skullMaxY = char.finalY
+			}
+		}
+		hasSkullBounds = true
+	}
+
+	// Render line by line
 	for y := 0; y < s.height; y++ {
-		for x := 0; x < s.width; x++ {
-			char := buffer[y][x]
-			color := colors[y][x]
+		var currentColor string
+		var batch strings.Builder
 
-			if color != currentColor {
-				if color != "" {
-					// Set new color using ANSI escape code
-					sb.WriteString("\033[38;2;")
-					sb.WriteString(hexToAnsiRGB(color))
-					sb.WriteString("m")
+		for x := 0; x < s.width; x++ {
+			pos := [2]int{x, y}
+			var char rune = ' '
+			var color string = ""
+
+			// Check layers in order: text (top), skull (middle), ash (bottom)
+			if tchar, ok := textMap[pos]; ok {
+				// Text layer
+				char = tchar.char
+				color = s.getTextCharColor(tchar)
+			} else if skchar, ok := skullMap[pos]; ok {
+				// Skull layer - character at this position
+				char = skchar.char
+				color = s.getSkullCharColor(skchar)
+			} else if hasSkullBounds && x >= skullMinX && x <= skullMaxX && y >= skullMinY && y <= skullMaxY {
+				// Inside skull bounds but no character - fill with space using skull color
+				char = ' '
+				color = s.palette[0]
+			} else if ash, ok := ashMap[pos]; ok {
+				// Ash layer
+				char = ash.char
+				if ash.layer == 0 {
+					color = s.palette[5] // ash1_dark
 				} else {
-					// Reset color
-					sb.WriteString("\033[0m")
+					color = s.palette[6] // ash2_darker
+				}
+			}
+
+			// Batch by color
+			if color != currentColor {
+				// Flush batch
+				if batch.Len() > 0 {
+					if currentColor != "" {
+						r, g, b := hexToRGB(currentColor)
+						fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+					} else {
+						output.WriteString(batch.String())
+					}
+					batch.Reset()
 				}
 				currentColor = color
 			}
-			sb.WriteRune(char)
+			batch.WriteRune(char)
 		}
+
+		// Flush final batch for this line
+		if batch.Len() > 0 {
+			if currentColor != "" {
+				r, g, b := hexToRGB(currentColor)
+				fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+			} else {
+				output.WriteString(batch.String())
+			}
+		}
+
 		if y < s.height-1 {
-			sb.WriteString("\n")
+			output.WriteString("\n")
 		}
 	}
 
-	// Reset color at end
-	if currentColor != "" {
-		sb.WriteString("\033[0m")
-	}
-
-	return sb.String()
+	return output.String()
 }
 
 // getSkullCharColor returns the color for a skull character based on phase
