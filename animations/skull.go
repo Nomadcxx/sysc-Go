@@ -649,27 +649,7 @@ func (s *SkullAnimation) Render() string {
 				// Text layer
 				char = tchar.char
 				color = s.getTextCharColor(tchar)
-			} else if skchar, ok := skullMap[pos]; ok {
-				// Skull layer - character at this position
-				char = skchar.char
-				color = s.getSkullCharColor(skchar)
-			} else if hasSkullBounds && x >= skullMinX && x <= skullMaxX && y >= skullMinY && y <= skullMaxY {
-				// Inside skull bounds but no character - fill with space using skull color
-				char = ' '
-				color = s.palette[0]
-			} else if ash, ok := ashMap[pos]; ok {
-				// Ash layer
-				char = ash.char
-				if ash.layer == 0 {
-					color = s.palette[5] // ash1_dark
-				} else {
-					color = s.palette[6] // ash2_darker
-				}
-			}
-
-			// Batch by color
-			if color != currentColor {
-				// Flush batch
+				// Flush and write text with foreground color
 				if batch.Len() > 0 {
 					if currentColor != "" {
 						r, g, b := hexToRGB(currentColor)
@@ -679,9 +659,79 @@ func (s *SkullAnimation) Render() string {
 					}
 					batch.Reset()
 				}
-				currentColor = color
+				r, g, b := hexToRGB(color)
+				fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, char)
+				currentColor = ""
+			} else if skchar, ok := skullMap[pos]; ok {
+				// Skull layer - character at this position
+				char = skchar.char
+				color = s.getSkullCharColor(skchar)
+				// Batch skull characters by color
+				if color != currentColor {
+					if batch.Len() > 0 {
+						if currentColor != "" {
+							r, g, b := hexToRGB(currentColor)
+							fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+						} else {
+							output.WriteString(batch.String())
+						}
+						batch.Reset()
+					}
+					currentColor = color
+				}
+				batch.WriteRune(char)
+			} else if hasSkullBounds && x >= skullMinX && x <= skullMaxX && y >= skullMinY && y <= skullMaxY {
+				// Inside skull bounds but no character - use BACKGROUND color to fill cell
+				// Flush any pending batch first
+				if batch.Len() > 0 {
+					if currentColor != "" {
+						r, g, b := hexToRGB(currentColor)
+						fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+					} else {
+						output.WriteString(batch.String())
+					}
+					batch.Reset()
+				}
+				// Write space with background color (fills the cell)
+				r, g, b := hexToRGB(s.palette[0])
+				fmt.Fprintf(&output, "\033[48;2;%d;%d;%dm \033[0m", r, g, b)
+				currentColor = ""
+			} else if ash, ok := ashMap[pos]; ok {
+				// Ash layer
+				char = ash.char
+				if ash.layer == 0 {
+					color = s.palette[5] // ash1_dark
+				} else {
+					color = s.palette[6] // ash2_darker
+				}
+				// Batch ash by color
+				if color != currentColor {
+					if batch.Len() > 0 {
+						if currentColor != "" {
+							r, g, b := hexToRGB(currentColor)
+							fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+						} else {
+							output.WriteString(batch.String())
+						}
+						batch.Reset()
+					}
+					currentColor = color
+				}
+				batch.WriteRune(char)
+			} else {
+				// Empty space - flush batch and write space
+				if batch.Len() > 0 {
+					if currentColor != "" {
+						r, g, b := hexToRGB(currentColor)
+						fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+					} else {
+						output.WriteString(batch.String())
+					}
+					batch.Reset()
+				}
+				output.WriteRune(' ')
+				currentColor = ""
 			}
-			batch.WriteRune(char)
 		}
 
 		// Flush final batch for this line
