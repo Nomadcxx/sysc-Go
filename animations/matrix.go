@@ -17,6 +17,11 @@ type MatrixEffect struct {
 	// Particle-based implementation - individual streaks that move down screen
 	streaks []MatrixStreak // Active streaks
 	frame   int            // Animation frame counter
+
+	// Reusable render buffers — allocated once, cleared per frame
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // MatrixStreak represents a single vertical streak falling down the screen
@@ -63,6 +68,7 @@ func NewMatrixEffect(width, height int, palette []string) *MatrixEffect {
 
 // Initialize Matrix effect with some initial streaks
 func (m *MatrixEffect) init() {
+	m.initBuffers()
 	// Create initial streaks across width
 	for i := 0; i < m.width; i++ {
 		if rand.Float64() < 0.1 { // 10% chance of initial streak
@@ -75,6 +81,25 @@ func (m *MatrixEffect) init() {
 				Active:  true,
 			}
 			m.streaks = append(m.streaks, streak)
+		}
+	}
+}
+
+func (m *MatrixEffect) initBuffers() {
+	m.canvas = make([][]rune, m.height)
+	m.colors = make([][]string, m.height)
+	for i := range m.canvas {
+		m.canvas[i] = make([]rune, m.width)
+		m.colors[i] = make([]string, m.width)
+	}
+	m.builder.Grow(m.width * m.height * 4)
+}
+
+func (m *MatrixEffect) clearBuffers() {
+	for i := range m.canvas {
+		for j := range m.canvas[i] {
+			m.canvas[i][j] = ' '
+			m.colors[i][j] = ""
 		}
 	}
 }
@@ -191,17 +216,7 @@ func (m *MatrixEffect) Update() {
 
 // Render converts the Matrix streaks to colored text output
 func (m *MatrixEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, m.height)
-	colors := make([][]string, m.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, m.width)
-		colors[i] = make([]string, m.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	m.clearBuffers()
 
 	// Render each active streak
 	for _, streak := range m.streaks {
@@ -227,8 +242,8 @@ func (m *MatrixEffect) Render() string {
 				}
 
 				// Place character on canvas
-				canvas[yPos][streak.X] = char
-				colors[yPos][streak.X] = color
+				m.canvas[yPos][streak.X] = char
+				m.colors[yPos][streak.X] = color
 			}
 		}
 	}
@@ -236,20 +251,19 @@ func (m *MatrixEffect) Render() string {
 	// Convert to colored string
 	var lines []string
 	for y := 0; y < m.height; y++ {
-		var line strings.Builder
+		m.builder.Reset()
 		for x := 0; x < m.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' && colors[y][x] != "" {
-				// Render colored character
+			char := m.canvas[y][x]
+			if char != ' ' && m.colors[y][x] != "" {
 				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
+					Foreground(lipgloss.Color(m.colors[y][x])).
 					Render(string(char))
-				line.WriteString(styled)
+				m.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				m.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
+		lines = append(lines, m.builder.String())
 	}
 
 	return strings.Join(lines, "\n")

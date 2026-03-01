@@ -39,6 +39,10 @@ type AquariumEffect struct {
 
 	frameCount int
 	rng        *rand.Rand
+
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // Fish represents a swimming fish
@@ -149,6 +153,8 @@ func NewAquariumEffect(config AquariumConfig) *AquariumEffect {
 
 // init initializes the aquarium entities
 func (a *AquariumEffect) init() {
+	a.initBuffers()
+
 	// Create seaweed (bottom decoration)
 	seaweedCount := a.width / 8
 	for i := 0; i < seaweedCount; i++ {
@@ -232,6 +238,25 @@ func (a *AquariumEffect) init() {
 	a.lastMediumFishSpawn = -1000 // Allow immediate spawn
 	a.lastLargeFishSpawn = -1000  // Allow immediate spawn
 	a.lastMermaidSpawn = -1000    // Allow immediate spawn
+}
+
+func (a *AquariumEffect) initBuffers() {
+	a.canvas = make([][]rune, a.height)
+	a.colors = make([][]string, a.height)
+	for i := range a.canvas {
+		a.canvas[i] = make([]rune, a.width)
+		a.colors[i] = make([]string, a.width)
+	}
+	a.builder.Grow(a.width * a.height * 4)
+}
+
+func (a *AquariumEffect) clearBuffers() {
+	for i := range a.canvas {
+		for j := range a.canvas[i] {
+			a.canvas[i][j] = ' '
+			a.colors[i][j] = ""
+		}
+	}
 }
 
 // spawnFish creates a new fish at a random or edge position (tiny/small only)
@@ -754,17 +779,7 @@ func (a *AquariumEffect) Update() {
 
 // Render converts the aquarium to colored text output
 func (a *AquariumEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, a.height)
-	colors := make([][]string, a.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, a.width)
-		colors[i] = make([]string, a.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	a.clearBuffers()
 
 	// Draw ocean surface at 15% from top
 	waterColor := "#4a9eff"
@@ -777,8 +792,8 @@ func (a *AquariumEffect) Render() string {
 	}
 	for x := 0; x < a.width; x++ {
 		if (a.frameCount/2+x)%3 == 0 {
-			canvas[oceanY][x] = '~'
-			colors[oceanY][x] = waterColor
+			a.canvas[oceanY][x] = '~'
+			a.colors[oceanY][x] = waterColor
 		}
 	}
 
@@ -792,21 +807,21 @@ func (a *AquariumEffect) Render() string {
 			if y == a.height-2 {
 				// Top of ocean floor with variation
 				if (x+a.frameCount/5)%7 == 0 {
-					canvas[y][x] = '^'
+					a.canvas[y][x] = '^'
 				} else if (x+a.frameCount/5)%5 == 0 {
-					canvas[y][x] = '.'
+					a.canvas[y][x] = '.'
 				} else {
-					canvas[y][x] = '_'
+					a.canvas[y][x] = '_'
 				}
 			} else {
 				// Bottom of ocean floor
 				if (x+y)%3 == 0 {
-					canvas[y][x] = '.'
+					a.canvas[y][x] = '.'
 				} else {
-					canvas[y][x] = ' '
+					a.canvas[y][x] = ' '
 				}
 			}
-			colors[y][x] = sandColor
+			a.colors[y][x] = sandColor
 		}
 	}
 
@@ -821,13 +836,13 @@ func (a *AquariumEffect) Render() string {
 			if y >= oceanY && y < a.height-2 && x >= 0 && x < a.width {
 				// Different variants
 				if seaweed.variant == 0 {
-					canvas[y][x] = '|'
+					a.canvas[y][x] = '|'
 				} else {
 					// Wavy seaweed alternates
 					if (h+seaweed.x)%2 == 0 {
-						canvas[y][x] = '('
+						a.canvas[y][x] = '('
 					} else {
-						canvas[y][x] = ')'
+						a.canvas[y][x] = ')'
 					}
 				}
 
@@ -836,7 +851,7 @@ func (a *AquariumEffect) Render() string {
 				if colorIdx >= len(seaweed.colors) {
 					colorIdx = len(seaweed.colors) - 1
 				}
-				colors[y][x] = seaweed.colors[colorIdx]
+				a.colors[y][x] = seaweed.colors[colorIdx]
 			}
 		}
 	}
@@ -853,8 +868,8 @@ func (a *AquariumEffect) Render() string {
 				for charIdx, char := range line {
 					x := startX + charIdx
 					if x >= 0 && x < a.width && char != ' ' {
-						canvas[y][x] = char
-						colors[y][x] = anchorColor
+						a.canvas[y][x] = char
+						a.colors[y][x] = anchorColor
 					}
 				}
 			}
@@ -867,8 +882,8 @@ func (a *AquariumEffect) Render() string {
 		y := int(bubble.y)
 
 		if y >= 0 && y < a.height && x >= 0 && x < a.width {
-			canvas[y][x] = 'o'
-			colors[y][x] = a.bubbleColor
+			a.canvas[y][x] = 'o'
+			a.colors[y][x] = a.bubbleColor
 		}
 	}
 
@@ -883,8 +898,8 @@ func (a *AquariumEffect) Render() string {
 				for charIdx, char := range line {
 					x := startX + charIdx
 					if x >= 0 && x < a.width && char != ' ' {
-						canvas[y][x] = char
-						colors[y][x] = a.diverColor
+						a.canvas[y][x] = char
+						a.colors[y][x] = a.diverColor
 					}
 				}
 			}
@@ -902,8 +917,8 @@ func (a *AquariumEffect) Render() string {
 				for charIdx, char := range line {
 					x := startX + charIdx
 					if x >= 0 && x < a.width && char != ' ' {
-						canvas[y][x] = char
-						colors[y][x] = a.boatColor
+						a.canvas[y][x] = char
+						a.colors[y][x] = a.boatColor
 					}
 				}
 			}
@@ -921,8 +936,8 @@ func (a *AquariumEffect) Render() string {
 				for charIdx, char := range line {
 					x := startX + charIdx
 					if x >= 0 && x < a.width && char != ' ' {
-						canvas[y][x] = char
-						colors[y][x] = a.mermaidColor
+						a.canvas[y][x] = char
+						a.colors[y][x] = a.mermaidColor
 					}
 				}
 			}
@@ -940,8 +955,8 @@ func (a *AquariumEffect) Render() string {
 				for charIdx, char := range line {
 					x := startX + charIdx
 					if x >= 0 && x < a.width && char != ' ' {
-						canvas[y][x] = char
-						colors[y][x] = fish.color
+						a.canvas[y][x] = char
+						a.colors[y][x] = fish.color
 					}
 				}
 			}
@@ -951,19 +966,19 @@ func (a *AquariumEffect) Render() string {
 	// Convert to colored string
 	var lines []string
 	for y := 0; y < a.height; y++ {
-		var line strings.Builder
+		a.builder.Reset()
 		for x := 0; x < a.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' && colors[y][x] != "" {
+			char := a.canvas[y][x]
+			if char != ' ' && a.colors[y][x] != "" {
 				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
+					Foreground(lipgloss.Color(a.colors[y][x])).
 					Render(string(char))
-				line.WriteString(styled)
+				a.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				a.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
+		lines = append(lines, a.builder.String())
 	}
 
 	return strings.Join(lines, "\n")
@@ -982,6 +997,7 @@ func (a *AquariumEffect) Reset() {
 func (a *AquariumEffect) Resize(width, height int) {
 	a.width = width
 	a.height = height
+	a.initBuffers()
 	a.Reset()
 }
 

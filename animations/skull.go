@@ -107,6 +107,8 @@ type SkullAnimation struct {
 	// Animation state
 	phase      AnimationPhase
 	frameCount int
+
+	builder strings.Builder
 }
 
 // NewSkullEffect creates a new skull background effect
@@ -577,7 +579,7 @@ func (s *SkullAnimation) updateAsh() {
 
 // Render returns the current frame as a string
 func (s *SkullAnimation) Render() string {
-	var output strings.Builder
+	s.builder.Reset()
 
 	// Build a map of skull characters by position for quick lookup
 	skullMap := make(map[[2]int]SkullChar)
@@ -653,14 +655,14 @@ func (s *SkullAnimation) Render() string {
 				if batch.Len() > 0 {
 					if currentColor != "" {
 						r, g, b := hexToRGB(currentColor)
-						fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+						fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
 					} else {
-						output.WriteString(batch.String())
+						s.builder.WriteString(batch.String())
 					}
 					batch.Reset()
 				}
 				r, g, b := hexToRGB(color)
-				fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, char)
+				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, char)
 				currentColor = ""
 			} else if skchar, ok := skullMap[pos]; ok {
 				// Skull layer - character at this position
@@ -671,9 +673,9 @@ func (s *SkullAnimation) Render() string {
 					if batch.Len() > 0 {
 						if currentColor != "" {
 							r, g, b := hexToRGB(currentColor)
-							fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+							fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
 						} else {
-							output.WriteString(batch.String())
+							s.builder.WriteString(batch.String())
 						}
 						batch.Reset()
 					}
@@ -686,15 +688,15 @@ func (s *SkullAnimation) Render() string {
 				if batch.Len() > 0 {
 					if currentColor != "" {
 						r, g, b := hexToRGB(currentColor)
-						fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+						fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
 					} else {
-						output.WriteString(batch.String())
+						s.builder.WriteString(batch.String())
 					}
 					batch.Reset()
 				}
 				// Write space with background color (fills the cell)
 				r, g, b := hexToRGB(s.palette[0])
-				fmt.Fprintf(&output, "\033[48;2;%d;%d;%dm \033[0m", r, g, b)
+				fmt.Fprintf(&s.builder, "\033[48;2;%d;%d;%dm \033[0m", r, g, b)
 				currentColor = ""
 			} else if ash, ok := ashMap[pos]; ok {
 				// Ash layer
@@ -709,9 +711,9 @@ func (s *SkullAnimation) Render() string {
 					if batch.Len() > 0 {
 						if currentColor != "" {
 							r, g, b := hexToRGB(currentColor)
-							fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+							fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
 						} else {
-							output.WriteString(batch.String())
+							s.builder.WriteString(batch.String())
 						}
 						batch.Reset()
 					}
@@ -723,13 +725,13 @@ func (s *SkullAnimation) Render() string {
 				if batch.Len() > 0 {
 					if currentColor != "" {
 						r, g, b := hexToRGB(currentColor)
-						fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+						fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
 					} else {
-						output.WriteString(batch.String())
+						s.builder.WriteString(batch.String())
 					}
 					batch.Reset()
 				}
-				output.WriteRune(' ')
+				s.builder.WriteRune(' ')
 				currentColor = ""
 			}
 		}
@@ -738,18 +740,18 @@ func (s *SkullAnimation) Render() string {
 		if batch.Len() > 0 {
 			if currentColor != "" {
 				r, g, b := hexToRGB(currentColor)
-				fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
+				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batch.String())
 			} else {
-				output.WriteString(batch.String())
+				s.builder.WriteString(batch.String())
 			}
 		}
 
 		if y < s.height-1 {
-			output.WriteString("\n")
+			s.builder.WriteString("\n")
 		}
 	}
 
-	return output.String()
+	return s.builder.String()
 }
 
 // getSkullCharColor returns the color for a skull character based on phase

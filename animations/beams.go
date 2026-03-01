@@ -49,6 +49,10 @@ type BeamsEffect struct {
 	holdCounter    int // Current hold frame count
 
 	rng *rand.Rand
+
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // BeamCharacter represents a single character in the beams animation
@@ -173,6 +177,7 @@ func NewBeamsEffect(config BeamsConfig) *BeamsEffect {
 
 // init initializes characters and beam groups for background mode
 func (b *BeamsEffect) init() {
+	b.initBuffers()
 	b.initBackgroundMode()
 
 	// Create row groups
@@ -186,6 +191,25 @@ func (b *BeamsEffect) init() {
 
 	// Create diagonal groups for final wipe
 	b.createDiagonalGroups()
+}
+
+func (b *BeamsEffect) initBuffers() {
+	b.canvas = make([][]rune, b.height)
+	b.colors = make([][]string, b.height)
+	for i := range b.canvas {
+		b.canvas[i] = make([]rune, b.width)
+		b.colors[i] = make([]string, b.width)
+	}
+	b.builder.Grow(b.width * b.height * 4)
+}
+
+func (b *BeamsEffect) clearBuffers() {
+	for i := range b.canvas {
+		for j := range b.canvas[i] {
+			b.canvas[i][j] = ' '
+			b.colors[i][j] = ""
+		}
+	}
 }
 
 // initBackgroundMode initializes full-screen background mode with sparse sampling
@@ -618,17 +642,7 @@ func (b *BeamsEffect) updateCharacterAnimations() {
 
 // Render converts the beams effect to colored text output
 func (b *BeamsEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, b.height)
-	colors := make([][]string, b.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, b.width)
-		colors[i] = make([]string, b.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	b.clearBuffers()
 
 	// Draw characters
 	for _, char := range b.Chars {
@@ -637,30 +651,31 @@ func (b *BeamsEffect) Render() string {
 		}
 
 		if char.y >= 0 && char.y < b.height && char.x >= 0 && char.x < b.width {
-			canvas[char.y][char.x] = char.currentSymbol
-			colors[char.y][char.x] = char.currentColor
+			b.canvas[char.y][char.x] = char.currentSymbol
+			b.colors[char.y][char.x] = char.currentColor
 		}
 	}
 
 	// Convert to colored string
-	var lines []string
+	b.builder.Reset()
 	for y := 0; y < b.height; y++ {
-		var line strings.Builder
+		if y > 0 {
+			b.builder.WriteRune('\n')
+		}
 		for x := 0; x < b.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' && colors[y][x] != "" {
+			char := b.canvas[y][x]
+			if char != ' ' && b.colors[y][x] != "" {
 				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
+					Foreground(lipgloss.Color(b.colors[y][x])).
 					Render(string(char))
-				line.WriteString(styled)
+				b.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				b.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
 	}
 
-	return strings.Join(lines, "\n")
+	return b.builder.String()
 }
 
 // Reset restarts the animation from the beginning
@@ -712,6 +727,7 @@ func formatHexColor(rgb [3]uint8) string {
 func (b *BeamsEffect) Resize(width, height int) {
 	b.width = width
 	b.height = height
+	b.initBuffers()
 	b.Chars = b.Chars[:0]
 	b.rowGroups = b.rowGroups[:0]
 	b.columnGroups = b.columnGroups[:0]

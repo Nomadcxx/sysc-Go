@@ -29,6 +29,11 @@ type MatrixArtEffect struct {
 	artHeight    int
 	rng          *rand.Rand
 	freezeChance float64 // Probability a character freezes
+
+	// Reusable render buffers — allocated once, cleared per frame
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // FrozenMatrixChar represents a matrix character that has frozen to form the art
@@ -108,6 +113,8 @@ func (m *MatrixArtEffect) parseArt() {
 
 // init initializes matrix streaks
 func (m *MatrixArtEffect) init() {
+	m.initBuffers()
+
 	// Create fixed pool of recycling streams (fewer needed with recycling + high freeze rate)
 	for i := 0; i < m.width*2; i++ {
 		streak := MatrixStreak{
@@ -119,6 +126,25 @@ func (m *MatrixArtEffect) init() {
 			Active:  true,
 		}
 		m.streaks = append(m.streaks, streak)
+	}
+}
+
+func (m *MatrixArtEffect) initBuffers() {
+	m.canvas = make([][]rune, m.height)
+	m.colors = make([][]string, m.height)
+	for i := range m.canvas {
+		m.canvas[i] = make([]rune, m.width)
+		m.colors[i] = make([]string, m.width)
+	}
+	m.builder.Grow(m.width * m.height * 4)
+}
+
+func (m *MatrixArtEffect) clearBuffers() {
+	for i := range m.canvas {
+		for j := range m.canvas[i] {
+			m.canvas[i][j] = ' '
+			m.colors[i][j] = ""
+		}
 	}
 }
 
@@ -220,17 +246,7 @@ func (m *MatrixArtEffect) Update() {
 
 // Render converts the matrix and frozen art to colored output
 func (m *MatrixArtEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, m.height)
-	colors := make([][]string, m.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, m.width)
-		colors[i] = make([]string, m.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	m.clearBuffers()
 
 	// Render matrix streaks
 	for _, streak := range m.streaks {
@@ -253,8 +269,8 @@ func (m *MatrixArtEffect) Render() string {
 					color = m.getTrailColor(i, streak.Length)
 				}
 
-				canvas[y][streak.X] = char
-				colors[y][streak.X] = color
+				m.canvas[y][streak.X] = char
+				m.colors[y][streak.X] = color
 			}
 		}
 	}
@@ -263,8 +279,8 @@ func (m *MatrixArtEffect) Render() string {
 	for y, row := range m.frozenChars {
 		for x, frozen := range row {
 			if y >= 0 && y < m.height && x >= 0 && x < m.width {
-				canvas[y][x] = frozen.char
-				colors[y][x] = frozen.color
+				m.canvas[y][x] = frozen.char
+				m.colors[y][x] = frozen.color
 			}
 		}
 	}
@@ -272,19 +288,19 @@ func (m *MatrixArtEffect) Render() string {
 	// Convert to colored string
 	var lines []string
 	for y := 0; y < m.height; y++ {
-		var line strings.Builder
+		m.builder.Reset()
 		for x := 0; x < m.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' && colors[y][x] != "" {
+			char := m.canvas[y][x]
+			if char != ' ' && m.colors[y][x] != "" {
 				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
+					Foreground(lipgloss.Color(m.colors[y][x])).
 					Render(string(char))
-				line.WriteString(styled)
+				m.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				m.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
+		lines = append(lines, m.builder.String())
 	}
 
 	return strings.Join(lines, "\n")
