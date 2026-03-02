@@ -416,11 +416,11 @@ func (b *BurnAnimation) SetText(text string) {
 	b.cycleFrame = 0
 	b.nextIgnition = 0
 	b.smokeParticles = b.smokeParticles[:0]
-	if b.withText {
-		b.initializeTextChars()
-	} else {
-		b.initializeRandomChars()
-	}
+
+	// Rebuild character data from scratch so repeated SetText calls
+	// replace prior text instead of appending to previous state.
+	b.initializeCharacters()
+	b.spanningTree = b.spanningTree[:0]
+	b.burnOrder = b.burnOrder[:0]
 	b.generateSpanningTree()
-	b.extractBurnOrder()
 }

@@ -180,6 +180,24 @@ func TestSetText_StabilityAfterMultipleCalls(t *testing.T) {
 	}
 }
 
+func TestBurnSetText_ReplacesCharacters(t *testing.T) {
+	anim := NewBurnTextEffect(40, 20, testPalette(), "default", "AB")
+
+	if got := len(anim.chars); got != 2 {
+		t.Fatalf("expected 2 chars after init, got %d", got)
+	}
+
+	anim.SetText("CD")
+	if got := len(anim.chars); got != 2 {
+		t.Fatalf("expected 2 chars after first SetText, got %d", got)
+	}
+
+	anim.SetText("EF")
+	if got := len(anim.chars); got != 2 {
+		t.Fatalf("expected 2 chars after second SetText, got %d", got)
+	}
+}
+
 func TestIsTextUpdatable(t *testing.T) {
 	textEffect := NewFireTextEffect(40, 20, testPalette(), "TEST")
 	nonTextEffect := NewFireEffect(40, 20, testPalette())
