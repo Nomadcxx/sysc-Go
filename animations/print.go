@@ -362,6 +362,12 @@ func (p *PrintEffect) Reset() {
 	p.holdFrameCount = 0
 }
 
+// SetText updates the displayed text and restarts the print animation.
+func (p *PrintEffect) SetText(text string) {
+	p.text = text
+	p.Reset()
+}
+
 // Resize updates the effect dimensions and reinitializes
 func (p *PrintEffect) Resize(width, height int) {
 	p.width = width

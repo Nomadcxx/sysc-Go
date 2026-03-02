@@ -5,7 +5,7 @@ package animations
 
 const (
 	// LibraryVersion is the sysc-Go animations library version
-	LibraryVersion = "1.0.2"
+	LibraryVersion = "1.1.0"
 )
 
 // EffectMetadata describes an animation effect

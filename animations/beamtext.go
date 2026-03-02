@@ -828,6 +828,16 @@ func (b *BeamTextEffect) Reset() {
 	}
 }
 
+// SetText updates the displayed text and reinitializes the beam animation.
+func (b *BeamTextEffect) SetText(text string) {
+	b.text = text
+	b.chars = b.chars[:0]
+	b.rowGroups = b.rowGroups[:0]
+	b.columnGroups = b.columnGroups[:0]
+	b.diagonalGroups = b.diagonalGroups[:0]
+	b.init()
+}
+
 // Resize reinitializes the beam text effect with new dimensions
 func (b *BeamTextEffect) Resize(width, height int) {
 	b.width = width

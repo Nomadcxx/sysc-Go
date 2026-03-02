@@ -616,6 +616,12 @@ func (e *RingTextEffect) Reset() {
 	e.generateDispersePositions()
 }
 
+// SetText updates the displayed text and reinitializes the ring animation.
+func (e *RingTextEffect) SetText(text string) {
+	e.text = text
+	e.init()
+}
+
 // createGradient creates a gradient between color stops
 func (e *RingTextEffect) createGradient(stops []string, steps int) []string {
 	if len(stops) == 0 {
