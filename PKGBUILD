@@ -1,6 +1,6 @@
 # Maintainer: Nomadcxx <noovie@gmail.com>
 pkgname=syscgo
-pkgver=1.0.2
+pkgver=1.0.3
 pkgrel=2
 pkgdesc="Terminal animation library and CLI tool for Go"
 arch=('x86_64' 'aarch64')
