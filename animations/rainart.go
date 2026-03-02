@@ -27,6 +27,11 @@ type RainArtEffect struct {
 	artHeight    int
 	rng          *rand.Rand
 	freezeChance float64 // Probability a drop freezes when passing art position
+
+	// Reusable render buffers — allocated once, cleared per frame
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // FrozenChar represents a rain character that has frozen to form the art
@@ -95,6 +100,8 @@ func (r *RainArtEffect) parseArt() {
 
 // init initializes rain drops
 func (r *RainArtEffect) init() {
+	r.initBuffers()
+
 	// Create many initial drops for dense rain effect
 	for i := 0; i < r.width*2; i++ {
 		drop := RainDrop{
@@ -105,6 +112,25 @@ func (r *RainArtEffect) init() {
 			Color: r.getRandomColor(),
 		}
 		r.drops = append(r.drops, drop)
+	}
+}
+
+func (r *RainArtEffect) initBuffers() {
+	r.canvas = make([][]rune, r.height)
+	r.colors = make([][]string, r.height)
+	for i := range r.canvas {
+		r.canvas[i] = make([]rune, r.width)
+		r.colors[i] = make([]string, r.width)
+	}
+	r.builder.Grow(r.width * r.height * 4)
+}
+
+func (r *RainArtEffect) clearBuffers() {
+	for i := range r.canvas {
+		for j := range r.canvas[i] {
+			r.canvas[i][j] = ' '
+			r.colors[i][j] = ""
+		}
 	}
 }
 
@@ -174,23 +200,13 @@ func (r *RainArtEffect) Update() {
 
 // Render converts the rain and frozen art to colored output
 func (r *RainArtEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, r.height)
-	colors := make([][]string, r.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, r.width)
-		colors[i] = make([]string, r.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	r.clearBuffers()
 
 	// Place active rain drops on canvas
 	for _, drop := range r.drops {
 		if drop.Y >= 0 && drop.Y < r.height && drop.X >= 0 && drop.X < r.width {
-			canvas[drop.Y][drop.X] = drop.Char
-			colors[drop.Y][drop.X] = drop.Color
+			r.canvas[drop.Y][drop.X] = drop.Char
+			r.colors[drop.Y][drop.X] = drop.Color
 		}
 	}
 
@@ -198,8 +214,8 @@ func (r *RainArtEffect) Render() string {
 	for y, row := range r.frozenChars {
 		for x, frozen := range row {
 			if y >= 0 && y < r.height && x >= 0 && x < r.width {
-				canvas[y][x] = frozen.char
-				colors[y][x] = frozen.color
+				r.canvas[y][x] = frozen.char
+				r.colors[y][x] = frozen.color
 			}
 		}
 	}
@@ -207,19 +223,19 @@ func (r *RainArtEffect) Render() string {
 	// Convert to colored string
 	var lines []string
 	for y := 0; y < r.height; y++ {
-		var line strings.Builder
+		r.builder.Reset()
 		for x := 0; x < r.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' && colors[y][x] != "" {
+			char := r.canvas[y][x]
+			if char != ' ' && r.colors[y][x] != "" {
 				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
+					Foreground(lipgloss.Color(r.colors[y][x])).
 					Render(string(char))
-				line.WriteString(styled)
+				r.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				r.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
+		lines = append(lines, r.builder.String())
 	}
 
 	return strings.Join(lines, "\n")

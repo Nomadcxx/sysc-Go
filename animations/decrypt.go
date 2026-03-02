@@ -25,6 +25,9 @@ type DecryptEffect struct {
 	phase                  string
 	frameCount             int
 	rng                    *rand.Rand
+
+	buffer  [][]string
+	builder strings.Builder
 }
 
 // DecryptCharacter represents a single character in the decryption effect
@@ -83,6 +86,7 @@ func NewDecryptEffect(config DecryptConfig) *DecryptEffect {
 
 // Initialize the decrypt effect with characters and their animations
 func (d *DecryptEffect) init() {
+	d.initBuffers()
 	lines := strings.Split(d.text, "\n")
 
 	// Calculate centered position for multi-line text
@@ -119,6 +123,22 @@ func (d *DecryptEffect) init() {
 
 	// Prepare animations for each character
 	d.prepareAnimations()
+}
+
+func (d *DecryptEffect) initBuffers() {
+	d.buffer = make([][]string, d.height)
+	for i := range d.buffer {
+		d.buffer[i] = make([]string, d.width)
+	}
+	d.builder.Grow(d.width * d.height * 4)
+}
+
+func (d *DecryptEffect) clearBuffers() {
+	for i := range d.buffer {
+		for j := range d.buffer[i] {
+			d.buffer[i][j] = " "
+		}
+	}
 }
 
 // Prepare the animations for each character
@@ -505,30 +525,26 @@ func (d *DecryptEffect) getVisibleChars() []DecryptCharacter {
 
 // Render converts the decrypt effect to colored text output
 func (d *DecryptEffect) Render() string {
-	// Create a buffer to hold the output
-	buffer := make([][]string, d.height)
-	for i := range buffer {
-		buffer[i] = make([]string, d.width)
-		for j := range buffer[i] {
-			buffer[i][j] = " "
-		}
-	}
+	d.clearBuffers()
 
 	// Render visible characters
 	for _, char := range d.chars {
 		if char.visible && char.y >= 0 && char.y < d.height && char.x >= 0 && char.x < d.width {
 			style := lipgloss.NewStyle().Foreground(lipgloss.Color(char.color))
-			buffer[char.y][char.x] = style.Render(string(char.current))
+			d.buffer[char.y][char.x] = style.Render(string(char.current))
 		}
 	}
 
 	// Convert buffer to string
-	var lines []string
-	for _, line := range buffer {
-		lines = append(lines, strings.Join(line, ""))
+	d.builder.Reset()
+	for i, line := range d.buffer {
+		if i > 0 {
+			d.builder.WriteByte('\n')
+		}
+		d.builder.WriteString(strings.Join(line, ""))
 	}
 
-	return strings.Join(lines, "\n")
+	return d.builder.String()
 }
 
 // Reset restarts the animation from the beginning

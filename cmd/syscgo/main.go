@@ -304,9 +304,13 @@ func main() {
 	// 	runBlackhole(width, height, *theme, "", frames)
 	case "aquarium":
 		runAquarium(width, height, *theme, frames)
+	case "skull":
+		runSkull(width, height, *theme, frames)
+	case "skull-text":
+		runSkullText(width, height, *theme, *file, frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, fire-text, matrix, rain, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium")
+		fmt.Println("Available: fire, fire-text, matrix, rain, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, skull")
 		os.Exit(1)
 	}
 }
@@ -1269,6 +1273,94 @@ func runAquarium(width, height int, theme string, frames int) {
 
 		fmt.Print("[H")
 		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runSkull(width, height int, theme string, frames int) {
+	palette := animations.GetSkullPalette(theme)
+	skull := animations.NewSkullEffect(width, height, palette, theme)
+
+	quit := setupKeyboardInterrupt()
+	defer close(quit)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		select {
+		case <-quit:
+			return
+		default:
+		}
+
+		skull.Update()
+		output := skull.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		os.Stdout.Sync()
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runSkullText(width, height int, theme string, file string, frames int) {
+	palette := animations.GetSkullPalette(theme)
+
+	// Get text gradients for theme
+	var textGradient []string
+	switch theme {
+	case "dracula":
+		textGradient = []string{"#ff79c6", "#bd93f9", "#8be9fd", "#f8f8f2"}
+	case "gruvbox":
+		textGradient = []string{"#fe8019", "#fabd2f", "#b8bb26", "#ebdbb2"}
+	case "nord":
+		textGradient = []string{"#88c0d0", "#81a1c1", "#8fbcbb", "#eceff4"}
+	case "tokyo-night", "tokyonight":
+		textGradient = []string{"#7dcfff", "#7aa2f7", "#9ece6a", "#c0caf5"}
+	case "catppuccin", "catppuccin-mocha":
+		textGradient = []string{"#f5c2e7", "#cba6f7", "#89dceb", "#cdd6f4"}
+	case "material":
+		textGradient = []string{"#89ddff", "#82aaff", "#c3e88d", "#eceff1"}
+	case "solarized":
+		textGradient = []string{"#2aa198", "#268bd2", "#859900", "#fdf6e3"}
+	case "monochrome":
+		textGradient = []string{"#bababa", "#dadada", "#ffffff", "#ffffff"}
+	case "transishardjob":
+		textGradient = []string{"#55cdfc", "#f7a8b8", "#ffffff", "#ffffff"}
+	case "rama":
+		textGradient = []string{"#ef233c", "#d90429", "#edf2f4", "#ffffff"}
+	case "eldritch":
+		textGradient = []string{"#37f499", "#04d1f9", "#f7c67f", "#ebfafa"}
+	case "dark":
+		textGradient = []string{"#cccccc", "#ffffff", "#ffffff", "#ffffff"}
+	default:
+		textGradient = []string{"#00D1FF", "#8A008A", "#FFFFFF", "#FFFFFF"}
+	}
+
+	// Read text from file
+	text := readTextFile(file)
+
+	skull := animations.NewSkullTextEffect(width, height, palette, theme, text)
+	skull.SetTextGradient(textGradient)
+
+	quit := setupKeyboardInterrupt()
+	defer close(quit)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		select {
+		case <-quit:
+			return
+		default:
+		}
+
+		skull.Update()
+		output := skull.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		os.Stdout.Sync()
 		time.Sleep(50 * time.Millisecond)
 		frame++
 	}

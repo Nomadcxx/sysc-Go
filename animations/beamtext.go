@@ -53,6 +53,10 @@ type BeamTextEffect struct {
 	holdCounter    int // Current hold frame count
 
 	rng *rand.Rand
+
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // BeamTextConfig holds configuration for the beam text effect
@@ -184,6 +188,7 @@ func calculateTextDimensions(text string) (int, int) {
 
 // init initializes characters and beam groups
 func (b *BeamTextEffect) init() {
+	b.initBuffers()
 	b.initTextMode()
 
 	// Create row groups
@@ -197,6 +202,25 @@ func (b *BeamTextEffect) init() {
 
 	// Create diagonal groups for final wipe
 	b.createDiagonalGroups()
+}
+
+func (b *BeamTextEffect) initBuffers() {
+	b.canvas = make([][]rune, b.height)
+	b.colors = make([][]string, b.height)
+	for i := range b.canvas {
+		b.canvas[i] = make([]rune, b.width)
+		b.colors[i] = make([]string, b.width)
+	}
+	b.builder.Grow(b.width * b.height * 4)
+}
+
+func (b *BeamTextEffect) clearBuffers() {
+	for i := range b.canvas {
+		for j := range b.canvas[i] {
+			b.canvas[i][j] = ' '
+			b.colors[i][j] = ""
+		}
+	}
 }
 
 // initTextMode initializes with centered text (or left-aligned if auto-sized)
@@ -706,17 +730,7 @@ func (b *BeamTextEffect) updateCharacterAnimations() {
 
 // Render converts the beams effect to colored text output
 func (b *BeamTextEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, b.height)
-	colors := make([][]string, b.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, b.width)
-		colors[i] = make([]string, b.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	b.clearBuffers()
 
 	// First, render background beams directly from their character data (as base layer)
 	if b.backgroundBeams != nil {
@@ -729,9 +743,9 @@ func (b *BeamTextEffect) Render() string {
 
 			if bgChar.y >= 0 && bgChar.y < b.height && bgChar.x >= 0 && bgChar.x < b.width {
 				// Only place background if position is empty
-				if canvas[bgChar.y][bgChar.x] == ' ' {
-					canvas[bgChar.y][bgChar.x] = bgChar.currentSymbol
-					colors[bgChar.y][bgChar.x] = bgChar.currentColor
+				if b.canvas[bgChar.y][bgChar.x] == ' ' {
+					b.canvas[bgChar.y][bgChar.x] = bgChar.currentSymbol
+					b.colors[bgChar.y][bgChar.x] = bgChar.currentColor
 				}
 			}
 		}
@@ -744,31 +758,32 @@ func (b *BeamTextEffect) Render() string {
 		}
 
 		if char.y >= 0 && char.y < b.height && char.x >= 0 && char.x < b.width {
-			canvas[char.y][char.x] = char.currentSymbol
-			colors[char.y][char.x] = char.currentColor
+			b.canvas[char.y][char.x] = char.currentSymbol
+			b.colors[char.y][char.x] = char.currentColor
 		}
 	}
 
 	// Convert to colored string
-	var lines []string
+	b.builder.Reset()
 	for y := 0; y < b.height; y++ {
-		var line strings.Builder
+		if y > 0 {
+			b.builder.WriteRune('\n')
+		}
 		for x := 0; x < b.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' && colors[y][x] != "" {
+			char := b.canvas[y][x]
+			if char != ' ' && b.colors[y][x] != "" {
 				// Characters with explicit colors
 				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
+					Foreground(lipgloss.Color(b.colors[y][x])).
 					Render(string(char))
-				line.WriteString(styled)
+				b.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				b.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
 	}
 
-	return strings.Join(lines, "\n")
+	return b.builder.String()
 }
 
 // getBeamsCharacters is a helper to access the background beams' character array
@@ -817,6 +832,7 @@ func (b *BeamTextEffect) Reset() {
 func (b *BeamTextEffect) Resize(width, height int) {
 	b.width = width
 	b.height = height
+	b.initBuffers()
 
 	// Resize background beams
 	if b.backgroundBeams != nil {

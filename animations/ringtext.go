@@ -74,6 +74,10 @@ type RingTextEffect struct {
 	// Animation state
 	phase        string // "static", "transition_to_disperse", "disperse", "transition_to_spin", "spin", "return_to_text", "hold"
 	currentCycle int    // Current spin/disperse cycle
+
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // RingTextCharacter represents a single character in the animation
@@ -171,6 +175,8 @@ func NewRingTextEffect(config RingTextConfig) *RingTextEffect {
 
 // init initializes the effect
 func (e *RingTextEffect) init() {
+	e.initBuffers()
+
 	e.centerX = float64(e.width) / 2
 	e.centerY = float64(e.height) / 2
 
@@ -197,6 +203,25 @@ func (e *RingTextEffect) init() {
 
 	// Apply initial static gradient colors to all characters
 	e.applyStaticGradient()
+}
+
+func (e *RingTextEffect) initBuffers() {
+	e.canvas = make([][]rune, e.height)
+	e.colors = make([][]string, e.height)
+	for i := range e.canvas {
+		e.canvas[i] = make([]rune, e.width)
+		e.colors[i] = make([]string, e.width)
+	}
+	e.builder.Grow(e.width * e.height * 4)
+}
+
+func (e *RingTextEffect) clearBuffers() {
+	for i := range e.canvas {
+		for j := range e.canvas[i] {
+			e.canvas[i][j] = ' '
+			e.colors[i][j] = ""
+		}
+	}
 }
 
 // parseText converts the text into positioned characters
@@ -528,17 +553,7 @@ func (e *RingTextEffect) Update() {
 
 // Render returns the current frame as a colored string
 func (e *RingTextEffect) Render() string {
-	// Create a 2D buffer for the screen
-	buffer := make([][]rune, e.height)
-	colors := make([][]string, e.height)
-	for i := range buffer {
-		buffer[i] = make([]rune, e.width)
-		colors[i] = make([]string, e.width)
-		for j := range buffer[i] {
-			buffer[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	e.clearBuffers()
 
 	// Draw characters
 	for _, char := range e.chars {
@@ -551,29 +566,29 @@ func (e *RingTextEffect) Render() string {
 
 		// Bounds check
 		if x >= 0 && x < e.width && y >= 0 && y < e.height {
-			buffer[y][x] = char.original
-			colors[y][x] = char.currentColor
+			e.canvas[y][x] = char.original
+			e.colors[y][x] = char.currentColor
 		}
 	}
 
 	// Build output (line-by-line like other effects)
 	var lines []string
 	for y := 0; y < e.height; y++ {
-		var line strings.Builder
+		e.builder.Reset()
 		for x := 0; x < e.width; x++ {
-			char := buffer[y][x]
-			color := colors[y][x]
+			char := e.canvas[y][x]
+			color := e.colors[y][x]
 
 			if color != "" && char != ' ' {
 				styled := lipgloss.NewStyle().
 					Foreground(lipgloss.Color(color)).
 					Render(string(char))
-				line.WriteString(styled)
+				e.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				e.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
+		lines = append(lines, e.builder.String())
 	}
 
 	return strings.Join(lines, "\n")
