@@ -294,3 +294,11 @@ func (m *MatrixArtEffect) Render() string {
 func (m *MatrixArtEffect) Reset() {
 	m.frozenChars = make(map[int]map[int]*FrozenMatrixChar)
 }
+
+// SetText updates the displayed text and restarts the crystallization.
+func (m *MatrixArtEffect) SetText(text string) {
+	m.text = text
+	m.artPositions = make(map[int]map[int]rune)
+	m.frozenChars = make(map[int]map[int]*FrozenMatrixChar)
+	m.parseArt()
+}

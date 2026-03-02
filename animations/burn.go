@@ -406,3 +406,21 @@ func (b *BurnAnimation) Reset() {
 	b.nextIgnition = 0
 	// TODO: Regenerate characters and spanning tree
 }
+
+// SetText updates the displayed text and reinitializes the burn animation.
+func (b *BurnAnimation) SetText(text string) {
+	b.textContent = text
+	b.withText = text != ""
+	b.phase = PhaseIgnition
+	b.frameCount = 0
+	b.cycleFrame = 0
+	b.nextIgnition = 0
+	b.smokeParticles = b.smokeParticles[:0]
+	if b.withText {
+		b.initializeTextChars()
+	} else {
+		b.initializeRandomChars()
+	}
+	b.generateSpanningTree()
+	b.extractBurnOrder()
+}

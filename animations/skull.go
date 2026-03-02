@@ -816,3 +816,11 @@ func (s *SkullAnimation) Reset() {
 
 	// DO NOT reset ash particles - they continue seamlessly
 }
+
+// SetText updates the displayed text and reinitializes the text layer.
+func (s *SkullAnimation) SetText(text string) {
+	s.textContent = text
+	s.withText = text != ""
+	s.textChars = nil
+	s.parseText()
+}

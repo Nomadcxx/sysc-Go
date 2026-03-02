@@ -229,3 +229,11 @@ func (r *RainArtEffect) Render() string {
 func (r *RainArtEffect) Reset() {
 	r.frozenChars = make(map[int]map[int]*FrozenChar)
 }
+
+// SetText updates the displayed text and restarts the crystallization.
+func (r *RainArtEffect) SetText(text string) {
+	r.text = text
+	r.artPositions = make(map[int]map[int]rune)
+	r.frozenChars = make(map[int]map[int]*FrozenChar)
+	r.parseArt()
+}

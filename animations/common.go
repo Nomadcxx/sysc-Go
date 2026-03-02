@@ -38,3 +38,14 @@ type Config struct {
 	Height int    // Terminal height in characters
 	Theme  string // Color theme name
 }
+
+// TextUpdatable is implemented by effects that can change their displayed text at runtime.
+type TextUpdatable interface {
+	SetText(text string)
+}
+
+// IsTextUpdatable reports whether an Animation supports dynamic text changes.
+func IsTextUpdatable(anim Animation) bool {
+	_, ok := anim.(TextUpdatable)
+	return ok
+}

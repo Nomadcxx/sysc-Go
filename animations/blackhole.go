@@ -801,6 +801,13 @@ func (e *BlackholeEffect) Reset() {
 	e.generateScatterPositions()
 }
 
+// SetText updates the displayed text and reinitializes the blackhole animation.
+func (e *BlackholeEffect) SetText(text string) {
+	e.text = text
+	e.particleMode = text == ""
+	e.init()
+}
+
 // createGradient creates a gradient between color stops
 func (e *BlackholeEffect) createGradient(stops []string, steps int) []string {
 	if len(stops) == 0 {

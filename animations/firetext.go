@@ -280,3 +280,10 @@ func (f *FireTextEffect) Render() string {
 
 	return result
 }
+
+// SetText updates the displayed text and rebuilds the fire around it.
+func (f *FireTextEffect) SetText(text string) {
+	f.text = text
+	f.parseText()
+	f.init()
+}

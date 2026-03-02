@@ -547,3 +547,10 @@ func (d *DecryptEffect) Reset() {
 	// Reprepare animations
 	d.prepareAnimations()
 }
+
+// SetText updates the displayed text and reinitializes the decrypt animation.
+func (d *DecryptEffect) SetText(text string) {
+	d.text = text
+	d.init()
+	d.prepareAnimations()
+}
