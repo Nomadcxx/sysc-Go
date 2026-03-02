@@ -310,7 +310,7 @@ func main() {
 		runSkullText(width, height, *theme, *file, frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, fire-text, matrix, rain, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, skull")
+		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, skull, skull-text")
 		os.Exit(1)
 	}
 }

@@ -105,8 +105,11 @@ type SkullAnimation struct {
 	textGradient []string
 
 	// Animation state
-	phase      AnimationPhase
-	frameCount int
+	phase                  AnimationPhase
+	frameCount             int
+	illuminationStartFrame int
+	textEntranceStartFrame int
+	holdStartFrame         int
 
 	builder strings.Builder
 }
@@ -124,14 +127,17 @@ func NewSkullTextEffect(width, height int, palette []string, theme string, text 
 // newSkullAnimation is the internal constructor
 func newSkullAnimation(width, height int, palette []string, theme string, withText bool, text string) *SkullAnimation {
 	s := &SkullAnimation{
-		width:       width,
-		height:      height,
-		palette:     palette,
-		theme:       theme,
-		withText:    withText,
-		textContent: text,
-		phase:       PhaseDrip,
-		frameCount:  0,
+		width:                  width,
+		height:                 height,
+		palette:                palette,
+		theme:                  theme,
+		withText:               withText,
+		textContent:            text,
+		phase:                  PhaseDrip,
+		frameCount:             0,
+		illuminationStartFrame: -1,
+		textEntranceStartFrame: -1,
+		holdStartFrame:         -1,
 	}
 
 	// Initialize skull art
@@ -187,21 +193,26 @@ func (s *SkullAnimation) parseSkullArt() {
 		minLeading = 0
 	}
 
-	// Find max line width after trimming leading spaces
+	// Find max visual line width after trimming leading spaces.
+	// Width is measured to the rightmost non-space rune so centering
+	// uses display columns instead of counting only non-space glyphs.
 	maxWidth := 0
 	for _, line := range lines {
-		trimmed := line
-		if len(line) >= minLeading {
-			trimmed = line[minLeading:]
+		runes := []rune(line)
+		if minLeading < len(runes) {
+			runes = runes[minLeading:]
+		} else {
+			runes = []rune{}
 		}
-		contentWidth := 0
-		for _, ch := range trimmed {
+		rightMost := -1
+		for i, ch := range runes {
 			if ch != ' ' {
-				contentWidth++
+				rightMost = i
 			}
 		}
-		if contentWidth > maxWidth {
-			maxWidth = contentWidth
+		lineWidth := rightMost + 1
+		if lineWidth > maxWidth {
+			maxWidth = lineWidth
 		}
 	}
 	offsetX := (s.width - maxWidth) / 2
@@ -210,14 +221,16 @@ func (s *SkullAnimation) parseSkullArt() {
 	s.skullChars = []SkullChar{}
 	for y, line := range lines {
 		// Trim the minimum leading spaces from this line
-		trimmedLine := line
-		if len(line) >= minLeading {
-			trimmedLine = line[minLeading:]
+		trimmedLine := []rune(line)
+		if minLeading < len(trimmedLine) {
+			trimmedLine = trimmedLine[minLeading:]
+		} else {
+			trimmedLine = []rune{}
 		}
-		for x, ch := range trimmedLine {
+		for col, ch := range trimmedLine {
 			if ch != ' ' && ch != '\n' && ch != '\r' {
 				finalY := s.skullOffsetY + y
-				finalX := offsetX + x
+				finalX := offsetX + col
 
 				// Random starting position above screen
 				startY := float64(finalY) - float64(5+rand.Intn(10))
@@ -463,13 +476,19 @@ func (s *SkullAnimation) updateDrip() {
 	// Transition to illumination phase when all locked (around frame 110)
 	if allLocked || s.frameCount >= 120 {
 		s.phase = PhaseIllumination
+		s.illuminationStartFrame = s.frameCount
 	}
 }
 
 // updateIllumination handles Phase 2: accent point illumination
 func (s *SkullAnimation) updateIllumination() {
-	// Phase starts at frame 111, runs for 80 frames (until frame 190)
-	relFrame := s.frameCount - 111
+	// Phase runs for 80 frames from actual transition time.
+	start := s.illuminationStartFrame
+	if start < 0 {
+		start = s.frameCount
+		s.illuminationStartFrame = start
+	}
+	relFrame := s.frameCount - start
 
 	// No illumination updates needed - color is determined in render
 	// based on frame count and accent type
@@ -478,16 +497,23 @@ func (s *SkullAnimation) updateIllumination() {
 	if relFrame >= 80 {
 		if s.withText {
 			s.phase = PhaseTextEntrance
+			s.textEntranceStartFrame = s.frameCount
 		} else {
 			s.phase = PhaseHold
+			s.holdStartFrame = s.frameCount
 		}
 	}
 }
 
 // updateTextEntrance handles Phase 3: text sliding in
 func (s *SkullAnimation) updateTextEntrance() {
-	// Phase starts at frame 191, runs for 40 frames (until frame 230)
-	relFrame := s.frameCount - 191
+	// Phase runs for 40 frames from actual transition time.
+	start := s.textEntranceStartFrame
+	if start < 0 {
+		start = s.frameCount
+		s.textEntranceStartFrame = start
+	}
+	relFrame := s.frameCount - start
 
 	// Update text character positions
 	for i := range s.textChars {
@@ -510,15 +536,16 @@ func (s *SkullAnimation) updateTextEntrance() {
 	// Transition to hold phase after 40 frames
 	if relFrame >= 40 {
 		s.phase = PhaseHold
+		s.holdStartFrame = s.frameCount
 	}
 }
 
 // updateHold handles Phase 4: hold state before reset
 func (s *SkullAnimation) updateHold() {
-	// Determine when hold phase started
-	holdStart := 190 // After drip (110) + illumination (80)
-	if s.withText {
-		holdStart = 230 // After drip (110) + illumination (80) + text (40)
+	holdStart := s.holdStartFrame
+	if holdStart < 0 {
+		holdStart = s.frameCount
+		s.holdStartFrame = holdStart
 	}
 
 	// Hold for 200 frames (10 seconds)
@@ -696,7 +723,7 @@ func (s *SkullAnimation) Render() string {
 				}
 				// Write space with background color (fills the cell)
 				r, g, b := hexToRGB(s.palette[0])
-				fmt.Fprintf(&s.builder, "\033[48;2;%d;%d;%dm \033[0m", r, g, b)
+					fmt.Fprintf(&s.builder, "\033[48;2;%d;%d;%dm \033[0m", r, g, b)
 				currentColor = ""
 			} else if ash, ok := ashMap[pos]; ok {
 				// Ash layer
@@ -767,7 +794,11 @@ func (s *SkullAnimation) getSkullCharColor(char SkullChar) string {
 	}
 
 	// Check if this accent region is illuminated yet
-	relFrame := s.frameCount - 111 // Illumination starts at frame 111
+	start := s.illuminationStartFrame
+	if start < 0 {
+		start = s.frameCount
+	}
+	relFrame := s.frameCount - start
 
 	// Top details: frames 0-19 (111-130)
 	if char.accentType == 1 && relFrame >= 0 {
@@ -797,6 +828,9 @@ func (s *SkullAnimation) getSkullCharColor(char SkullChar) string {
 func (s *SkullAnimation) Reset() {
 	s.phase = PhaseDrip
 	s.frameCount = 0
+	s.illuminationStartFrame = -1
+	s.textEntranceStartFrame = -1
+	s.holdStartFrame = -1
 
 	// Reset skull characters to starting drip positions
 	for i := range s.skullChars {
@@ -825,4 +859,11 @@ func (s *SkullAnimation) SetText(text string) {
 	s.withText = text != ""
 	s.textChars = nil
 	s.parseText()
+
+	// If text is cleared while text entrance is in progress,
+	// continue to hold instead of stalling in text-only phase logic.
+	if !s.withText && s.phase == PhaseTextEntrance {
+		s.phase = PhaseHold
+		s.holdStartFrame = s.frameCount
+	}
 }
