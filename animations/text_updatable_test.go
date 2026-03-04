@@ -256,6 +256,32 @@ func TestTextEffects_NormalizeCRLFInput(t *testing.T) {
 	}
 }
 
+func TestFireAndSkullText_NormalizeStoredText(t *testing.T) {
+	w, h := 80, 24
+	p := textUpdatableTestPalette()
+	skullPalette := GetSkullPalette("default")
+	crlfText := "A\r\nB"
+	lfText := "A\nB"
+
+	fire := NewFireTextEffect(w, h, p, crlfText)
+	if fire.text != lfText {
+		t.Fatalf("fire-text constructor did not normalize CRLF: got %q want %q", fire.text, lfText)
+	}
+	fire.SetText(crlfText)
+	if fire.text != lfText {
+		t.Fatalf("fire-text SetText did not normalize CRLF: got %q want %q", fire.text, lfText)
+	}
+
+	skull := NewSkullTextEffect(w, h, skullPalette, "default", crlfText)
+	if skull.textContent != lfText {
+		t.Fatalf("skull-text constructor did not normalize CRLF: got %q want %q", skull.textContent, lfText)
+	}
+	skull.SetText(crlfText)
+	if skull.textContent != lfText {
+		t.Fatalf("skull-text SetText did not normalize CRLF: got %q want %q", skull.textContent, lfText)
+	}
+}
+
 func TestIsTextUpdatable(t *testing.T) {
 	textEffect := NewFireTextEffect(40, 20, textUpdatableTestPalette(), "TEST")
 	nonTextEffect := NewFireEffect(40, 20, textUpdatableTestPalette())

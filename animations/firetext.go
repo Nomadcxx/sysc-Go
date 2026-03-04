@@ -26,6 +26,8 @@ type FireTextEffect struct {
 
 // NewFireTextEffect creates a new fire-text effect with given dimensions, palette, and ASCII art
 func NewFireTextEffect(width, height int, palette []string, text string) *FireTextEffect {
+	text = normalizeMultilineText(text)
+
 	f := &FireTextEffect{
 		width:   width,
 		height:  height,
@@ -283,7 +285,7 @@ func (f *FireTextEffect) Render() string {
 
 // SetText updates the displayed text and rebuilds the fire around it.
 func (f *FireTextEffect) SetText(text string) {
-	f.text = text
+	f.text = normalizeMultilineText(text)
 	f.parseText()
 	f.init()
 }

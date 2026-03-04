@@ -126,6 +126,8 @@ func NewSkullTextEffect(width, height int, palette []string, theme string, text 
 
 // newSkullAnimation is the internal constructor
 func newSkullAnimation(width, height int, palette []string, theme string, withText bool, text string) *SkullAnimation {
+	text = normalizeMultilineText(text)
+
 	s := &SkullAnimation{
 		width:                  width,
 		height:                 height,
@@ -855,8 +857,8 @@ func (s *SkullAnimation) Reset() {
 
 // SetText updates the displayed text and reinitializes the text layer.
 func (s *SkullAnimation) SetText(text string) {
-	s.textContent = text
-	s.withText = text != ""
+	s.textContent = normalizeMultilineText(text)
+	s.withText = s.textContent != ""
 	s.textChars = nil
 	s.parseText()
 
