@@ -20,6 +20,8 @@
 // See GUIDE.md for detailed usage examples and integration patterns.
 package animations
 
+import "strings"
+
 // Animation interface that all effects implement
 type Animation interface {
 	// Update advances the animation by one frame
@@ -48,4 +50,11 @@ type TextUpdatable interface {
 func IsTextUpdatable(anim Animation) bool {
 	_, ok := anim.(TextUpdatable)
 	return ok
+}
+
+// normalizeMultilineText normalizes platform line endings to LF.
+func normalizeMultilineText(text string) string {
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
+	return text
 }

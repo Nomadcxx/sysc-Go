@@ -42,6 +42,8 @@ type FrozenChar struct {
 
 // NewRainArtEffect creates a new rain-art effect
 func NewRainArtEffect(width, height int, palette []string, text string) *RainArtEffect {
+	text = normalizeMultilineText(text)
+
 	r := &RainArtEffect{
 		width:        width,
 		height:       height,
@@ -248,7 +250,7 @@ func (r *RainArtEffect) Reset() {
 
 // SetText updates the displayed text and restarts the crystallization.
 func (r *RainArtEffect) SetText(text string) {
-	r.text = text
+	r.text = normalizeMultilineText(text)
 	r.artPositions = make(map[int]map[int]rune)
 	r.frozenChars = make(map[int]map[int]*FrozenChar)
 	r.parseArt()

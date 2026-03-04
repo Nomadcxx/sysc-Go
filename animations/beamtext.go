@@ -83,6 +83,7 @@ type BeamTextConfig struct {
 // NewBeamTextEffect creates a new beam text effect with given configuration
 func NewBeamTextEffect(config BeamTextConfig) *BeamTextEffect {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	config.Text = normalizeMultilineText(config.Text)
 
 	// Set defaults if not provided
 	if len(config.BeamRowSymbols) == 0 {
@@ -830,7 +831,7 @@ func (b *BeamTextEffect) Reset() {
 
 // SetText updates the displayed text and reinitializes the beam animation.
 func (b *BeamTextEffect) SetText(text string) {
-	b.text = text
+	b.text = normalizeMultilineText(text)
 	b.chars = b.chars[:0]
 	b.rowGroups = b.rowGroups[:0]
 	b.columnGroups = b.columnGroups[:0]

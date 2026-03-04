@@ -109,6 +109,7 @@ var unstableSymbols = []rune{'◦', '◎', '◉', '●'}
 // NewBlackholeEffect creates a new Blackhole effect
 func NewBlackholeEffect(config BlackholeConfig) *BlackholeEffect {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	config.Text = normalizeMultilineText(config.Text)
 
 	// Set defaults
 	if config.BlackholeColor == "" {
@@ -819,8 +820,8 @@ func (e *BlackholeEffect) Reset() {
 
 // SetText updates the displayed text and reinitializes the blackhole animation.
 func (e *BlackholeEffect) SetText(text string) {
-	e.text = text
-	e.particleMode = text == ""
+	e.text = normalizeMultilineText(text)
+	e.particleMode = e.text == ""
 	e.init()
 }
 

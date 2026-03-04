@@ -44,6 +44,8 @@ type FrozenMatrixChar struct {
 
 // NewMatrixArtEffect creates a new matrix-art effect
 func NewMatrixArtEffect(width, height int, palette []string, text string) *MatrixArtEffect {
+	text = normalizeMultilineText(text)
+
 	m := &MatrixArtEffect{
 		width:   width,
 		height:  height,
@@ -313,7 +315,7 @@ func (m *MatrixArtEffect) Reset() {
 
 // SetText updates the displayed text and restarts the crystallization.
 func (m *MatrixArtEffect) SetText(text string) {
-	m.text = text
+	m.text = normalizeMultilineText(text)
 	m.artPositions = make(map[int]map[int]rune)
 	m.frozenChars = make(map[int]map[int]*FrozenMatrixChar)
 	m.parseArt()

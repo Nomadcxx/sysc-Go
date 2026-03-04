@@ -109,6 +109,7 @@ type Ring struct {
 // NewRingTextEffect creates a new RingText effect
 func NewRingTextEffect(config RingTextConfig) *RingTextEffect {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	config.Text = normalizeMultilineText(config.Text)
 
 	// Set defaults
 	if config.RingGap == 0 {
@@ -618,7 +619,7 @@ func (e *RingTextEffect) Reset() {
 
 // SetText updates the displayed text and reinitializes the ring animation.
 func (e *RingTextEffect) SetText(text string) {
-	e.text = text
+	e.text = normalizeMultilineText(text)
 	e.init()
 }
 

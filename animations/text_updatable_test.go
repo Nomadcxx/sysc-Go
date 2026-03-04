@@ -1,10 +1,11 @@
 package animations
 
 import (
+	"strings"
 	"testing"
 )
 
-func testPalette() []string {
+func textUpdatableTestPalette() []string {
 	return []string{
 		"#000000", "#1a0000", "#330000", "#4d0000",
 		"#660000", "#800000", "#990000", "#cc0000",
@@ -14,7 +15,7 @@ func testPalette() []string {
 
 func TestTextBasedEffectsSatisfyTextUpdatable(t *testing.T) {
 	w, h := 40, 20
-	p := testPalette()
+	p := textUpdatableTestPalette()
 	text := "TEST"
 
 	effects := map[string]interface{}{
@@ -51,7 +52,7 @@ type updatableRenderer interface {
 
 func TestSetText_ChangesRenderedOutput(t *testing.T) {
 	w, h := 60, 20
-	p := testPalette()
+	p := textUpdatableTestPalette()
 	textA := "AAAA"
 	textB := "ZZZZ"
 
@@ -111,7 +112,7 @@ func TestSetText_ChangesRenderedOutput(t *testing.T) {
 
 func TestSetText_DoesNotPanic(t *testing.T) {
 	w, h := 40, 20
-	p := testPalette()
+	p := textUpdatableTestPalette()
 
 	effects := map[string]interface{}{
 		"fire-text":  NewFireTextEffect(w, h, p, "HELLO"),
@@ -161,7 +162,7 @@ func TestSetText_DoesNotPanic(t *testing.T) {
 
 func TestSetText_StabilityAfterMultipleCalls(t *testing.T) {
 	w, h := 40, 20
-	p := testPalette()
+	p := textUpdatableTestPalette()
 
 	anim := NewFireTextEffect(w, h, p, "HELLO")
 
@@ -181,7 +182,7 @@ func TestSetText_StabilityAfterMultipleCalls(t *testing.T) {
 }
 
 func TestBurnSetText_ReplacesCharacters(t *testing.T) {
-	anim := NewBurnTextEffect(40, 20, testPalette(), "default", "AB")
+	anim := NewBurnTextEffect(40, 20, textUpdatableTestPalette(), "default", "AB")
 
 	if got := len(anim.chars); got != 2 {
 		t.Fatalf("expected 2 chars after init, got %d", got)
@@ -198,9 +199,66 @@ func TestBurnSetText_ReplacesCharacters(t *testing.T) {
 	}
 }
 
+func TestTextEffects_NormalizeCRLFInput(t *testing.T) {
+	w, h := 80, 24
+	p := textUpdatableTestPalette()
+	skullPalette := GetSkullPalette("default")
+	crlfText := "A\r\nB"
+
+	type effectFactory struct {
+		name   string
+		frames int
+		create func(text string) updatableRenderer
+	}
+
+	factories := []effectFactory{
+		{"fire-text", 40, func(text string) updatableRenderer { return NewFireTextEffect(w, h, p, text) }},
+		{"matrix-art", 40, func(text string) updatableRenderer { return NewMatrixArtEffect(w, h, p, text) }},
+		{"rain-art", 40, func(text string) updatableRenderer { return NewRainArtEffect(w, h, p, text) }},
+		{"ring-text", 40, func(text string) updatableRenderer {
+			return NewRingTextEffect(RingTextConfig{Width: w, Height: h, Text: text})
+		}},
+		{"blackhole", 40, func(text string) updatableRenderer {
+			return NewBlackholeEffect(BlackholeConfig{Width: w, Height: h, Text: text})
+		}},
+		{"beam-text", 40, func(text string) updatableRenderer {
+			return NewBeamTextEffect(BeamTextConfig{Width: w, Height: h, Text: text})
+		}},
+		{"print", 80, func(text string) updatableRenderer {
+			return NewPrintEffect(PrintConfig{Width: w, Height: h, Text: text})
+		}},
+		{"skull-text", 40, func(text string) updatableRenderer {
+			return NewSkullTextEffect(w, h, skullPalette, "default", text)
+		}},
+	}
+
+	for _, ef := range factories {
+		t.Run(ef.name, func(t *testing.T) {
+			anim := ef.create(crlfText)
+			for i := 0; i < ef.frames; i++ {
+				anim.Update()
+			}
+
+			output := anim.Render()
+			if strings.ContainsRune(output, '\r') {
+				t.Fatalf("render output contains carriage return for CRLF input")
+			}
+
+			anim.SetText(crlfText)
+			for i := 0; i < ef.frames; i++ {
+				anim.Update()
+			}
+			output = anim.Render()
+			if strings.ContainsRune(output, '\r') {
+				t.Fatalf("render output contains carriage return after SetText with CRLF input")
+			}
+		})
+	}
+}
+
 func TestIsTextUpdatable(t *testing.T) {
-	textEffect := NewFireTextEffect(40, 20, testPalette(), "TEST")
-	nonTextEffect := NewFireEffect(40, 20, testPalette())
+	textEffect := NewFireTextEffect(40, 20, textUpdatableTestPalette(), "TEST")
+	nonTextEffect := NewFireEffect(40, 20, textUpdatableTestPalette())
 
 	if _, ok := interface{}(textEffect).(TextUpdatable); !ok {
 		t.Error("FireTextEffect should be TextUpdatable")
