@@ -425,30 +425,30 @@ func GetSkullPalette(themeName string) []string {
 func GetCracktroPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
 	case "dracula":
-		return []string{"#6272a4", "#bd93f9", "#f8f8f2", "#ff79c6", "#8be9fd", "#f8f8f2", "#282a36"}
+		return []string{"#44475a", "#6272a4", "#f8f8f2", "#bd93f9", "#50fa7b", "#f8f8f2", "#282a36"}
 	case "catppuccin", "catppuccin-mocha":
-		return []string{"#585b70", "#cba6f7", "#cdd6f4", "#f38ba8", "#89dceb", "#cdd6f4", "#1e1e2e"}
+		return []string{"#45475a", "#585b70", "#cdd6f4", "#cba6f7", "#94e2d5", "#cdd6f4", "#1e1e2e"}
 	case "nord":
-		return []string{"#4c566a", "#81a1c1", "#eceff4", "#88c0d0", "#b48ead", "#eceff4", "#2e3440"}
+		return []string{"#3b4252", "#4c566a", "#eceff4", "#81a1c1", "#5e81ac", "#eceff4", "#2e3440"}
 	case "tokyo-night", "tokyonight":
-		return []string{"#565f89", "#7aa2f7", "#c0caf5", "#bb9af7", "#7dcfff", "#c0caf5", "#1a1b26"}
+		return []string{"#414868", "#565f89", "#c0caf5", "#7aa2f7", "#bb9af7", "#c0caf5", "#1a1b26"}
 	case "gruvbox":
-		return []string{"#665c54", "#83a598", "#ebdbb2", "#fe8019", "#b8bb26", "#ebdbb2", "#282828"}
+		return []string{"#504945", "#665c54", "#ebdbb2", "#fe8019", "#fabd2f", "#ebdbb2", "#282828"}
 	case "material":
-		return []string{"#607d8b", "#82aaff", "#eceff1", "#c792ea", "#89ddff", "#eceff1", "#263238"}
+		return []string{"#37474f", "#546e7a", "#eceff1", "#82aaff", "#c792ea", "#eceff1", "#263238"}
 	case "solarized":
-		return []string{"#657b83", "#268bd2", "#fdf6e3", "#d33682", "#2aa198", "#fdf6e3", "#002b36"}
+		return []string{"#586e75", "#657b83", "#fdf6e3", "#268bd2", "#b58900", "#fdf6e3", "#002b36"}
 	case "monochrome":
-		return []string{"#5a5a5a", "#9a9a9a", "#ffffff", "#bababa", "#7a7a7a", "#ffffff", "#1a1a1a"}
+		return []string{"#3a3a3a", "#5a5a5a", "#ffffff", "#bababa", "#808080", "#ffffff", "#1a1a1a"}
 	case "transishardjob":
-		return []string{"#aaaaaa", "#f7a8b8", "#ffffff", "#55cdfc", "#f7a8b8", "#ffffff", "#2a2a2a"}
+		return []string{"#666666", "#aaaaaa", "#ffffff", "#55cdfc", "#f7a8b8", "#ffffff", "#2a2a2a"}
 	case "rama":
-		return []string{"#8d99ae", "#ef233c", "#edf2f4", "#d90429", "#ef233c", "#edf2f4", "#2b2d42"}
+		return []string{"#5c6378", "#8d99ae", "#edf2f4", "#ef233c", "#d90429", "#edf2f4", "#2b2d42"}
 	case "eldritch":
-		return []string{"#7081d0", "#37f499", "#ebfafa", "#04d1f9", "#f7c67f", "#ebfafa", "#212337"}
+		return []string{"#323449", "#7081d0", "#ebfafa", "#37f499", "#a48cf2", "#ebfafa", "#212337"}
 	case "dark":
-		return []string{"#666666", "#999999", "#ffffff", "#cccccc", "#999999", "#ffffff", "#000000"}
+		return []string{"#333333", "#555555", "#ffffff", "#aaaaaa", "#777777", "#ffffff", "#000000"}
 	default:
-		return []string{"#5a5a5a", "#9a9a9a", "#ffffff", "#c0c0c0", "#7a7a7a", "#ffffff", "#1a1a1a"}
+		return []string{"#3a3a3a", "#6a6a6a", "#ffffff", "#a0a0a0", "#707070", "#ffffff", "#1a1a1a"}
 	}
 }
