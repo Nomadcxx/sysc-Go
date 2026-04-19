@@ -109,10 +109,10 @@ func updateSyscWallsConfig(configPath, artPath string) error {
 	config["daemon"] = map[string]string{"debug": "false"}
 	config["terminal"] = map[string]string{"fullscreen": "true", "kitty": "true"}
 	config["animation"] = map[string]string{
-		"effect": "beam-text",
-		"theme":  "dracula",
-		"file":   artPath,
-		"cycle":  "false",
+		"type":  "beam-text",
+		"theme": "dracula",
+		"file":  artPath,
+		"cycle": "false",
 	}
 
 	// If config exists, read and merge
@@ -123,7 +123,7 @@ func updateSyscWallsConfig(configPath, artPath string) error {
 			config["animation"] = make(map[string]string)
 		}
 		config["animation"]["file"] = artPath
-		config["animation"]["effect"] = "beam-text"
+		config["animation"]["type"] = "beam-text"
 		config["animation"]["theme"] = "dracula"
 		config["animation"]["cycle"] = "false"
 	}

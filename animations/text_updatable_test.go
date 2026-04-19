@@ -29,7 +29,6 @@ func TestTextBasedEffectsSatisfyTextUpdatable(t *testing.T) {
 		"print":      NewPrintEffect(PrintConfig{Width: w, Height: h, Text: text}),
 		"decrypt":    NewDecryptEffect(DecryptConfig{Width: w, Height: h, Text: text, Palette: p, CiphertextColors: p}),
 		"burn":       NewBurnTextEffect(w, h, p, "default", text),
-		"skull":      NewSkullTextEffect(w, h, p, "default", text),
 	}
 
 	for name, anim := range effects {
@@ -78,7 +77,6 @@ func TestSetText_ChangesRenderedOutput(t *testing.T) {
 		{"print", 5, func(text string) updatableRenderer {
 			return NewPrintEffect(PrintConfig{Width: w, Height: h, Text: text})
 		}},
-		{"skull", 5, func(text string) updatableRenderer { return NewSkullTextEffect(w, h, p, "default", text) }},
 	}
 
 	// Sequential effects where initial frames may look identical regardless of text.
@@ -125,7 +123,6 @@ func TestSetText_DoesNotPanic(t *testing.T) {
 		"print":      NewPrintEffect(PrintConfig{Width: w, Height: h, Text: "HELLO"}),
 		"decrypt":    NewDecryptEffect(DecryptConfig{Width: w, Height: h, Text: "HELLO", Palette: p, CiphertextColors: p}),
 		"burn":       NewBurnTextEffect(w, h, p, "default", "HELLO"),
-		"skull":      NewSkullTextEffect(w, h, p, "default", "HELLO"),
 	}
 
 	testTexts := []string{"", "A", "LONG TEXT WITH SPACES", "12:34:56 PM\nMONDAY, MARCH 2, 2026"}
@@ -202,7 +199,6 @@ func TestBurnSetText_ReplacesCharacters(t *testing.T) {
 func TestTextEffects_NormalizeCRLFInput(t *testing.T) {
 	w, h := 80, 24
 	p := textUpdatableTestPalette()
-	skullPalette := GetSkullPalette("default")
 	crlfText := "A\r\nB"
 
 	type effectFactory struct {
@@ -226,9 +222,6 @@ func TestTextEffects_NormalizeCRLFInput(t *testing.T) {
 		}},
 		{"print", 80, func(text string) updatableRenderer {
 			return NewPrintEffect(PrintConfig{Width: w, Height: h, Text: text})
-		}},
-		{"skull-text", 40, func(text string) updatableRenderer {
-			return NewSkullTextEffect(w, h, skullPalette, "default", text)
 		}},
 	}
 
@@ -256,10 +249,9 @@ func TestTextEffects_NormalizeCRLFInput(t *testing.T) {
 	}
 }
 
-func TestFireAndSkullText_NormalizeStoredText(t *testing.T) {
+func TestFireText_NormalizeStoredText(t *testing.T) {
 	w, h := 80, 24
 	p := textUpdatableTestPalette()
-	skullPalette := GetSkullPalette("default")
 	crlfText := "A\r\nB"
 	lfText := "A\nB"
 
@@ -270,15 +262,6 @@ func TestFireAndSkullText_NormalizeStoredText(t *testing.T) {
 	fire.SetText(crlfText)
 	if fire.text != lfText {
 		t.Fatalf("fire-text SetText did not normalize CRLF: got %q want %q", fire.text, lfText)
-	}
-
-	skull := NewSkullTextEffect(w, h, skullPalette, "default", crlfText)
-	if skull.textContent != lfText {
-		t.Fatalf("skull-text constructor did not normalize CRLF: got %q want %q", skull.textContent, lfText)
-	}
-	skull.SetText(crlfText)
-	if skull.textContent != lfText {
-		t.Fatalf("skull-text SetText did not normalize CRLF: got %q want %q", skull.textContent, lfText)
 	}
 }
 

@@ -280,6 +280,14 @@ func (m *Model) createAnimation() animations.Animation {
 			update: blackhole.Update,
 		}
 
+	case "skull":
+		palette := animations.GetSkullPalette(themeName)
+		skull := animations.NewSkullEffect(width, height, palette, themeName)
+		return &AnimationWrapper{
+			render: skull.Render,
+			update: skull.Update,
+		}
+
 	case "aquarium":
 		aquaColors := getAquariumColors(themeName)
 		var fishColors, waterColors, seaweedColors []string

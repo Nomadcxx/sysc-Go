@@ -106,16 +106,9 @@ var EffectRegistry = []EffectMetadata{
 	{
 		Name:         "skull",
 		RequiresText: false,
-		Description:  "Skull drip animation with ash particles",
+		Description:  "White skull with tron grid, sonar pulses, and scanline sweep",
 		VersionAdded: "1.0.3",
 		Category:     "scene",
-	},
-	{
-		Name:         "skull-text",
-		RequiresText: true,
-		Description:  "Skull drip animation with animated text overlay",
-		VersionAdded: "1.0.3",
-		Category:     "text",
 	},
 	{
 		Name:         "pour",
