@@ -216,7 +216,7 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("Effects:")
 	fmt.Println("  fire, fire-text, matrix, matrix-art, rain, rain-art, fireworks")
-	fmt.Println("  pour, print, beams, beam-text, ring-text, blackhole, aquarium")
+	fmt.Println("  pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar")
 	fmt.Println()
 	fmt.Println("Themes:")
 	fmt.Println("  dracula, gruvbox, nord, tokyo-night, catppuccin, material")
@@ -306,9 +306,11 @@ func main() {
 		runAquarium(width, height, *theme, frames)
 	case "skull":
 		runSkull(width, height, *theme, frames)
+	case "sonar":
+		runSonar(width, height, *theme, frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, skull")
+		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar")
 		os.Exit(1)
 	}
 }
@@ -1271,6 +1273,32 @@ func runAquarium(width, height int, theme string, frames int) {
 
 		fmt.Print("[H")
 		fmt.Print(output)
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runSonar(width, height int, theme string, frames int) {
+	palette := animations.GetSkullPalette(theme)
+	sonar := animations.NewSonarEffect(width, height, palette, theme)
+
+	quit := setupKeyboardInterrupt()
+	defer close(quit)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		select {
+		case <-quit:
+			return
+		default:
+		}
+
+		sonar.Update()
+		output := sonar.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		os.Stdout.Sync()
 		time.Sleep(50 * time.Millisecond)
 		frame++
 	}

@@ -288,6 +288,14 @@ func (m *Model) createAnimation() animations.Animation {
 			update: skull.Update,
 		}
 
+	case "sonar":
+		palette := animations.GetSkullPalette(themeName)
+		sonar := animations.NewSonarEffect(width, height, palette, themeName)
+		return &AnimationWrapper{
+			render: sonar.Render,
+			update: sonar.Update,
+		}
+
 	case "aquarium":
 		aquaColors := getAquariumColors(themeName)
 		var fishColors, waterColors, seaweedColors []string

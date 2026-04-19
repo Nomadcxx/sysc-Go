@@ -151,6 +151,7 @@ func NewModel() Model {
 			"ring-text",
 			"blackhole-text",
 			"aquarium",
+			"sonar",
 		},
 		themes: []string{
 			"dracula",

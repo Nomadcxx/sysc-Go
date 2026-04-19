@@ -111,6 +111,13 @@ var EffectRegistry = []EffectMetadata{
 		Category:     "scene",
 	},
 	{
+		Name:         "sonar",
+		RequiresText: false,
+		Description:  "Concurrent sonar pulses radiating from centre to viewport edges",
+		VersionAdded: "1.0.4",
+		Category:     "abstract",
+	},
+	{
 		Name:         "pour",
 		RequiresText: true,
 		Description:  "Text pouring onto screen with color transition",
