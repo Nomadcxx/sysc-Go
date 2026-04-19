@@ -118,6 +118,13 @@ var EffectRegistry = []EffectMetadata{
 		Category:     "abstract",
 	},
 	{
+		Name:         "cracktro",
+		RequiresText: false,
+		Description:  "90s demoscene cracktro with parallax stars, raster bars, and wireframe",
+		VersionAdded: "1.0.5",
+		Category:     "scene",
+	},
+	{
 		Name:         "pour",
 		RequiresText: true,
 		Description:  "Text pouring onto screen with color transition",

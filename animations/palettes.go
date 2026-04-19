@@ -418,3 +418,37 @@ func GetSkullPalette(themeName string) []string {
 		return []string{"#5a5a5a", "#7a7a7a", "#9a9a9a", "#c0c0c0", "#ffffff", "#1a1a1a", "#0a0a0a"}
 	}
 }
+
+// GetCracktroPalette returns theme-specific cracktro colors.
+// Slots: 0=star dim, 1=star mid, 2=star bright, 3=bar primary,
+// 4=bar secondary, 5=wireframe, 6=deep background.
+func GetCracktroPalette(themeName string) []string {
+	switch strings.ToLower(themeName) {
+	case "dracula":
+		return []string{"#6272a4", "#bd93f9", "#f8f8f2", "#ff79c6", "#8be9fd", "#f8f8f2", "#282a36"}
+	case "catppuccin", "catppuccin-mocha":
+		return []string{"#585b70", "#cba6f7", "#cdd6f4", "#f38ba8", "#89dceb", "#cdd6f4", "#1e1e2e"}
+	case "nord":
+		return []string{"#4c566a", "#81a1c1", "#eceff4", "#88c0d0", "#b48ead", "#eceff4", "#2e3440"}
+	case "tokyo-night", "tokyonight":
+		return []string{"#565f89", "#7aa2f7", "#c0caf5", "#bb9af7", "#7dcfff", "#c0caf5", "#1a1b26"}
+	case "gruvbox":
+		return []string{"#665c54", "#83a598", "#ebdbb2", "#fe8019", "#b8bb26", "#ebdbb2", "#282828"}
+	case "material":
+		return []string{"#607d8b", "#82aaff", "#eceff1", "#c792ea", "#89ddff", "#eceff1", "#263238"}
+	case "solarized":
+		return []string{"#657b83", "#268bd2", "#fdf6e3", "#d33682", "#2aa198", "#fdf6e3", "#002b36"}
+	case "monochrome":
+		return []string{"#5a5a5a", "#9a9a9a", "#ffffff", "#bababa", "#7a7a7a", "#ffffff", "#1a1a1a"}
+	case "transishardjob":
+		return []string{"#aaaaaa", "#f7a8b8", "#ffffff", "#55cdfc", "#f7a8b8", "#ffffff", "#2a2a2a"}
+	case "rama":
+		return []string{"#8d99ae", "#ef233c", "#edf2f4", "#d90429", "#ef233c", "#edf2f4", "#2b2d42"}
+	case "eldritch":
+		return []string{"#7081d0", "#37f499", "#ebfafa", "#04d1f9", "#f7c67f", "#ebfafa", "#212337"}
+	case "dark":
+		return []string{"#666666", "#999999", "#ffffff", "#cccccc", "#999999", "#ffffff", "#000000"}
+	default:
+		return []string{"#5a5a5a", "#9a9a9a", "#ffffff", "#c0c0c0", "#7a7a7a", "#ffffff", "#1a1a1a"}
+	}
+}

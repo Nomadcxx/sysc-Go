@@ -259,7 +259,7 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("Effects:")
 	fmt.Println("  fire, fire-text, matrix, matrix-art, rain, rain-art, fireworks")
-	fmt.Println("  pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar")
+	fmt.Println("  pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro")
 	fmt.Println()
 	fmt.Println("Themes:")
 	fmt.Println("  dracula, gruvbox, nord, tokyo-night, catppuccin, material")
@@ -348,9 +348,11 @@ func main() {
 		runSkull(width, height, *theme, frames)
 	case "sonar":
 		runSonar(width, height, *theme, frames)
+	case "cracktro":
+		runCracktro(width, height, *theme, frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar")
+		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro")
 		os.Exit(1)
 	}
 }
@@ -1361,6 +1363,32 @@ func runSonar(width, height int, theme string, frames int) {
 
 		sonar.Update()
 		output := sonar.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		os.Stdout.Sync()
+		time.Sleep(50 * time.Millisecond)
+		frame++
+	}
+}
+
+func runCracktro(width, height int, theme string, frames int) {
+	palette := animations.GetCracktroPalette(theme)
+	cracktro := animations.NewCracktroEffect(width, height, palette, theme)
+
+	quit := setupKeyboardInterrupt()
+	defer close(quit)
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		select {
+		case <-quit:
+			return
+		default:
+		}
+
+		cracktro.Update()
+		output := cracktro.Render()
 
 		fmt.Print("\033[H")
 		fmt.Print(output)
