@@ -237,3 +237,8 @@ See [GUIDE.md](GUIDE.md) for detailed CLI usage.
 ## License
 
 MIT
+
+---
+
+Built by [RAMA](https://github.com/Nomadcxx) — terminal-native tooling for the linux desktop.
+[More projects →](https://github.com/Nomadcxx) · [Sponsor ♥](https://github.com/sponsors/Nomadcxx)
