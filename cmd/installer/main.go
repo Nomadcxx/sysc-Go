@@ -400,7 +400,11 @@ func checkPrivileges(m *model) error {
 }
 
 func buildBinary(m *model) error {
-	cmd := exec.Command("go", "build", "-o", "syscgo", "./cmd/syscgo")
+	out, err := stagedBinaryPath("syscgo")
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("go", "build", "-o", out, "./cmd/syscgo")
 	cmd.Dir = getProjectRoot()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -410,7 +414,11 @@ func buildBinary(m *model) error {
 }
 
 func buildTuiBinary(m *model) error {
-	cmd := exec.Command("go", "build", "-o", "syscgo-tui", "./cmd/syscgo-tui")
+	out, err := stagedBinaryPath("syscgo-tui")
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("go", "build", "-o", out, "./cmd/syscgo-tui")
 	cmd.Dir = getProjectRoot()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -440,8 +448,10 @@ func installAssets(m *model) error {
 }
 
 func installBinary(m *model) error {
-	projectRoot := getProjectRoot()
-	srcPath := filepath.Join(projectRoot, "syscgo")
+	srcPath, err := stagedBinaryPath("syscgo")
+	if err != nil {
+		return err
+	}
 	dstPath := "/usr/local/bin/syscgo"
 
 	// Read the source file
@@ -460,8 +470,10 @@ func installBinary(m *model) error {
 }
 
 func installTuiBinary(m *model) error {
-	projectRoot := getProjectRoot()
-	srcPath := filepath.Join(projectRoot, "syscgo-tui")
+	srcPath, err := stagedBinaryPath("syscgo-tui")
+	if err != nil {
+		return err
+	}
 	dstPath := "/usr/local/bin/syscgo-tui"
 
 	// Read the source file
@@ -569,50 +581,87 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
-func getProjectRoot() string {
-	// Get the directory where the installer is located
-	execPath, err := os.Executable()
-	if err != nil {
-		// Fallback to current directory
-		return "."
+// buildOutputDir is the temp directory that receives syscgo and syscgo-tui
+// before they are copied to /usr/local/bin. Building here avoids leaving
+// root-owned binaries in the source tree when the installer runs as root.
+var buildOutputDir string
+
+func stagedBinaryPath(name string) (string, error) {
+	if buildOutputDir == "" {
+		dir, err := os.MkdirTemp("", "syscgo-install-")
+		if err != nil {
+			return "", fmt.Errorf("failed to create build directory: %v", err)
+		}
+		buildOutputDir = dir
 	}
+	return filepath.Join(buildOutputDir, name), nil
+}
 
-	// Go up from cmd/installer to project root
-	root := filepath.Dir(filepath.Dir(filepath.Dir(execPath)))
-
-	// Check if go.mod exists to verify this is the project root
-	if _, err := os.Stat(filepath.Join(root, "go.mod")); err == nil {
-		return root
+func cleanupBuildOutput() {
+	if buildOutputDir == "" {
+		return
 	}
+	_ = os.RemoveAll(buildOutputDir)
+	buildOutputDir = ""
+}
 
-	// Fallback: try to find go.mod by walking up from current directory
-	dir, _ := os.Getwd()
+// findModuleRoot walks upward from start until it finds a directory containing go.mod.
+func findModuleRoot(start string) (string, bool) {
+	if start == "" {
+		return "", false
+	}
+	dir := start
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
+			return dir, true
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			break
+			return "", false
 		}
 		dir = parent
+	}
+}
+
+func getProjectRoot() string {
+	// install.sh places the installer binary in the repo root. `go run` and
+	// `go build -o cmd/installer/...` use other depths. Walk until go.mod
+	// instead of assuming cmd/installer/<binary>.
+	if execPath, err := os.Executable(); err == nil {
+		if root, ok := findModuleRoot(filepath.Dir(execPath)); ok {
+			return root
+		}
+	}
+
+	if dir, err := os.Getwd(); err == nil {
+		if root, ok := findModuleRoot(dir); ok {
+			return root
+		}
 	}
 
 	return "."
 }
 
 func main() {
+	os.Exit(runInstaller())
+}
+
+func runInstaller() int {
+	// os.Exit skips defers in main, so cleanup lives in this function.
+	defer cleanupBuildOutput()
+
 	// Check if go is installed
 	if _, err := exec.LookPath("go"); err != nil {
 		fmt.Println("Error: Go is not installed or not in PATH")
 		fmt.Println("Please install Go from https://golang.org/dl/")
-		os.Exit(1)
+		return 1
 	}
 
 	p := tea.NewProgram(newModel(), tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
