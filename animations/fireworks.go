@@ -153,9 +153,24 @@ func (fw *FireworksEffect) launchShell(shellIndex int) {
 	}
 
 	indices := fw.shells[shellIndex]
-	centerX := float64(rand.Intn(fw.width-20) + 10)           // Keep away from edges
-	centerY := float64(fw.height - 1)                         // Start from bottom
-	explodeY := float64(rand.Intn(fw.height/3) + fw.height/5) // Explosion in upper third
+	// width-20 and height/3 are non-positive on narrow panes (width <= 20,
+	// height < 3). Intn panics on those, so fall back to the full span.
+	if fw.width <= 0 || fw.height <= 0 {
+		return
+	}
+	xSpan := fw.width - 20
+	xOffset := 10
+	if xSpan < 1 {
+		xSpan = fw.width
+		xOffset = 0
+	}
+	centerX := float64(rand.Intn(xSpan) + xOffset)
+	centerY := float64(fw.height - 1) // Start from bottom
+	ySpan := fw.height / 3
+	if ySpan < 1 {
+		ySpan = 1
+	}
+	explodeY := float64(rand.Intn(ySpan) + fw.height/5)
 
 	for _, idx := range indices {
 		p := &fw.particles[idx]
