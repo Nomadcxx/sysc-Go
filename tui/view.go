@@ -6,6 +6,20 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	minTerminalWidth  = 100
+	minTerminalHeight = 30
+)
+
+// terminalTooSmall reports whether a sized terminal is below the TUI minimum.
+// Width 0 means the first window-size message has not arrived; View shows "Loading...".
+func (m Model) terminalTooSmall() bool {
+	if m.width == 0 {
+		return false
+	}
+	return m.width < minTerminalWidth || m.height < minTerminalHeight
+}
+
 // View renders the TUI
 func (m Model) View() string {
 	if m.width == 0 {
@@ -13,7 +27,7 @@ func (m Model) View() string {
 	}
 
 	// Check if terminal is too small
-	if m.width < 100 || m.height < 30 {
+	if m.terminalTooSmall() {
 		warning := fmt.Sprintf(
 			"Terminal too small!\n\n"+
 				"Current: %dx%d\n"+
