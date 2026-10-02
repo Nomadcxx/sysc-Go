@@ -424,19 +424,59 @@ func installAssets(m *model) error {
 	srcPath := filepath.Join(projectRoot, "assets")
 	dstPath := "/usr/local/share/syscgo"
 
-	// Create destination directory
-	err := os.MkdirAll(dstPath, 0755)
-	if err != nil {
+	if err := os.MkdirAll(dstPath, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
 	}
 
-	// Copy assets directory recursively
-	err = copyDir(srcPath, dstPath)
-	if err != nil {
+	// Runtime consumers need text assets and BIT fonts, not demo media.
+	if err := copyRuntimeAssets(srcPath, dstPath); err != nil {
 		return fmt.Errorf("failed to copy assets: %v", err)
 	}
 
 	return nil
+}
+
+// copyRuntimeAssets copies .txt files and fonts/*.bit. Demo GIFs, PNGs, and
+// other marketing files under assets/ are not installed.
+func copyRuntimeAssets(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		if entry.IsDir() {
+			if entry.Name() != "fonts" {
+				continue
+			}
+			if err := copyRuntimeAssets(srcPath, filepath.Join(dst, entry.Name())); err != nil {
+				return err
+			}
+			continue
+		}
+		if !runtimeAssetFile(entry.Name()) {
+			continue
+		}
+		dstPath := filepath.Join(dst, entry.Name())
+		if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+			return err
+		}
+		if err := copyFile(srcPath, dstPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func runtimeAssetFile(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".txt", ".bit":
+		return true
+	default:
+		return false
+	}
 }
 
 func installBinary(m *model) error {
@@ -500,49 +540,6 @@ func removeAssets(m *model) error {
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove assets: %v", err)
 	}
-	return nil
-}
-
-// copyDir recursively copies a directory
-func copyDir(src, dst string) error {
-	// Get properties of source dir
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
-	// Create destination directory
-	err = os.MkdirAll(dst, srcInfo.Mode())
-	if err != nil {
-		return err
-	}
-
-	// Read source directory
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	// Copy each entry
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			// Recursively copy subdirectory
-			err = copyDir(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Copy file
-			err = copyFile(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	return nil
 }
 
