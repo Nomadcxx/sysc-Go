@@ -182,6 +182,16 @@ func wrapText(text string, width int) string {
 	return strings.Join(wrappedLines, "\n")
 }
 
+// fallbackTerminalSize returns the detected terminal size, or 80x24 when
+// GetSize fails or reports a zero winsize. Some non-tty fds return 0x0
+// without an error, which would otherwise construct effects with height 0.
+func fallbackTerminalSize(width, height int, err error) (int, int) {
+	if err != nil || width <= 0 || height <= 0 {
+		return 80, 24
+	}
+	return width, height
+}
+
 // interruptWatcher reports Ctrl+C / SIGTERM by closing quit.
 // stop only closes done. The signal path never sends on a channel stop
 // closes, so a SIGTERM that arrives as the runner exits cannot panic
@@ -288,11 +298,8 @@ func main() {
 		return
 	}
 
-	// Get terminal size
-	width, height, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		width, height = 80, 24
-	}
+	// Get terminal size. A 0x0 winsize is not an error on some fds.
+	width, height := fallbackTerminalSize(term.GetSize(int(os.Stdout.Fd())))
 
 	// Setup terminal
 	fmt.Print("\033[2J\033[H")   // Clear screen
