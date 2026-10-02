@@ -601,12 +601,57 @@ func getProjectRoot() string {
 	return "."
 }
 
+// nonInteractiveRequested reports whether install tasks should run without the TUI.
+// args are the program arguments after the executable name. env is the value of
+// SYSCGO_INSTALL_NONINTERACTIVE.
+func nonInteractiveRequested(args []string, env string) bool {
+	if env == "1" {
+		return true
+	}
+	for _, arg := range args {
+		if arg == "--yes" || arg == "-y" {
+			return true
+		}
+	}
+	return false
+}
+
+// runConfiguredTasks runs install or uninstall tasks in order.
+// When m.tasks is empty, the standard install task list is used.
+func runConfiguredTasks(m *model) error {
+	if len(m.tasks) == 0 {
+		m.initTasks()
+	}
+	for i := range m.tasks {
+		task := &m.tasks[i]
+		fmt.Printf("%s...\n", task.description)
+		if err := task.execute(m); err != nil {
+			if task.optional {
+				fmt.Printf("skip: %s: %v\n", task.name, err)
+				continue
+			}
+			return fmt.Errorf("%s: %w", task.name, err)
+		}
+	}
+	return nil
+}
+
 func main() {
 	// Check if go is installed
 	if _, err := exec.LookPath("go"); err != nil {
 		fmt.Println("Error: Go is not installed or not in PATH")
 		fmt.Println("Please install Go from https://golang.org/dl/")
 		os.Exit(1)
+	}
+
+	if nonInteractiveRequested(os.Args[1:], os.Getenv("SYSCGO_INSTALL_NONINTERACTIVE")) {
+		m := newModel()
+		if err := runConfiguredTasks(&m); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Installation complete.")
+		return
 	}
 
 	p := tea.NewProgram(newModel(), tea.WithAltScreen())
