@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -336,7 +338,7 @@ func (m Model) handleEditorKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// saveFile saves the text area content to assets folder
+// saveFile saves the text area content to the selected export target.
 func (m Model) saveFile() (Model, tea.Cmd) {
 	// Clear previous error
 	m.saveError = ""
@@ -358,8 +360,17 @@ func (m Model) saveFile() (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Save to assets folder
-	err := saveToAssets(filename, m.textarea.Value())
+	// Route on the export prompt selection. 0 is syscgo assets, 1 is sysc-walls.
+	var err error
+	switch m.exportTarget {
+	case 0:
+		err = saveToAssets(filename, m.textarea.Value())
+	case 1:
+		err = ExportToSyscWalls(filename, m.textarea.Value())
+	default:
+		m.saveError = fmt.Sprintf("unknown export target: %d", m.exportTarget)
+		return m, nil
+	}
 	if err != nil {
 		m.saveError = err.Error()
 		return m, nil
