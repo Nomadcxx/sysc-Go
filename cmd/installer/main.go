@@ -452,12 +452,28 @@ func installAssetFiles(srcAssets, shareRoot string) error {
 	for _, entry := range entries {
 		src := filepath.Join(srcAssets, entry.Name())
 		if entry.IsDir() {
-			// Fonts are discovered at the share root, not under assets/.
-			if entry.Name() == "fonts" {
-				if err := copyDir(src, filepath.Join(shareRoot, "fonts")); err != nil {
+			if entry.Name() != "fonts" {
+				continue
+			}
+			fonts, err := os.ReadDir(src)
+			if err != nil {
+				return err
+			}
+			for _, font := range fonts {
+				if font.IsDir() || !strings.EqualFold(filepath.Ext(font.Name()), ".bit") {
+					continue
+				}
+				fontsDst := filepath.Join(shareRoot, "fonts")
+				if err := os.MkdirAll(fontsDst, 0755); err != nil {
+					return fmt.Errorf("failed to create directory: %v", err)
+				}
+				if err := copyFile(filepath.Join(src, font.Name()), filepath.Join(fontsDst, font.Name())); err != nil {
 					return err
 				}
 			}
+			continue
+		}
+		if !strings.EqualFold(filepath.Ext(entry.Name()), ".txt") {
 			continue
 		}
 		if err := copyFile(src, filepath.Join(assetsDst, entry.Name())); err != nil {
@@ -533,49 +549,6 @@ func removeAssets(m *model) error {
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove assets: %v", err)
 	}
-	return nil
-}
-
-// copyDir recursively copies a directory
-func copyDir(src, dst string) error {
-	// Get properties of source dir
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
-	// Create destination directory
-	err = os.MkdirAll(dst, srcInfo.Mode())
-	if err != nil {
-		return err
-	}
-
-	// Read source directory
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	// Copy each entry
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			// Recursively copy subdirectory
-			err = copyDir(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Copy file
-			err = copyFile(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	return nil
 }
 
