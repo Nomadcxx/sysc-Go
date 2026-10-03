@@ -28,8 +28,14 @@ func NewFireEffect(width, height int, palette []string) *FireEffect {
 	return f
 }
 
-// Initialize fire buffer with bottom row as heat source
+// Initialize fire buffer with bottom row as heat source.
+// A zero or negative dimension has no bottom row; indexing height-1 panics.
 func (f *FireEffect) init() {
+	if f.width <= 0 || f.height <= 0 {
+		f.buffer = make([]int, 0)
+		return
+	}
+
 	f.buffer = make([]int, f.width*f.height)
 
 	// Set bottom row to maximum heat (fire source)

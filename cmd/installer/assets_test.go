@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCopyRuntimeAssetsSkipsDemoMedia(t *testing.T) {
+func TestInstallAssetFilesCopiesOnlyRuntimeAssets(t *testing.T) {
 	src := t.TempDir()
 	mustWrite(t, filepath.Join(src, "SYSC.txt"), "sysc")
 	mustWrite(t, filepath.Join(src, "fire.gif"), "gif-bytes")
@@ -18,21 +18,23 @@ func TestCopyRuntimeAssetsSkipsDemoMedia(t *testing.T) {
 	mustWrite(t, filepath.Join(src, "fonts", "banner.bit"), "bit")
 	mustWrite(t, filepath.Join(src, "fonts", "preview.gif"), "font-gif")
 
-	dst := t.TempDir()
-	if err := copyRuntimeAssets(src, dst); err != nil {
+	share := t.TempDir()
+	if err := installAssetFiles(src, share); err != nil {
 		t.Fatal(err)
 	}
 
-	assertPresent(t, filepath.Join(dst, "SYSC.txt"))
-	assertPresent(t, filepath.Join(dst, "fonts", "banner.bit"))
+	assertPresent(t, filepath.Join(share, "assets", "SYSC.txt"))
+	assertPresent(t, filepath.Join(share, "fonts", "banner.bit"))
 	for _, missing := range []string{
-		filepath.Join(dst, "fire.gif"),
-		filepath.Join(dst, "preview.png"),
-		filepath.Join(dst, "README.md"),
-		filepath.Join(dst, "fonts", "preview.gif"),
+		filepath.Join(share, "SYSC.txt"),
+		filepath.Join(share, "assets", "fire.gif"),
+		filepath.Join(share, "assets", "preview.png"),
+		filepath.Join(share, "assets", "README.md"),
+		filepath.Join(share, "assets", "fonts", "banner.bit"),
+		filepath.Join(share, "fonts", "preview.gif"),
 	} {
 		if _, err := os.Stat(missing); !os.IsNotExist(err) {
-			t.Fatalf("installed non-runtime file %s", missing)
+			t.Fatalf("unexpected installed file %s", missing)
 		}
 	}
 }
