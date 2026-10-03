@@ -8,12 +8,12 @@ import (
 	"testing"
 )
 
-// v1.0.3Sum is the SHA-256 of the GitHub tag archive that PKGBUILD fetches:
-// https://github.com/Nomadcxx/sysc-Go/archive/v1.0.3.tar.gz
-// Computed 2026-10-02. v1.0.2 is 664c308fcc910ab7f573ef577e00f2ebd2cae92ae5da80a33bdd20481d9f2af4.
+// v1.0.5Sum is the SHA-256 of the GitHub tag archive that PKGBUILD fetches:
+// https://github.com/Nomadcxx/sysc-Go/archive/v1.0.5.tar.gz
+// Computed 2026-10-04. v1.0.2 is 664c308fcc910ab7f573ef577e00f2ebd2cae92ae5da80a33bdd20481d9f2af4.
 const (
-	wantPkgVer = "1.0.3"
-	v103Sum    = "d30e1246b157970be690f45403b978ae4f2f1c16044a66e864eb6e4b2e560bdd"
+	wantPkgVer = "1.0.5"
+	v105Sum    = "cb6a29bd1a949748514c9194e1d070386334adddd001b4ce7e8bf7b92a2954c1"
 )
 
 func TestPKGBUILDPinsFetchedSource(t *testing.T) {
@@ -25,8 +25,13 @@ func TestPKGBUILDPinsFetchedSource(t *testing.T) {
 	if ver != wantPkgVer {
 		t.Fatalf("PKGBUILD pkgver = %s, want %s", ver, wantPkgVer)
 	}
-	if sum != v103Sum {
-		t.Fatalf("PKGBUILD sha256sums = %s, want v%s sum %s", sum, wantPkgVer, v103Sum)
+	if sum != v105Sum {
+		t.Fatalf("PKGBUILD sha256sums = %s, want v%s sum %s", sum, wantPkgVer, v105Sum)
+	}
+	goVersion := mustMatch(t, readRepoFile(t, "go.mod"), `(?m)^go ([0-9.]+)$`)
+	goDependency := mustMatch(t, pkgbuild, `(?m)^makedepends=\('go>=([0-9.]+)'\)$`)
+	if goDependency != goVersion {
+		t.Fatalf("PKGBUILD Go dependency = %s, want go.mod requirement %s", goDependency, goVersion)
 	}
 	if !strings.Contains(pkgbuild, "archive/v${pkgver}.tar.gz") {
 		t.Fatal("PKGBUILD source URL does not follow v${pkgver}")
