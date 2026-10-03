@@ -13,15 +13,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKeyPress(msg)
 
 	case tea.WindowSizeMsg:
-		// Enforce minimum terminal dimensions (at least reasonable full screen)
-		minWidth := 100
-		minHeight := 30
-
 		m.width = msg.Width
 		m.height = msg.Height
 
 		// Check if terminal is too small
-		if m.width < minWidth || m.height < minHeight {
+		if m.width < minTerminalWidth || m.height < minTerminalHeight {
 			// Terminal too small - show warning instead
 			m.width = msg.Width
 			m.height = msg.Height
@@ -90,6 +86,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleKeyPress processes keyboard input
 func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// The too-small warning is rendered ahead of the editor views and tells the
+	// user to press Q. Editor handlers would otherwise swallow that key.
+	if m.terminalTooSmall() && (m.editorMode || m.bitEditorMode) {
+		switch msg.String() {
+		case "q", "Q", "esc", "ctrl+c":
+			return m, tea.Quit
+		default:
+			return m, nil
+		}
+	}
+
 	// Handle BIT editor mode separately
 	if m.bitEditorMode {
 		return m.handleBitEditorKeyPress(msg)
