@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -34,28 +35,7 @@ func findAssetFile(filename string) string {
 		binaryDir = filepath.Dir(exePath)
 	}
 
-	// Priority order matches TUI for consistency:
-	// 1. User-writable directories (where TUI saves exports)
-	// 2. Local relative paths
-	// 3. Binary-relative path
-	// 4. System install paths (read-only)
-	locations := []string{
-		filepath.Join(os.Getenv("HOME"), "sysc-Go", "assets", filename), // User home (writable, TUI saves here)
-		filepath.Join("assets", filename),                               // ./assets/ (current dir)
-		filepath.Join("../assets", filename),                            // ../assets/ (parent dir, for TUI context)
-		filename,                                                        // Bare filename in current directory
-	}
-
-	// Add binary-relative path if we found it
-	if binaryDir != "" {
-		locations = append(locations, filepath.Join(binaryDir, "assets", filename))
-	}
-
-	// Add system paths last (read-only fallback)
-	locations = append(locations,
-		filepath.Join("/usr/local/share/sysc-Go/assets", filename), // Local install
-		filepath.Join("/usr/share/sysc-Go/assets", filename),       // System install
-	)
+	locations := assetSearchPaths(filename, os.Getenv("HOME"), binaryDir)
 
 	for _, path := range locations {
 		if _, err := os.Stat(path); err == nil {
@@ -64,6 +44,34 @@ func findAssetFile(filename string) string {
 	}
 
 	return ""
+}
+
+// assetSearchPaths returns candidate paths for an asset file.
+// home is the user home directory; binaryDir is the directory containing the executable (empty if unknown).
+func assetSearchPaths(filename, home, binaryDir string) []string {
+	// Priority order matches TUI for consistency:
+	// 1. User-writable directories (where TUI saves exports)
+	// 2. Local relative paths
+	// 3. Binary-relative path
+	// 4. System install paths (read-only)
+	locations := []string{
+		filepath.Join(home, "sysc-Go", "assets", filename), // User home (writable, TUI saves here)
+		filepath.Join("assets", filename),                  // ./assets/ (current dir)
+		filepath.Join("../assets", filename),               // ../assets/ (parent dir, for TUI context)
+		filename,                                           // Bare filename in current directory
+	}
+
+	if binaryDir != "" {
+		locations = append(locations, filepath.Join(binaryDir, "assets", filename))
+	}
+
+	// Installer and PKGBUILD both use the syscgo share name, with texts under assets/.
+	locations = append(locations,
+		filepath.Join("/usr/local/share/syscgo", "assets", filename),
+		filepath.Join("/usr/share/syscgo", "assets", filename),
+	)
+
+	return locations
 }
 
 // readTextFile reads text from a file with fallback to SYSC.txt
@@ -174,27 +182,62 @@ func wrapText(text string, width int) string {
 	return strings.Join(wrappedLines, "\n")
 }
 
-// setupKeyboardInterrupt sets up signal handling for Ctrl+C
-// Returns a channel that will receive true when user wants to exit
-func setupKeyboardInterrupt() chan bool {
-	quit := make(chan bool, 1)
+// fallbackTerminalSize returns the detected terminal size, or 80x24 when
+// GetSize fails or reports a zero winsize. Some non-tty fds return 0x0
+// without an error, which would otherwise construct effects with height 0.
+func fallbackTerminalSize(width, height int, err error) (int, int) {
+	if err != nil || width <= 0 || height <= 0 {
+		return 80, 24
+	}
+	return width, height
+}
 
-	// Use signal handling instead of raw mode to avoid breaking output formatting
+// interruptWatcher reports Ctrl+C / SIGTERM by closing quit.
+// stop only closes done. The signal path never sends on a channel stop
+// closes, so a SIGTERM that arrives as the runner exits cannot panic
+// with "send on closed channel".
+type interruptWatcher struct {
+	quit chan struct{}
+	done chan struct{}
+	once sync.Once
+}
+
+func newInterruptWatcher() *interruptWatcher {
+	return &interruptWatcher{
+		quit: make(chan struct{}),
+		done: make(chan struct{}),
+	}
+}
+
+func (w *interruptWatcher) stop() {
+	w.once.Do(func() { close(w.done) })
+}
+
+func (w *interruptWatcher) deliverInterrupt() {
+	close(w.quit)
+}
+
+func (w *interruptWatcher) handle(sig <-chan os.Signal) {
+	select {
+	case <-sig:
+		w.deliverInterrupt()
+	case <-w.done:
+	}
+}
+
+// setupKeyboardInterrupt sets up signal handling for Ctrl+C.
+// The returned stop func is idempotent and must be called on exit.
+func setupKeyboardInterrupt() (<-chan struct{}, func()) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	w := newInterruptWatcher()
 	go func() {
-		defer signal.Stop(sigChan) // Cleanup signal handler
-		select {
-		case <-sigChan:
-			quit <- true
-		case <-quit:
-			// Parent exited normally, cleanup
-			return
-		}
+		defer signal.Stop(sigChan)
+		w.handle(sigChan)
 	}()
 
-	return quit
+	return w.quit, w.stop
 }
 
 func showHelp() {
@@ -255,11 +298,8 @@ func main() {
 		return
 	}
 
-	// Get terminal size
-	width, height, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		width, height = 80, 24
-	}
+	// Get terminal size. A 0x0 winsize is not an error on some fds.
+	width, height := fallbackTerminalSize(term.GetSize(int(os.Stdout.Fd())))
 
 	// Setup terminal
 	fmt.Print("\033[2J\033[H")   // Clear screen
@@ -319,8 +359,8 @@ func runFire(width, height int, theme string, frames int) {
 	palette := animations.GetFirePalette(theme)
 	fire := animations.NewFireEffect(width, height, palette)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -352,8 +392,8 @@ func runFireText(width, height int, theme string, file string, frames int) {
 	// Create fire-text effect
 	fireText := animations.NewFireTextEffect(width, height, palette, text)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -379,8 +419,8 @@ func runMatrix(width, height int, theme string, frames int) {
 	palette := animations.GetMatrixPalette(theme)
 	matrix := animations.NewMatrixEffect(width, height, palette)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -411,9 +451,13 @@ func runMatrixArt(width, height int, theme string, file string, frames int) {
 
 	// Create matrix-art effect
 	matrixArt := animations.NewMatrixArtEffect(width, height, palette, text)
+	updatesPerFrame := 1
+	if frames > 0 {
+		updatesPerFrame = animationUpdatesPerFrame(matrixArt.CompletionFrames(), frames)
+	}
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -424,7 +468,16 @@ func runMatrixArt(width, height int, theme string, file string, frames int) {
 		default:
 		}
 
-		matrixArt.Update()
+		updates := updatesPerFrame
+		if matrixArt.IsComplete() {
+			updates = 1
+		}
+		for i := 0; i < updates; i++ {
+			matrixArt.Update()
+			if matrixArt.IsComplete() {
+				break
+			}
+		}
 		output := matrixArt.Render()
 
 		fmt.Print("\033[H")
@@ -439,8 +492,8 @@ func runFireworks(width, height int, theme string, frames int) {
 	palette := animations.GetFireworksPalette(theme)
 	fireworks := animations.NewFireworksEffect(width, height, palette)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -466,8 +519,8 @@ func runRain(width, height int, theme string, frames int) {
 	palette := animations.GetRainPalette(theme)
 	rain := animations.NewRainEffect(width, height, palette)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -499,8 +552,8 @@ func runRainArt(width, height int, theme string, file string, frames int) {
 	// Create rain-art effect
 	rainArt := animations.NewRainArtEffect(width, height, palette, text)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -589,8 +642,8 @@ func runPour(width, height int, theme string, file string, frames int) {
 
 	pour := animations.NewPourEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -674,8 +727,8 @@ func runPrint(width, height int, theme string, file string, frames int) {
 
 	print := animations.NewPrintEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -764,8 +817,8 @@ func runBeams(width, height int, theme string, frames int) {
 
 	beams := animations.NewBeamsEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -867,18 +920,16 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 
 	beamText := animations.NewBeamTextEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
-	// When display mode is enabled, ignore duration and run until completion
-	// This allows the multi-phase beam-text animation to reach its final "hold" state
-	effectiveFrames := frames
-	if display {
-		effectiveFrames = 0
+	updatesPerFrame := 1
+	if display && frames > 0 {
+		updatesPerFrame = animationUpdatesPerFrame(beamText.CompletionFrames(), frames)
 	}
 
 	frame := 0
-	for effectiveFrames == 0 || frame < effectiveFrames {
+	for frames == 0 || frame < frames {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -887,6 +938,9 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 		}
 
 		beamText.Update()
+		for i := 1; i < updatesPerFrame; i++ {
+			beamText.UpdateText()
+		}
 		output := beamText.Render()
 
 		fmt.Print("\033[H")
@@ -895,6 +949,18 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 		time.Sleep(50 * time.Millisecond)
 		frame++
 	}
+}
+
+func animationUpdatesPerFrame(completionFrames, runFrames int) int {
+	if completionFrames <= 0 || runFrames <= 0 {
+		return 1
+	}
+
+	revealFrames := (runFrames/10)*9 + (runFrames%10)*9/10
+	if revealFrames < 1 {
+		return 1 + (completionFrames-1)/runFrames
+	}
+	return 1 + (completionFrames-1)/revealFrames
 }
 
 func runRingText(width, height int, theme string, file string, frames int) {
@@ -968,8 +1034,8 @@ func runRingText(width, height int, theme string, file string, frames int) {
 
 	ringText := animations.NewRingTextEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1087,8 +1153,8 @@ func runBlackhole(width, height int, theme string, file string, frames int) {
 
 	blackhole := animations.NewBlackholeEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1256,8 +1322,8 @@ func runAquarium(width, height int, theme string, frames int) {
 
 	aquarium := animations.NewAquariumEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1282,8 +1348,8 @@ func runSonar(width, height int, theme string, frames int) {
 	palette := animations.GetSkullPalette(theme)
 	sonar := animations.NewSonarEffect(width, height, palette, theme)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1308,8 +1374,8 @@ func runSkull(width, height int, theme string, frames int) {
 	palette := animations.GetSkullPalette(theme)
 	skull := animations.NewSkullEffect(width, height, palette, theme)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1329,4 +1395,3 @@ func runSkull(width, height int, theme string, frames int) {
 		frame++
 	}
 }
-

@@ -100,8 +100,13 @@ func RenderTextWithFont(text string, fontData FontData, options RenderOptions) [
 			continue
 		}
 
-		// Apply alignment to the current line's rendered block
-		alignedBlock := applyAlignmentToTextLine(lineRendered, maxTextLineWidth, options.Alignment)
+		// Pad to the canvas when one is given. A single banner line is as wide
+		// as maxTextLineWidth, so sibling-only alignment never moves it.
+		alignWidth := maxTextLineWidth
+		if options.MaxWidth > alignWidth {
+			alignWidth = options.MaxWidth
+		}
+		alignedBlock := applyAlignmentToTextLine(lineRendered, alignWidth, options.Alignment)
 
 		// Apply styling and shadow
 		finalBlock := applyStylingAndShadow(alignedBlock, options)

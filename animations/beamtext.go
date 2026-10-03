@@ -1,6 +1,7 @@
 package animations
 
 import (
+	"math"
 	"math/rand"
 	"sort"
 	"strings"
@@ -474,12 +475,16 @@ func (b *BeamTextEffect) createFadeGradient(startColor string, steps int) []stri
 
 // Update advances the beams animation by one frame
 func (b *BeamTextEffect) Update() {
-	b.frameCount++
-
 	// Update background beams for visual depth
 	if b.backgroundBeams != nil {
 		b.backgroundBeams.Update()
 	}
+	b.UpdateText()
+}
+
+// UpdateText advances the beam text animation without advancing its background beams.
+func (b *BeamTextEffect) UpdateText() {
+	b.frameCount++
 
 	if b.phase == "beams" {
 		b.updateBeamsPhase()
@@ -491,6 +496,49 @@ func (b *BeamTextEffect) Update() {
 
 	// Update character animations
 	b.updateCharacterAnimations()
+}
+
+// CompletionFrames estimates a conservative number of updates to reach the final hold phase.
+func (b *BeamTextEffect) CompletionFrames() int {
+	maxGroupCount := len(b.rowGroups)
+	if len(b.columnGroups) > maxGroupCount {
+		maxGroupCount = len(b.columnGroups)
+	}
+
+	beamFrames := 0
+	if maxGroupCount > 0 {
+		delay := b.beamDelay
+		if delay < 0 {
+			delay = 0
+		}
+		beamFrames = maxGroupCount*(delay+1) + delay
+	}
+	longestGroupFrames := 0
+	for _, groups := range [][]BeamGroup{b.rowGroups, b.columnGroups} {
+		for _, group := range groups {
+			if group.speed <= 0 {
+				continue
+			}
+			groupFrames := int(math.Ceil(float64(len(group.charIndices)) / group.speed))
+			if groupFrames > longestGroupFrames {
+				longestGroupFrames = groupFrames
+			}
+		}
+	}
+	beamFrames += longestGroupFrames
+
+	wipeSpeed := b.finalWipeSpeed
+	if wipeSpeed < 1 {
+		wipeSpeed = 1
+	}
+	wipeFrames := (len(b.diagonalGroups) + wipeSpeed - 1) / wipeSpeed
+	if len(b.chars) > 0 {
+		gradientFrames := len(b.chars[0].brightenGradient) * b.finalGradientFrames
+		if gradientFrames > 0 {
+			wipeFrames += gradientFrames
+		}
+	}
+	return beamFrames + wipeFrames + 1
 }
 
 // updateBeamsPhase handles the beam movement phase

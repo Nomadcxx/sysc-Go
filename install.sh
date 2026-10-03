@@ -4,6 +4,15 @@
 
 set -e
 
+TEMP_DIR=""
+cleanup() {
+    if [ -n "$TEMP_DIR" ]; then
+        cd /
+        rm -rf "$TEMP_DIR"
+    fi
+}
+trap cleanup EXIT
+
 echo "sysc-Go installer"
 echo ""
 
@@ -31,12 +40,11 @@ invoker_home() {
 # /usr/local/go/bin there). Non-interactive, so interactive bashrc hooks
 # such as tmux are not started. stdin is /dev/null so `curl | sudo bash`
 # is not consumed.
-invoking_user_path() {
+invoking_user_environment() {
     if [ -z "${SUDO_USER:-}" ] || [ "$SUDO_USER" = "root" ]; then
         return 0
     fi
-    sudo -n -u "$SUDO_USER" -H bash -lc 'printf "__SYSC_PATH__%s\n" "$PATH"' </dev/null 2>/dev/null \
-        | sed -n 's/^__SYSC_PATH__//p' | tail -n 1 || true
+    sudo -n -u "$SUDO_USER" -H bash -lc 'printf "__SYSC_PATH__%s\n" "$PATH"; printf "__SYSC_MISE_DATA_DIR__%s\n" "${MISE_DATA_DIR:-$HOME/.local/share/mise}"' </dev/null 2>/dev/null || true
 }
 
 add_go_dir() {
@@ -111,7 +119,9 @@ first_executable() {
 }
 
 INVOKER_HOME="$(invoker_home || true)"
-USER_PATH="$(sanitize_path "$(invoking_user_path || true)")"
+INVOKER_ENV="$(invoking_user_environment)"
+USER_PATH="$(sanitize_path "$(printf '%s\n' "$INVOKER_ENV" | sed -n 's/^__SYSC_PATH__//p' | tail -n 1)")"
+USER_MISE_DATA_DIR="$(printf '%s\n' "$INVOKER_ENV" | sed -n 's/^__SYSC_MISE_DATA_DIR__//p' | tail -n 1)"
 GO_DIRS="$(collect_go_dirs "$INVOKER_HOME")"
 # Login PATH, then known install locations, then the sanitized secure_path.
 CANDIDATE="$(sanitize_path "${USER_PATH:+$USER_PATH:}${GO_DIRS:+$GO_DIRS:}$PATH")"
@@ -124,6 +134,12 @@ if [ -z "$GO_BIN" ]; then
     echo "Error: Go is not installed or not visible on PATH"
     echo "sudo resets PATH (secure_path), which omits /usr/local/go/bin and version managers."
     echo "Install Go first: https://go.dev/doc/install"
+    exit 1
+fi
+
+if [ -z "$GIT_BIN" ]; then
+    echo "Error: git is not installed"
+    echo "Install git first, then re-run this installer"
     exit 1
 fi
 
@@ -152,39 +168,29 @@ TEMP_DIR=$(mktemp -d)
 cd "$TEMP_DIR"
 
 echo "Cloning sysc-Go..."
-if [ -n "$GIT_BIN" ]; then
-    "$GIT_BIN" clone https://github.com/Nomadcxx/sysc-Go.git
-else
-    git clone https://github.com/Nomadcxx/sysc-Go.git
-fi
+"$GIT_BIN" clone https://github.com/Nomadcxx/sysc-Go.git
 cd sysc-Go
 
 echo "Building installer..."
 # PATH covers shim helpers (asdf, mise). The binary itself is absolute,
 # so a different `go` earlier on PATH cannot replace it.
-run_go() {
+run_with_toolchain() {
     if [ -n "$INVOKER_HOME" ] && [ -d "$INVOKER_HOME/.asdf" ]; then
         ASDF_DIR="$INVOKER_HOME/.asdf" \
             ASDF_DATA_DIR="${ASDF_DATA_DIR:-$INVOKER_HOME/.asdf}" \
-            PATH="$TOOL_PATH" "$GO_BIN" "$@"
+            MISE_DATA_DIR="${USER_MISE_DATA_DIR:-$INVOKER_HOME/.local/share/mise}" \
+            PATH="$TOOL_PATH" "$@"
+    elif [ -n "$USER_MISE_DATA_DIR" ]; then
+        MISE_DATA_DIR="$USER_MISE_DATA_DIR" PATH="$TOOL_PATH" "$@"
     else
-        PATH="$TOOL_PATH" "$GO_BIN" "$@"
+        PATH="$TOOL_PATH" "$@"
     fi
 }
-run_go build -o install-syscgo ./cmd/installer/
+run_with_toolchain "$GO_BIN" build -o install-syscgo ./cmd/installer/
 
 echo "Running installer..."
-if [ -n "$INVOKER_HOME" ] && [ -d "$INVOKER_HOME/.asdf" ]; then
-    ASDF_DIR="$INVOKER_HOME/.asdf" \
-        ASDF_DATA_DIR="${ASDF_DATA_DIR:-$INVOKER_HOME/.asdf}" \
-        PATH="$TOOL_PATH" ./install-syscgo
-else
-    PATH="$TOOL_PATH" ./install-syscgo
-fi
-
-# Cleanup
-cd /
-rm -rf "$TEMP_DIR"
+# --yes skips the Bubble Tea welcome screen. curl | bash has no TTY input.
+run_with_toolchain ./install-syscgo --yes
 
 echo ""
 echo "Installation complete."

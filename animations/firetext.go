@@ -58,7 +58,11 @@ func (f *FireTextEffect) parseText() {
 	f.centerX = (f.width - f.artWidth) / 2
 	f.centerY = (f.height - f.artHeight) / 2
 
-	// Initialize mask
+	// Initialize mask. A non-positive height has no rows to mark.
+	if f.height <= 0 || f.width <= 0 {
+		f.textMask = make([][]bool, 0)
+		return
+	}
 	f.textMask = make([][]bool, f.height)
 	for i := range f.textMask {
 		f.textMask[i] = make([]bool, f.width)
@@ -83,6 +87,11 @@ func (f *FireTextEffect) parseText() {
 
 // Initialize fire buffer with fire in all non-masked positions
 func (f *FireTextEffect) init() {
+	if f.width <= 0 || f.height <= 0 {
+		f.buffer = make([]int, 0)
+		return
+	}
+
 	f.buffer = make([]int, f.width*f.height)
 
 	// Initialize fire in ALL non-masked positions
@@ -170,6 +179,11 @@ func (f *FireTextEffect) spreadFire(from int) {
 
 // Update advances the fire simulation by one frame
 func (f *FireTextEffect) Update() {
+	// height==0 makes textMask[height-1] and the bottom-row index negative.
+	if f.width <= 0 || f.height <= 0 || len(f.textMask) == 0 {
+		return
+	}
+
 	// Maintain constant heat source at bottom of terminal (not text base)
 	// This keeps fire burning continuously from the bottom up
 	for x := 0; x < f.width; x++ {
