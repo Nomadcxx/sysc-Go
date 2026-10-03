@@ -52,6 +52,7 @@ type RenderOptions struct {
 	ShadowVerticalOffset   int
 	ShadowStyle            ShadowStyle
 	TextLines              []string
+	MaxWidth               int // Canvas width; 0 keeps alignment relative to sibling lines
 }
 
 // RenderBitText renders text using a bitmap font with styling options
@@ -88,6 +89,7 @@ func convertToBITOptions(opts TUIRenderOptions) RenderOptions {
 		ShadowVerticalOffset:   opts.ShadowOffsetY,
 		UseGradient:            opts.UseGradient,
 		GradientColor:          opts.GradientColor,
+		MaxWidth:               opts.MaxWidth,
 	}
 
 	// Default values
