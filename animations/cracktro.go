@@ -99,6 +99,9 @@ func NewCracktroEffect(width, height int, palette []string, theme string) *Crack
 
 func (c *CracktroAnimation) initCracktroStars() {
 	c.stars = nil
+	if c.width <= 0 || c.height <= 0 {
+		return
+	}
 	totalStars := (c.width * c.height) / 25
 	if totalStars < 40 {
 		totalStars = 40
