@@ -3,9 +3,12 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Nomadcxx/sysc-Go/assets"
 )
 
 // BitFont represents a bitmap font loaded from a .bit JSON file
@@ -23,6 +26,10 @@ func LoadBitFont(path string) (*BitFont, error) {
 		return nil, fmt.Errorf("failed to read font file: %w", err)
 	}
 
+	return parseBitFont(data)
+}
+
+func parseBitFont(data []byte) (*BitFont, error) {
 	var font BitFont
 	if err := json.Unmarshal(data, &font); err != nil {
 		return nil, fmt.Errorf("failed to parse font JSON: %w", err)
@@ -39,7 +46,46 @@ func LoadBitFont(path string) (*BitFont, error) {
 	return &font, nil
 }
 
-// ListAvailableFonts returns a list of .bit font files from the assets/fonts directory
+func loadEmbeddedBitFont(fontName string) (*BitFont, error) {
+	filename := fontName
+	if !strings.HasSuffix(filename, ".bit") {
+		filename += ".bit"
+	}
+	if !fs.ValidPath(filename) || strings.ContainsAny(filename, `/\`) {
+		return nil, fmt.Errorf("font not found: %s", fontName)
+	}
+
+	data, err := assets.Fonts.ReadFile("fonts/" + filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read embedded font %q: %w", fontName, err)
+	}
+	return parseBitFont(data)
+}
+
+func loadBitFontByName(fontName string) (*BitFont, error) {
+	fontPath, err := FindFontPath(fontName)
+	if err == nil {
+		return LoadBitFont(fontPath)
+	}
+	return loadEmbeddedBitFont(fontName)
+}
+
+func embeddedFontNames() []string {
+	entries, err := assets.Fonts.ReadDir("fonts")
+	if err != nil {
+		return nil
+	}
+
+	var fonts []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".bit") {
+			fonts = append(fonts, strings.TrimSuffix(entry.Name(), ".bit"))
+		}
+	}
+	return fonts
+}
+
+// ListAvailableFonts returns disk fonts, falling back to the embedded fonts.
 func ListAvailableFonts() []string {
 	var fonts []string
 
@@ -69,6 +115,10 @@ func ListAvailableFonts() []string {
 		if len(fonts) > 0 {
 			break
 		}
+	}
+
+	if len(fonts) == 0 {
+		return embeddedFontNames()
 	}
 
 	return fonts

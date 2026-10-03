@@ -129,10 +129,7 @@ func NewModel() Model {
 	// Load default font
 	var defaultFont *BitFont
 	if len(bitFonts) > 0 {
-		fontPath, err := FindFontPath(bitFonts[0])
-		if err == nil {
-			defaultFont, _ = LoadBitFont(fontPath)
-		}
+		defaultFont, _ = loadBitFontByName(bitFonts[0])
 	}
 
 	return Model{
