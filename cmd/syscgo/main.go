@@ -35,28 +35,7 @@ func findAssetFile(filename string) string {
 		binaryDir = filepath.Dir(exePath)
 	}
 
-	// Priority order matches TUI for consistency:
-	// 1. User-writable directories (where TUI saves exports)
-	// 2. Local relative paths
-	// 3. Binary-relative path
-	// 4. System install paths (read-only)
-	locations := []string{
-		filepath.Join(os.Getenv("HOME"), "sysc-Go", "assets", filename), // User home (writable, TUI saves here)
-		filepath.Join("assets", filename),                               // ./assets/ (current dir)
-		filepath.Join("../assets", filename),                            // ../assets/ (parent dir, for TUI context)
-		filename,                                                        // Bare filename in current directory
-	}
-
-	// Add binary-relative path if we found it
-	if binaryDir != "" {
-		locations = append(locations, filepath.Join(binaryDir, "assets", filename))
-	}
-
-	// Add system paths last (read-only fallback)
-	locations = append(locations,
-		filepath.Join("/usr/local/share/sysc-Go/assets", filename), // Local install
-		filepath.Join("/usr/share/sysc-Go/assets", filename),       // System install
-	)
+	locations := assetSearchPaths(filename, os.Getenv("HOME"), binaryDir)
 
 	for _, path := range locations {
 		if _, err := os.Stat(path); err == nil {
@@ -65,6 +44,34 @@ func findAssetFile(filename string) string {
 	}
 
 	return ""
+}
+
+// assetSearchPaths returns candidate paths for an asset file.
+// home is the user home directory; binaryDir is the directory containing the executable (empty if unknown).
+func assetSearchPaths(filename, home, binaryDir string) []string {
+	// Priority order matches TUI for consistency:
+	// 1. User-writable directories (where TUI saves exports)
+	// 2. Local relative paths
+	// 3. Binary-relative path
+	// 4. System install paths (read-only)
+	locations := []string{
+		filepath.Join(home, "sysc-Go", "assets", filename), // User home (writable, TUI saves here)
+		filepath.Join("assets", filename),                  // ./assets/ (current dir)
+		filepath.Join("../assets", filename),               // ../assets/ (parent dir, for TUI context)
+		filename,                                           // Bare filename in current directory
+	}
+
+	if binaryDir != "" {
+		locations = append(locations, filepath.Join(binaryDir, "assets", filename))
+	}
+
+	// Installer and PKGBUILD both use the syscgo share name, with texts under assets/.
+	locations = append(locations,
+		filepath.Join("/usr/local/share/syscgo", "assets", filename),
+		filepath.Join("/usr/share/syscgo", "assets", filename),
+	)
+
+	return locations
 }
 
 // readTextFile reads text from a file with fallback to SYSC.txt

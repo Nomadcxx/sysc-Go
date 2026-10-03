@@ -430,18 +430,39 @@ func buildTuiBinary(m *model) error {
 func installAssets(m *model) error {
 	projectRoot := getProjectRoot()
 	srcPath := filepath.Join(projectRoot, "assets")
-	dstPath := "/usr/local/share/syscgo"
+	if err := installAssetFiles(srcPath, "/usr/local/share/syscgo"); err != nil {
+		return fmt.Errorf("failed to copy assets: %v", err)
+	}
+	return nil
+}
 
-	// Create destination directory
-	err := os.MkdirAll(dstPath, 0755)
+// installAssetFiles copies repo assets into the system share layout used by the
+// CLI and TUI: text files under <share>/assets and BIT fonts under <share>/fonts.
+func installAssetFiles(srcAssets, shareRoot string) error {
+	entries, err := os.ReadDir(srcAssets)
 	if err != nil {
+		return err
+	}
+
+	assetsDst := filepath.Join(shareRoot, "assets")
+	if err := os.MkdirAll(assetsDst, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
 	}
 
-	// Copy assets directory recursively
-	err = copyDir(srcPath, dstPath)
-	if err != nil {
-		return fmt.Errorf("failed to copy assets: %v", err)
+	for _, entry := range entries {
+		src := filepath.Join(srcAssets, entry.Name())
+		if entry.IsDir() {
+			// Fonts are discovered at the share root, not under assets/.
+			if entry.Name() == "fonts" {
+				if err := copyDir(src, filepath.Join(shareRoot, "fonts")); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+		if err := copyFile(src, filepath.Join(assetsDst, entry.Name())); err != nil {
+			return err
+		}
 	}
 
 	return nil
