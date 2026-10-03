@@ -39,11 +39,14 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-Go/master/install.sh 
 
 **Via interactive installer:**
 ```bash
-# Clone and run the TUI installer (requires sudo for system-wide installation)
-# Installs both syscgo and syscgo-tui binaries
+# Clone and run the TUI installer (requires sudo for system-wide installation).
+# Installs both syscgo and syscgo-tui binaries.
+# Pass the current shell PATH through. sudo's secure_path omits
+# /usr/local/go/bin and version-manager directories; include the official
+# tarball location so a user-installed Go stays visible.
 git clone https://github.com/Nomadcxx/sysc-Go.git
 cd sysc-Go
-sudo go run ./cmd/installer/
+sudo env PATH="$PATH:/usr/local/go/bin" go run ./cmd/installer/
 ```
 
 **Via AUR (Arch Linux):**
