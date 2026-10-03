@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -106,6 +107,78 @@ fi
 	}
 	if _, statErr := os.Stat(strings.TrimSpace(string(tempPath))); !os.IsNotExist(statErr) {
 		t.Fatalf("temp dir %s left behind after failure", strings.TrimSpace(string(tempPath)))
+	}
+}
+
+func TestInstallScriptPassesInvokingUsersMiseDataDir(t *testing.T) {
+	currentUser, err := user.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "bin")
+	goDir := filepath.Join(dir, "mise-shims")
+	for _, path := range []string{bin, goDir} {
+		if err := os.Mkdir(path, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	logPath := filepath.Join(dir, "log")
+	miseDataDir := filepath.Join(dir, "mise-data")
+
+	writeStub(t, bin, "sudo", `#!/bin/bash
+printf '__SYSC_PATH__%s\n' "$TEST_USER_PATH"
+printf '__SYSC_MISE_DATA_DIR__%s\n' "$TEST_MISE_DATA_DIR"
+`)
+	writeStub(t, bin, "git", `#!/bin/bash
+if [ "$1" = "clone" ]; then mkdir -p sysc-Go; fi
+`)
+	writeStub(t, goDir, "go", `#!/bin/bash
+printf 'go MISE_DATA_DIR=%s args=%s\n' "$MISE_DATA_DIR" "$*" >> "$TEST_LOG"
+if [ "$1" = "build" ]; then
+  cat > install-syscgo << 'EOF'
+#!/bin/bash
+printf 'installer MISE_DATA_DIR=%s args=%s\n' "$MISE_DATA_DIR" "$*" >> "$TEST_LOG"
+EOF
+  chmod +x install-syscgo
+fi
+`)
+
+	script, err := os.ReadFile(filepath.Join("..", "..", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootCheck := `if [ "$EUID" -ne 0 ]; then`
+	if !strings.Contains(string(script), rootCheck) {
+		t.Fatal("install.sh root check changed; update this test's unprivileged harness")
+	}
+	testScript := filepath.Join(dir, "install.sh")
+	if err := os.WriteFile(testScript, []byte(strings.Replace(string(script), rootCheck, "if false; then", 1)), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("bash", testScript)
+	cmd.Env = append(os.Environ(),
+		"PATH="+goDir+":"+bin+":"+os.Getenv("PATH"),
+		"SUDO_USER="+currentUser.Username,
+		"TEST_USER_PATH="+goDir+":"+bin,
+		"TEST_MISE_DATA_DIR="+miseDataDir,
+		"TEST_LOG="+logPath,
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+
+	log, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(log), "go MISE_DATA_DIR="+miseDataDir) || !strings.Contains(string(log), "installer MISE_DATA_DIR="+miseDataDir) {
+		t.Fatalf("user MISE_DATA_DIR not passed to both Go invocations\nlog:\n%s", log)
+	}
+	if !strings.Contains(string(log), "installer MISE_DATA_DIR="+miseDataDir+" args=--yes") {
+		t.Fatalf("installer did not run with --yes\nlog:\n%s", log)
 	}
 }
 
