@@ -93,22 +93,38 @@ func (m Model) handleBitEditorKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "left", "h":
+	case "left":
 		return m.handleBitControlLeft(), nil
 
-	case "right", "l":
+	case "right":
 		return m.handleBitControlRight(), nil
 
-	case "up", "k":
+	case "up":
 		return m.handleBitControlUp(), nil
 
-	case "down", "j":
+	case "down":
 		return m.handleBitControlDown(), nil
 
 	default:
+		// h/j/k/l are navigation aliases on every control except the text field.
+		// While Text is focused they must be inserted; otherwise banner words
+		// such as "Hello" lose those letters.
+		key := msg.String()
+		if m.bitFocusedControl != 0 {
+			switch key {
+			case "h":
+				return m.handleBitControlLeft(), nil
+			case "l":
+				return m.handleBitControlRight(), nil
+			case "k":
+				return m.handleBitControlUp(), nil
+			case "j":
+				return m.handleBitControlDown(), nil
+			}
+		}
+
 		// Auto-focus text input when typing (excluding single-char special keys)
 		// This provides better UX - user can just start typing without focusing first
-		key := msg.String()
 		isTyping := len(key) == 1 || key == "space" || key == "backspace" || key == "delete"
 
 		if isTyping {
