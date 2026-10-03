@@ -177,7 +177,13 @@ func scaleBitmap(bitmap [][]int, scaleFactor int) [][]int {
 				blockHasPixelOn := 0
 				for rOrig := rNew * downscaleBy; rOrig < (rNew+1)*downscaleBy; rOrig++ {
 					for cOrig := cNew * downscaleBy; cOrig < (cNew+1)*downscaleBy; cOrig++ {
-						if rOrig < originalHeight && cOrig < originalWidth && bitmap[rOrig][cOrig] == 1 {
+						// Rows are not always as wide as row 0, and an empty
+						// source line becomes a nil row. Cells past the end are off.
+						if rOrig >= originalHeight || cOrig >= originalWidth {
+							continue
+						}
+						row := bitmap[rOrig]
+						if cOrig < len(row) && row[cOrig] == 1 {
 							blockHasPixelOn = 1
 							break
 						}
