@@ -155,22 +155,28 @@ func NewAquariumEffect(config AquariumConfig) *AquariumEffect {
 func (a *AquariumEffect) init() {
 	a.initBuffers()
 
-	// Create seaweed (bottom decoration)
-	seaweedCount := a.width / 8
-	for i := 0; i < seaweedCount; i++ {
-		x := a.rng.Intn(a.width)
-		height := 3 + a.rng.Intn(a.height/3)
-		variant := a.rng.Intn(2) // 0=straight, 1=wavy
+	// Create seaweed (bottom decoration). height/3 is 0 when height < 3.
+	if a.width > 0 && a.height > 0 {
+		seaweedCount := a.width / 8
+		hSpan := a.height / 3
+		if hSpan < 1 {
+			hSpan = 1
+		}
+		for i := 0; i < seaweedCount; i++ {
+			x := a.rng.Intn(a.width)
+			height := 3 + a.rng.Intn(hSpan)
+			variant := a.rng.Intn(2) // 0=straight, 1=wavy
 
-		a.seaweed = append(a.seaweed, Seaweed{
-			x:          x,
-			height:     height,
-			swayPhase:  a.rng.Float64() * math.Pi * 2,
-			swaySpeed:  0.05 + a.rng.Float64()*0.05,
-			swayAmount: 1.0 + a.rng.Float64()*0.5,
-			colors:     a.seaweedColors,
-			variant:    variant,
-		})
+			a.seaweed = append(a.seaweed, Seaweed{
+				x:          x,
+				height:     height,
+				swayPhase:  a.rng.Float64() * math.Pi * 2,
+				swaySpeed:  0.05 + a.rng.Float64()*0.05,
+				swayAmount: 1.0 + a.rng.Float64()*0.5,
+				colors:     a.seaweedColors,
+				variant:    variant,
+			})
+		}
 	}
 
 	// Create diver - position so full diver is visible above bottom
@@ -216,8 +222,12 @@ func (a *AquariumEffect) init() {
 		}
 	}
 
+	boatX := 0
+	if a.width > 0 {
+		boatX = a.rng.Intn(a.width)
+	}
 	a.boat = &Boat{
-		x:         float64(a.rng.Intn(a.width)),
+		x:         float64(boatX),
 		y:         float64(oceanY - boatHeight), // Above ocean surface
 		speed:     0.4,
 		direction: boatDirection,
@@ -298,6 +308,9 @@ func (a *AquariumEffect) spawnFish() {
 	if maxY <= minY {
 		maxY = a.height - 2
 	}
+	if maxY <= minY {
+		return
+	}
 
 	fish := Fish{
 		x:         x,
@@ -333,6 +346,9 @@ func (a *AquariumEffect) spawnMediumFish() {
 	oceanY := int(float64(a.height) * 0.15)
 	minY := oceanY + 2
 	maxY := a.height - 10
+	if maxY <= minY {
+		return
+	}
 
 	fish := Fish{
 		x:         x,
@@ -368,6 +384,9 @@ func (a *AquariumEffect) spawnLargeFish() {
 	oceanY := int(float64(a.height) * 0.15)
 	minY := oceanY + 5
 	maxY := a.height - 15
+	if maxY <= minY {
+		return
+	}
 
 	fish := Fish{
 		x:         x,
@@ -583,9 +602,15 @@ func (a *AquariumEffect) getMermaidPattern() []string {
 
 // spawnBubble creates a new bubble
 func (a *AquariumEffect) spawnBubble() {
+	if a.width <= 0 {
+		return
+	}
 	oceanY := int(float64(a.height) * 0.15)
 	minY := oceanY + 2
 	maxY := a.height - 1
+	if maxY <= minY {
+		return
+	}
 
 	a.bubbles = append(a.bubbles, Bubble{
 		x:         float64(a.rng.Intn(a.width)),
@@ -779,9 +804,13 @@ func (a *AquariumEffect) Update() {
 
 // Render converts the aquarium to colored text output
 func (a *AquariumEffect) Render() string {
+	if a.width <= 0 || a.height <= 0 || len(a.canvas) == 0 {
+		return ""
+	}
 	a.clearBuffers()
 
-	// Draw ocean surface at 15% from top
+	// Draw ocean surface at 15% from top. Keep the historical minimum of
+	// row 2 when the terminal is tall enough; never index past the canvas.
 	waterColor := "#4a9eff"
 	if len(a.waterColors) > 0 {
 		waterColor = a.waterColors[0]
@@ -790,19 +819,29 @@ func (a *AquariumEffect) Render() string {
 	if oceanY < 2 {
 		oceanY = 2
 	}
-	for x := 0; x < a.width; x++ {
-		if (a.frameCount/2+x)%3 == 0 {
-			a.canvas[oceanY][x] = '~'
-			a.colors[oceanY][x] = waterColor
+	if oceanY >= a.height {
+		oceanY = a.height - 1
+	}
+	if oceanY >= 0 && oceanY < len(a.canvas) {
+		for x := 0; x < a.width; x++ {
+			if (a.frameCount/2+x)%3 == 0 {
+				a.canvas[oceanY][x] = '~'
+				a.colors[oceanY][x] = waterColor
+			}
 		}
 	}
 
-	// Draw ocean floor (last 2 rows)
+	// Draw ocean floor (last 2 rows). height < 2 used to start this loop at
+	// a negative index.
 	sandColor := "#c2b280"
 	if len(a.waterColors) > 1 {
 		sandColor = a.waterColors[1]
 	}
-	for y := a.height - 2; y < a.height; y++ {
+	floorStart := a.height - 2
+	if floorStart < 0 {
+		floorStart = 0
+	}
+	for y := floorStart; y < a.height && y < len(a.canvas); y++ {
 		for x := 0; x < a.width; x++ {
 			if y == a.height-2 {
 				// Top of ocean floor with variation
