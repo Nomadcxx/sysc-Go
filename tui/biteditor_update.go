@@ -87,6 +87,9 @@ func (m Model) handleBitEditorKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.bitShowFontList = true
 		case 3: // Color
 			m.bitColorPicker = true
+		case 5: // Shadow - toggle; arrows adjust the offset
+			m.bitShadow = !m.bitShadow
+			m = m.updateBitPreview()
 		}
 		return m, nil
 
@@ -385,9 +388,9 @@ func (m Model) handleBitControlUp() Model {
 // handleBitControlDown handles down arrow on focused control
 func (m Model) handleBitControlDown() Model {
 	switch m.bitFocusedControl {
-	case 5: // Shadow - increase Y offset or toggle
-		if m.bitFocusedControl == 5 {
-			m.bitShadow = !m.bitShadow
+	case 5: // Shadow - increase Y offset
+		if m.bitShadow && m.bitShadowOffsetY < 5 {
+			m.bitShadowOffsetY++
 			m = m.updateBitPreview()
 		}
 
