@@ -6,37 +6,47 @@ import (
 	"testing"
 )
 
-func TestInstallAssetFilesKeepsAssetsAndFontsSeparate(t *testing.T) {
+func TestInstallAssetFilesCopiesOnlyRuntimeAssets(t *testing.T) {
 	src := t.TempDir()
-	if err := os.WriteFile(filepath.Join(src, "SYSC.txt"), []byte("sysc"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(src, "fire.gif"), []byte("gif"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	mustWrite(t, filepath.Join(src, "SYSC.txt"), "sysc")
+	mustWrite(t, filepath.Join(src, "fire.gif"), "gif-bytes")
+	mustWrite(t, filepath.Join(src, "preview.png"), "png-bytes")
+	mustWrite(t, filepath.Join(src, "README.md"), "notes")
 	if err := os.Mkdir(filepath.Join(src, "fonts"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(src, "fonts", "banner.bit"), []byte("bit"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	mustWrite(t, filepath.Join(src, "fonts", "banner.bit"), "bit")
+	mustWrite(t, filepath.Join(src, "fonts", "preview.gif"), "font-gif")
 
 	share := t.TempDir()
 	if err := installAssetFiles(src, share); err != nil {
 		t.Fatal(err)
 	}
 
-	assertFile(t, filepath.Join(share, "assets", "SYSC.txt"))
-	assertFile(t, filepath.Join(share, "fonts", "banner.bit"))
-	if _, err := os.Stat(filepath.Join(share, "SYSC.txt")); !os.IsNotExist(err) {
-		t.Fatalf("text asset installed flat in share root, want .../assets/SYSC.txt")
-	}
-	if _, err := os.Stat(filepath.Join(share, "assets", "fonts", "banner.bit")); !os.IsNotExist(err) {
-		t.Fatalf("font installed under assets/fonts, want .../fonts/banner.bit")
+	assertPresent(t, filepath.Join(share, "assets", "SYSC.txt"))
+	assertPresent(t, filepath.Join(share, "fonts", "banner.bit"))
+	for _, missing := range []string{
+		filepath.Join(share, "SYSC.txt"),
+		filepath.Join(share, "assets", "fire.gif"),
+		filepath.Join(share, "assets", "preview.png"),
+		filepath.Join(share, "assets", "README.md"),
+		filepath.Join(share, "assets", "fonts", "banner.bit"),
+		filepath.Join(share, "fonts", "preview.gif"),
+	} {
+		if _, err := os.Stat(missing); !os.IsNotExist(err) {
+			t.Fatalf("unexpected installed file %s", missing)
+		}
 	}
 }
 
-func assertFile(t *testing.T, path string) {
+func mustWrite(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertPresent(t *testing.T, path string) {
 	t.Helper()
 	info, err := os.Stat(path)
 	if err != nil {
