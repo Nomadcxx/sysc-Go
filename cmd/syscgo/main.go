@@ -15,8 +15,6 @@ import (
 	"golang.org/x/term"
 )
 
-const version = "1.0.2"
-
 const banner = `▄▀▀▀▀ █   █ ▄▀▀▀▀ ▄▀▀▀▀    ▄▀    ▄▀
  ▀▀▀▄ ▀▀▀▀█  ▀▀▀▄ █      ▄▀    ▄▀
 ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀   ▀▀▀▀ ▀     ▀
@@ -294,7 +292,7 @@ func main() {
 	}
 
 	if *showVersion {
-		fmt.Printf("syscgo version %s\n", version)
+		fmt.Printf("syscgo version %s\n", animations.GetLibraryVersion())
 		return
 	}
 
