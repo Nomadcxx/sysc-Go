@@ -45,12 +45,9 @@ func (m *Model) createAnimation() animations.Animation {
 		m.bitEditorMode = true
 		// Ensure font is loaded when entering BIT editor
 		if m.bitCurrentFont == nil && len(m.bitFonts) > 0 {
-			fontPath, err := FindFontPath(m.bitFonts[m.bitSelectedFont])
+			font, err := loadBitFontByName(m.bitFonts[m.bitSelectedFont])
 			if err == nil {
-				font, err := LoadBitFont(fontPath)
-				if err == nil {
-					m.bitCurrentFont = font
-				}
+				m.bitCurrentFont = font
 			}
 		}
 		m.bitTextInput.Focus()

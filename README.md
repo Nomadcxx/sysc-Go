@@ -58,7 +58,7 @@ go install github.com/Nomadcxx/sysc-Go/cmd/syscgo@latest
 go install github.com/Nomadcxx/sysc-Go/cmd/syscgo-tui@latest
 ```
 
-> **Note:** Installing via `go install` does not include fonts or assets. The TUI will work but the BIT editor font browser will be empty. For full functionality, use the installer or AUR package, or manually download fonts from `fonts/` to `~/.local/share/syscgo/fonts/`.
+> **Note:** The TUI binary includes the BIT fonts. `go install` does not install the sample text files; use the installer or AUR package for them.
 
 ### As Library
 

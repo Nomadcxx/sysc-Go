@@ -169,13 +169,10 @@ func (m Model) handleFontBrowserKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		// Load selected font
 		if m.bitSelectedFont < len(m.bitFonts) {
-			fontPath, err := FindFontPath(m.bitFonts[m.bitSelectedFont])
+			font, err := loadBitFontByName(m.bitFonts[m.bitSelectedFont])
 			if err == nil {
-				font, err := LoadBitFont(fontPath)
-				if err == nil {
-					m.bitCurrentFont = font
-					m = m.updateBitPreview()
-				}
+				m.bitCurrentFont = font
+				m = m.updateBitPreview()
 			}
 		}
 		m.bitShowFontList = false
@@ -287,13 +284,10 @@ func (m Model) handleBitControlLeft() Model {
 		if m.bitSelectedFont > 0 {
 			m.bitSelectedFont--
 			// Load font
-			fontPath, err := FindFontPath(m.bitFonts[m.bitSelectedFont])
+			font, err := loadBitFontByName(m.bitFonts[m.bitSelectedFont])
 			if err == nil {
-				font, err := LoadBitFont(fontPath)
-				if err == nil {
-					m.bitCurrentFont = font
-					m = m.updateBitPreview()
-				}
+				m.bitCurrentFont = font
+				m = m.updateBitPreview()
 			}
 		}
 
@@ -338,13 +332,10 @@ func (m Model) handleBitControlRight() Model {
 		if m.bitSelectedFont < len(m.bitFonts)-1 {
 			m.bitSelectedFont++
 			// Load font
-			fontPath, err := FindFontPath(m.bitFonts[m.bitSelectedFont])
+			font, err := loadBitFontByName(m.bitFonts[m.bitSelectedFont])
 			if err == nil {
-				font, err := LoadBitFont(fontPath)
-				if err == nil {
-					m.bitCurrentFont = font
-					m = m.updateBitPreview()
-				}
+				m.bitCurrentFont = font
+				m = m.updateBitPreview()
 			}
 		}
 
