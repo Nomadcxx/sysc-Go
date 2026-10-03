@@ -1376,8 +1376,8 @@ func runCracktro(width, height int, theme string, frames int) {
 	palette := animations.GetCracktroPalette(theme)
 	cracktro := animations.NewCracktroEffect(width, height, palette, theme)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
