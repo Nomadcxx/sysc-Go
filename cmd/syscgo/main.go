@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -174,27 +175,52 @@ func wrapText(text string, width int) string {
 	return strings.Join(wrappedLines, "\n")
 }
 
-// setupKeyboardInterrupt sets up signal handling for Ctrl+C
-// Returns a channel that will receive true when user wants to exit
-func setupKeyboardInterrupt() chan bool {
-	quit := make(chan bool, 1)
+// interruptWatcher reports Ctrl+C / SIGTERM by closing quit.
+// stop only closes done. The signal path never sends on a channel stop
+// closes, so a SIGTERM that arrives as the runner exits cannot panic
+// with "send on closed channel".
+type interruptWatcher struct {
+	quit chan struct{}
+	done chan struct{}
+	once sync.Once
+}
 
-	// Use signal handling instead of raw mode to avoid breaking output formatting
+func newInterruptWatcher() *interruptWatcher {
+	return &interruptWatcher{
+		quit: make(chan struct{}),
+		done: make(chan struct{}),
+	}
+}
+
+func (w *interruptWatcher) stop() {
+	w.once.Do(func() { close(w.done) })
+}
+
+func (w *interruptWatcher) deliverInterrupt() {
+	close(w.quit)
+}
+
+func (w *interruptWatcher) handle(sig <-chan os.Signal) {
+	select {
+	case <-sig:
+		w.deliverInterrupt()
+	case <-w.done:
+	}
+}
+
+// setupKeyboardInterrupt sets up signal handling for Ctrl+C.
+// The returned stop func is idempotent and must be called on exit.
+func setupKeyboardInterrupt() (<-chan struct{}, func()) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	w := newInterruptWatcher()
 	go func() {
-		defer signal.Stop(sigChan) // Cleanup signal handler
-		select {
-		case <-sigChan:
-			quit <- true
-		case <-quit:
-			// Parent exited normally, cleanup
-			return
-		}
+		defer signal.Stop(sigChan)
+		w.handle(sigChan)
 	}()
 
-	return quit
+	return w.quit, w.stop
 }
 
 func showHelp() {
@@ -319,8 +345,8 @@ func runFire(width, height int, theme string, frames int) {
 	palette := animations.GetFirePalette(theme)
 	fire := animations.NewFireEffect(width, height, palette)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -352,8 +378,8 @@ func runFireText(width, height int, theme string, file string, frames int) {
 	// Create fire-text effect
 	fireText := animations.NewFireTextEffect(width, height, palette, text)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -379,8 +405,8 @@ func runMatrix(width, height int, theme string, frames int) {
 	palette := animations.GetMatrixPalette(theme)
 	matrix := animations.NewMatrixEffect(width, height, palette)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -412,8 +438,8 @@ func runMatrixArt(width, height int, theme string, file string, frames int) {
 	// Create matrix-art effect
 	matrixArt := animations.NewMatrixArtEffect(width, height, palette, text)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -439,8 +465,8 @@ func runFireworks(width, height int, theme string, frames int) {
 	palette := animations.GetFireworksPalette(theme)
 	fireworks := animations.NewFireworksEffect(width, height, palette)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -466,8 +492,8 @@ func runRain(width, height int, theme string, frames int) {
 	palette := animations.GetRainPalette(theme)
 	rain := animations.NewRainEffect(width, height, palette)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -499,8 +525,8 @@ func runRainArt(width, height int, theme string, file string, frames int) {
 	// Create rain-art effect
 	rainArt := animations.NewRainArtEffect(width, height, palette, text)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -589,8 +615,8 @@ func runPour(width, height int, theme string, file string, frames int) {
 
 	pour := animations.NewPourEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -674,8 +700,8 @@ func runPrint(width, height int, theme string, file string, frames int) {
 
 	print := animations.NewPrintEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -764,8 +790,8 @@ func runBeams(width, height int, theme string, frames int) {
 
 	beams := animations.NewBeamsEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -867,8 +893,8 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 
 	beamText := animations.NewBeamTextEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	// When display mode is enabled, ignore duration and run until completion
 	// This allows the multi-phase beam-text animation to reach its final "hold" state
@@ -968,8 +994,8 @@ func runRingText(width, height int, theme string, file string, frames int) {
 
 	ringText := animations.NewRingTextEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1087,8 +1113,8 @@ func runBlackhole(width, height int, theme string, file string, frames int) {
 
 	blackhole := animations.NewBlackholeEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1256,8 +1282,8 @@ func runAquarium(width, height int, theme string, frames int) {
 
 	aquarium := animations.NewAquariumEffect(config)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1282,8 +1308,8 @@ func runSonar(width, height int, theme string, frames int) {
 	palette := animations.GetSkullPalette(theme)
 	sonar := animations.NewSonarEffect(width, height, palette, theme)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1308,8 +1334,8 @@ func runSkull(width, height int, theme string, frames int) {
 	palette := animations.GetSkullPalette(theme)
 	skull := animations.NewSkullEffect(width, height, palette, theme)
 
-	quit := setupKeyboardInterrupt()
-	defer close(quit)
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
 
 	frame := 0
 	for frames == 0 || frame < frames {
@@ -1329,4 +1355,3 @@ func runSkull(width, height int, theme string, frames int) {
 		frame++
 	}
 }
-
