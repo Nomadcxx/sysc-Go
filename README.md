@@ -39,11 +39,12 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-Go/master/install.sh 
 
 **Via interactive installer:**
 ```bash
-# Clone and run the TUI installer (requires sudo for system-wide installation)
-# Installs both syscgo and syscgo-tui binaries
+# Clone and run the TUI installer (requires sudo for system-wide installation).
+# Installs both syscgo and syscgo-tui binaries.
+# Resolve Go in the current shell, then invoke that toolchain by absolute path.
 git clone https://github.com/Nomadcxx/sysc-Go.git
 cd sysc-Go
-sudo go run ./cmd/installer/
+sudo "$(go env GOROOT)/bin/go" run ./cmd/installer/
 ```
 
 **Via AUR (Arch Linux):**
@@ -237,3 +238,8 @@ See [GUIDE.md](GUIDE.md) for detailed CLI usage.
 ## License
 
 MIT
+
+---
+
+<a href="https://github.com/Nomadcxx"><img src="https://raw.githubusercontent.com/Nomadcxx/Nomadcxx/main/assets/rama-mark.svg" height="22" alt="RAMA"></a> — terminal-native tooling for the linux desktop.
+[More projects →](https://github.com/Nomadcxx) · [Sponsor](https://github.com/sponsors/Nomadcxx) ❤️

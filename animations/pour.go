@@ -618,3 +618,9 @@ func (p *PourEffect) Reset() {
 		p.chars[i].gradientCounter = 0
 	}
 }
+
+// SetText updates the displayed text and reinitializes the pour animation.
+func (p *PourEffect) SetText(text string) {
+	p.text = text
+	p.init()
+}

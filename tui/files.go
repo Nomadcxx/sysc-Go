@@ -23,9 +23,9 @@ func discoverAssetFiles() []string {
 	// Try multiple possible asset paths (prioritize user-writable locations)
 	assetPaths := []string{
 		filepath.Join(os.Getenv("HOME"), "sysc-Go", "assets"), // User home (writable)
-		"assets",              // Current directory
-		"./assets",            // Explicit relative
-		"../assets",           // Parent directory
+		"assets",    // Current directory
+		"./assets",  // Explicit relative
+		"../assets", // Parent directory
 		filepath.Join("/usr/local/share/syscgo", "assets"), // Local install (matches installer)
 		filepath.Join("/usr/share/syscgo", "assets"),       // System install (matches installer)
 	}
@@ -136,8 +136,8 @@ func saveToAssets(filename, content string) error {
 	// Try to find writable assets directory
 	assetPaths := []string{
 		filepath.Join(os.Getenv("HOME"), "sysc-Go", "assets"), // User home (writable)
-		"assets",   // Current directory
-		"./assets", // Explicit relative
+		"assets",    // Current directory
+		"./assets",  // Explicit relative
 		"../assets", // Parent directory
 	}
 

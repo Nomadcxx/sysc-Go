@@ -400,7 +400,11 @@ func checkPrivileges(m *model) error {
 }
 
 func buildBinary(m *model) error {
-	cmd := exec.Command("go", "build", "-o", "syscgo", "./cmd/syscgo")
+	out, err := stagedBinaryPath("syscgo")
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("go", "build", "-o", out, "./cmd/syscgo")
 	cmd.Dir = getProjectRoot()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -410,7 +414,11 @@ func buildBinary(m *model) error {
 }
 
 func buildTuiBinary(m *model) error {
-	cmd := exec.Command("go", "build", "-o", "syscgo-tui", "./cmd/syscgo-tui")
+	out, err := stagedBinaryPath("syscgo-tui")
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("go", "build", "-o", out, "./cmd/syscgo-tui")
 	cmd.Dir = getProjectRoot()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -422,26 +430,65 @@ func buildTuiBinary(m *model) error {
 func installAssets(m *model) error {
 	projectRoot := getProjectRoot()
 	srcPath := filepath.Join(projectRoot, "assets")
-	dstPath := "/usr/local/share/syscgo"
+	if err := installAssetFiles(srcPath, "/usr/local/share/syscgo"); err != nil {
+		return fmt.Errorf("failed to copy assets: %v", err)
+	}
+	return nil
+}
 
-	// Create destination directory
-	err := os.MkdirAll(dstPath, 0755)
+// installAssetFiles copies repo assets into the system share layout used by the
+// CLI and TUI: text files under <share>/assets and BIT fonts under <share>/fonts.
+func installAssetFiles(srcAssets, shareRoot string) error {
+	entries, err := os.ReadDir(srcAssets)
 	if err != nil {
+		return err
+	}
+
+	assetsDst := filepath.Join(shareRoot, "assets")
+	if err := os.MkdirAll(assetsDst, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
 	}
 
-	// Copy assets directory recursively
-	err = copyDir(srcPath, dstPath)
-	if err != nil {
-		return fmt.Errorf("failed to copy assets: %v", err)
+	for _, entry := range entries {
+		src := filepath.Join(srcAssets, entry.Name())
+		if entry.IsDir() {
+			if entry.Name() != "fonts" {
+				continue
+			}
+			fonts, err := os.ReadDir(src)
+			if err != nil {
+				return err
+			}
+			for _, font := range fonts {
+				if font.IsDir() || !strings.EqualFold(filepath.Ext(font.Name()), ".bit") {
+					continue
+				}
+				fontsDst := filepath.Join(shareRoot, "fonts")
+				if err := os.MkdirAll(fontsDst, 0755); err != nil {
+					return fmt.Errorf("failed to create directory: %v", err)
+				}
+				if err := copyFile(filepath.Join(src, font.Name()), filepath.Join(fontsDst, font.Name())); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+		if !strings.EqualFold(filepath.Ext(entry.Name()), ".txt") {
+			continue
+		}
+		if err := copyFile(src, filepath.Join(assetsDst, entry.Name())); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func installBinary(m *model) error {
-	projectRoot := getProjectRoot()
-	srcPath := filepath.Join(projectRoot, "syscgo")
+	srcPath, err := stagedBinaryPath("syscgo")
+	if err != nil {
+		return err
+	}
 	dstPath := "/usr/local/bin/syscgo"
 
 	// Read the source file
@@ -460,8 +507,10 @@ func installBinary(m *model) error {
 }
 
 func installTuiBinary(m *model) error {
-	projectRoot := getProjectRoot()
-	srcPath := filepath.Join(projectRoot, "syscgo-tui")
+	srcPath, err := stagedBinaryPath("syscgo-tui")
+	if err != nil {
+		return err
+	}
 	dstPath := "/usr/local/bin/syscgo-tui"
 
 	// Read the source file
@@ -503,49 +552,6 @@ func removeAssets(m *model) error {
 	return nil
 }
 
-// copyDir recursively copies a directory
-func copyDir(src, dst string) error {
-	// Get properties of source dir
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
-	// Create destination directory
-	err = os.MkdirAll(dst, srcInfo.Mode())
-	if err != nil {
-		return err
-	}
-
-	// Read source directory
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	// Copy each entry
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			// Recursively copy subdirectory
-			err = copyDir(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Copy file
-			err = copyFile(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 // copyFile copies a single file
 func copyFile(src, dst string) error {
 	// Read source file
@@ -569,50 +575,132 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
-func getProjectRoot() string {
-	// Get the directory where the installer is located
-	execPath, err := os.Executable()
-	if err != nil {
-		// Fallback to current directory
-		return "."
+// buildOutputDir is the temp directory that receives syscgo and syscgo-tui
+// before they are copied to /usr/local/bin. Building here avoids leaving
+// root-owned binaries in the source tree when the installer runs as root.
+var buildOutputDir string
+
+func stagedBinaryPath(name string) (string, error) {
+	if buildOutputDir == "" {
+		dir, err := os.MkdirTemp("", "syscgo-install-")
+		if err != nil {
+			return "", fmt.Errorf("failed to create build directory: %v", err)
+		}
+		buildOutputDir = dir
 	}
+	return filepath.Join(buildOutputDir, name), nil
+}
 
-	// Go up from cmd/installer to project root
-	root := filepath.Dir(filepath.Dir(filepath.Dir(execPath)))
-
-	// Check if go.mod exists to verify this is the project root
-	if _, err := os.Stat(filepath.Join(root, "go.mod")); err == nil {
-		return root
+func cleanupBuildOutput() {
+	if buildOutputDir == "" {
+		return
 	}
+	_ = os.RemoveAll(buildOutputDir)
+	buildOutputDir = ""
+}
 
-	// Fallback: try to find go.mod by walking up from current directory
-	dir, _ := os.Getwd()
+// findModuleRoot walks upward from start until it finds a directory containing go.mod.
+func findModuleRoot(start string) (string, bool) {
+	if start == "" {
+		return "", false
+	}
+	dir := start
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
+			return dir, true
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			break
+			return "", false
 		}
 		dir = parent
+	}
+}
+
+func getProjectRoot() string {
+	// install.sh places the installer binary in the repo root. `go run` and
+	// `go build -o cmd/installer/...` use other depths. Walk until go.mod
+	// instead of assuming cmd/installer/<binary>.
+	if execPath, err := os.Executable(); err == nil {
+		if root, ok := findModuleRoot(filepath.Dir(execPath)); ok {
+			return root
+		}
+	}
+
+	if dir, err := os.Getwd(); err == nil {
+		if root, ok := findModuleRoot(dir); ok {
+			return root
+		}
 	}
 
 	return "."
 }
 
+// nonInteractiveRequested reports whether install tasks should run without the TUI.
+// args are the program arguments after the executable name. env is the value of
+// SYSCGO_INSTALL_NONINTERACTIVE.
+func nonInteractiveRequested(args []string, env string) bool {
+	if env == "1" {
+		return true
+	}
+	for _, arg := range args {
+		if arg == "--yes" || arg == "-y" {
+			return true
+		}
+	}
+	return false
+}
+
+// runConfiguredTasks runs install or uninstall tasks in order.
+// When m.tasks is empty, the standard install task list is used.
+func runConfiguredTasks(m *model) error {
+	if len(m.tasks) == 0 {
+		m.initTasks()
+	}
+	for i := range m.tasks {
+		task := &m.tasks[i]
+		fmt.Printf("%s...\n", task.description)
+		if err := task.execute(m); err != nil {
+			if task.optional {
+				fmt.Printf("skip: %s: %v\n", task.name, err)
+				continue
+			}
+			return fmt.Errorf("%s: %w", task.name, err)
+		}
+	}
+	return nil
+}
+
 func main() {
+	os.Exit(runInstaller())
+}
+
+func runInstaller() int {
+	// os.Exit skips defers in main, so cleanup lives in this function.
+	defer cleanupBuildOutput()
+
 	// Check if go is installed
 	if _, err := exec.LookPath("go"); err != nil {
 		fmt.Println("Error: Go is not installed or not in PATH")
 		fmt.Println("Please install Go from https://golang.org/dl/")
-		os.Exit(1)
+		return 1
+	}
+
+	if nonInteractiveRequested(os.Args[1:], os.Getenv("SYSCGO_INSTALL_NONINTERACTIVE")) {
+		m := newModel()
+		if err := runConfiguredTasks(&m); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return 1
+		}
+		fmt.Println("Installation complete.")
+		return 0
 	}
 
 	p := tea.NewProgram(newModel(), tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }

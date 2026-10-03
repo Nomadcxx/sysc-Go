@@ -29,6 +29,11 @@ type MatrixArtEffect struct {
 	artHeight    int
 	rng          *rand.Rand
 	freezeChance float64 // Probability a character freezes
+
+	// Reusable render buffers — allocated once, cleared per frame
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // FrozenMatrixChar represents a matrix character that has frozen to form the art
@@ -39,6 +44,8 @@ type FrozenMatrixChar struct {
 
 // NewMatrixArtEffect creates a new matrix-art effect
 func NewMatrixArtEffect(width, height int, palette []string, text string) *MatrixArtEffect {
+	text = normalizeMultilineText(text)
+
 	m := &MatrixArtEffect{
 		width:   width,
 		height:  height,
@@ -61,7 +68,7 @@ func NewMatrixArtEffect(width, height int, palette []string, text string) *Matri
 		artPositions: make(map[int]map[int]rune),
 		frozenChars:  make(map[int]map[int]*FrozenMatrixChar),
 		rng:          rand.New(rand.NewSource(time.Now().UnixNano())),
-		freezeChance: 0.99, // 99% chance to freeze when passing through art position (extremely fast crystallization)
+		freezeChance: 1, // Guaranteed coverage streaks must freeze every art cell on their first pass.
 	}
 
 	m.parseArt()
@@ -108,6 +115,8 @@ func (m *MatrixArtEffect) parseArt() {
 
 // init initializes matrix streaks
 func (m *MatrixArtEffect) init() {
+	m.initBuffers()
+
 	// Create fixed pool of recycling streams (fewer needed with recycling + high freeze rate)
 	for i := 0; i < m.width*2; i++ {
 		streak := MatrixStreak{
@@ -119,6 +128,61 @@ func (m *MatrixArtEffect) init() {
 			Active:  true,
 		}
 		m.streaks = append(m.streaks, streak)
+	}
+	m.resetCoverageStreaks()
+}
+
+func (m *MatrixArtEffect) resetCoverageStreaks() {
+	for x := 0; x < m.width && x < len(m.streaks); x++ {
+		m.streaks[x].X = x
+		m.streaks[x].Y = -m.height
+		m.streaks[x].Speed = 3
+		m.streaks[x].Counter = 0
+	}
+}
+
+// CompletionFrames returns the updates needed for the slowest guaranteed streak to cross the art.
+func (m *MatrixArtEffect) CompletionFrames() int {
+	maxY := -1
+	for y, row := range m.artPositions {
+		if len(row) > 0 && y > maxY {
+			maxY = y
+		}
+	}
+	if maxY < 0 {
+		return 0
+	}
+	return (maxY + m.height + 1) * 3
+}
+
+// IsComplete reports whether every art character has crystallized.
+func (m *MatrixArtEffect) IsComplete() bool {
+	for y, row := range m.artPositions {
+		for x := range row {
+			if m.frozenChars[y] == nil || m.frozenChars[y][x] == nil {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (m *MatrixArtEffect) initBuffers() {
+	m.canvas = make([][]rune, m.height)
+	m.colors = make([][]string, m.height)
+	for i := range m.canvas {
+		m.canvas[i] = make([]rune, m.width)
+		m.colors[i] = make([]string, m.width)
+	}
+	m.builder.Grow(m.width * m.height * 4)
+}
+
+func (m *MatrixArtEffect) clearBuffers() {
+	for i := range m.canvas {
+		for j := range m.canvas[i] {
+			m.canvas[i][j] = ' '
+			m.colors[i][j] = ""
+		}
 	}
 }
 
@@ -220,17 +284,7 @@ func (m *MatrixArtEffect) Update() {
 
 // Render converts the matrix and frozen art to colored output
 func (m *MatrixArtEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, m.height)
-	colors := make([][]string, m.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, m.width)
-		colors[i] = make([]string, m.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	m.clearBuffers()
 
 	// Render matrix streaks
 	for _, streak := range m.streaks {
@@ -253,8 +307,8 @@ func (m *MatrixArtEffect) Render() string {
 					color = m.getTrailColor(i, streak.Length)
 				}
 
-				canvas[y][streak.X] = char
-				colors[y][streak.X] = color
+				m.canvas[y][streak.X] = char
+				m.colors[y][streak.X] = color
 			}
 		}
 	}
@@ -263,8 +317,8 @@ func (m *MatrixArtEffect) Render() string {
 	for y, row := range m.frozenChars {
 		for x, frozen := range row {
 			if y >= 0 && y < m.height && x >= 0 && x < m.width {
-				canvas[y][x] = frozen.char
-				colors[y][x] = frozen.color
+				m.canvas[y][x] = frozen.char
+				m.colors[y][x] = frozen.color
 			}
 		}
 	}
@@ -272,19 +326,19 @@ func (m *MatrixArtEffect) Render() string {
 	// Convert to colored string
 	var lines []string
 	for y := 0; y < m.height; y++ {
-		var line strings.Builder
+		m.builder.Reset()
 		for x := 0; x < m.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' && colors[y][x] != "" {
+			char := m.canvas[y][x]
+			if char != ' ' && m.colors[y][x] != "" {
 				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
+					Foreground(lipgloss.Color(m.colors[y][x])).
 					Render(string(char))
-				line.WriteString(styled)
+				m.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				m.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
+		lines = append(lines, m.builder.String())
 	}
 
 	return strings.Join(lines, "\n")
@@ -293,4 +347,14 @@ func (m *MatrixArtEffect) Render() string {
 // Reset clears frozen characters to restart the formation
 func (m *MatrixArtEffect) Reset() {
 	m.frozenChars = make(map[int]map[int]*FrozenMatrixChar)
+	m.resetCoverageStreaks()
+}
+
+// SetText updates the displayed text and restarts the crystallization.
+func (m *MatrixArtEffect) SetText(text string) {
+	m.text = normalizeMultilineText(text)
+	m.artPositions = make(map[int]map[int]rune)
+	m.frozenChars = make(map[int]map[int]*FrozenMatrixChar)
+	m.parseArt()
+	m.resetCoverageStreaks()
 }

@@ -45,9 +45,9 @@ func ListAvailableFonts() []string {
 
 	// Try multiple paths - prioritize system-wide install locations
 	searchPaths := []string{
-		"assets/fonts",                              // Relative to working directory (dev mode)
-		"/usr/local/share/syscgo/fonts",             // System-wide install (preferred)
-		"/usr/share/syscgo/fonts",                   // System-wide install (alternative)
+		"assets/fonts",                  // Relative to working directory (dev mode)
+		"/usr/local/share/syscgo/fonts", // System-wide install (preferred)
+		"/usr/share/syscgo/fonts",       // System-wide install (alternative)
 		filepath.Join(os.Getenv("HOME"), ".local", "share", "syscgo", "fonts"), // User local
 	}
 
@@ -83,9 +83,9 @@ func FindFontPath(fontName string) (string, error) {
 
 	// Try multiple paths - prioritize system-wide install locations
 	searchPaths := []string{
-		"assets/fonts",                              // Relative to working directory (dev mode)
-		"/usr/local/share/syscgo/fonts",             // System-wide install (preferred)
-		"/usr/share/syscgo/fonts",                   // System-wide install (alternative)
+		"assets/fonts",                  // Relative to working directory (dev mode)
+		"/usr/local/share/syscgo/fonts", // System-wide install (preferred)
+		"/usr/share/syscgo/fonts",       // System-wide install (alternative)
 		filepath.Join(os.Getenv("HOME"), ".local", "share", "syscgo", "fonts"), // User local
 	}
 

@@ -62,6 +62,7 @@ func calculatePrintTextDimensions(text string) (int, int) {
 
 // NewPrintEffect creates a new print effect with given configuration
 func NewPrintEffect(config PrintConfig) *PrintEffect {
+	config.Text = normalizeMultilineText(config.Text)
 	lines := strings.Split(config.Text, "\n")
 
 	// Don't remove empty lines - they might be part of ASCII art structure!
@@ -360,6 +361,12 @@ func (p *PrintEffect) Reset() {
 	p.frameCounter = 0
 	p.phase = "printing"
 	p.holdFrameCount = 0
+}
+
+// SetText updates the displayed text and restarts the print animation.
+func (p *PrintEffect) SetText(text string) {
+	p.text = normalizeMultilineText(text)
+	p.Reset()
 }
 
 // Resize updates the effect dimensions and reinitializes

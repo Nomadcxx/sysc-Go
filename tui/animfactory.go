@@ -58,6 +58,13 @@ func (m *Model) createAnimation() animations.Animation {
 	}
 	if fileName == "Custom text" {
 		m.editorMode = true
+		// Esc and save blur the textarea. bubbles drops keystrokes while unfocused,
+		// so every entry must focus it again (NewModel only focuses the first one).
+		m.textarea.Focus()
+		if m.width > 10 && m.height > 10 {
+			m.textarea.SetWidth(m.width - 10)
+			m.textarea.SetHeight(m.height - 10)
+		}
 		return nil
 	}
 
@@ -278,6 +285,22 @@ func (m *Model) createAnimation() animations.Animation {
 		return &AnimationWrapper{
 			render: blackhole.Render,
 			update: blackhole.Update,
+		}
+
+	case "skull":
+		palette := animations.GetSkullPalette(themeName)
+		skull := animations.NewSkullEffect(width, height, palette, themeName)
+		return &AnimationWrapper{
+			render: skull.Render,
+			update: skull.Update,
+		}
+
+	case "sonar":
+		palette := animations.GetSkullPalette(themeName)
+		sonar := animations.NewSonarEffect(width, height, palette, themeName)
+		return &AnimationWrapper{
+			render: sonar.Render,
+			update: sonar.Update,
 		}
 
 	case "aquarium":

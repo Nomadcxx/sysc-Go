@@ -1,6 +1,7 @@
 package animations
 
 import (
+	"math"
 	"math/rand"
 	"sort"
 	"strings"
@@ -53,6 +54,10 @@ type BeamTextEffect struct {
 	holdCounter    int // Current hold frame count
 
 	rng *rand.Rand
+
+	canvas  [][]rune
+	colors  [][]string
+	builder strings.Builder
 }
 
 // BeamTextConfig holds configuration for the beam text effect
@@ -79,6 +84,7 @@ type BeamTextConfig struct {
 // NewBeamTextEffect creates a new beam text effect with given configuration
 func NewBeamTextEffect(config BeamTextConfig) *BeamTextEffect {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	config.Text = normalizeMultilineText(config.Text)
 
 	// Set defaults if not provided
 	if len(config.BeamRowSymbols) == 0 {
@@ -184,6 +190,7 @@ func calculateTextDimensions(text string) (int, int) {
 
 // init initializes characters and beam groups
 func (b *BeamTextEffect) init() {
+	b.initBuffers()
 	b.initTextMode()
 
 	// Create row groups
@@ -197,6 +204,25 @@ func (b *BeamTextEffect) init() {
 
 	// Create diagonal groups for final wipe
 	b.createDiagonalGroups()
+}
+
+func (b *BeamTextEffect) initBuffers() {
+	b.canvas = make([][]rune, b.height)
+	b.colors = make([][]string, b.height)
+	for i := range b.canvas {
+		b.canvas[i] = make([]rune, b.width)
+		b.colors[i] = make([]string, b.width)
+	}
+	b.builder.Grow(b.width * b.height * 4)
+}
+
+func (b *BeamTextEffect) clearBuffers() {
+	for i := range b.canvas {
+		for j := range b.canvas[i] {
+			b.canvas[i][j] = ' '
+			b.colors[i][j] = ""
+		}
+	}
 }
 
 // initTextMode initializes with centered text (or left-aligned if auto-sized)
@@ -449,12 +475,16 @@ func (b *BeamTextEffect) createFadeGradient(startColor string, steps int) []stri
 
 // Update advances the beams animation by one frame
 func (b *BeamTextEffect) Update() {
-	b.frameCount++
-
 	// Update background beams for visual depth
 	if b.backgroundBeams != nil {
 		b.backgroundBeams.Update()
 	}
+	b.UpdateText()
+}
+
+// UpdateText advances the beam text animation without advancing its background beams.
+func (b *BeamTextEffect) UpdateText() {
+	b.frameCount++
 
 	if b.phase == "beams" {
 		b.updateBeamsPhase()
@@ -466,6 +496,49 @@ func (b *BeamTextEffect) Update() {
 
 	// Update character animations
 	b.updateCharacterAnimations()
+}
+
+// CompletionFrames estimates a conservative number of updates to reach the final hold phase.
+func (b *BeamTextEffect) CompletionFrames() int {
+	maxGroupCount := len(b.rowGroups)
+	if len(b.columnGroups) > maxGroupCount {
+		maxGroupCount = len(b.columnGroups)
+	}
+
+	beamFrames := 0
+	if maxGroupCount > 0 {
+		delay := b.beamDelay
+		if delay < 0 {
+			delay = 0
+		}
+		beamFrames = maxGroupCount*(delay+1) + delay
+	}
+	longestGroupFrames := 0
+	for _, groups := range [][]BeamGroup{b.rowGroups, b.columnGroups} {
+		for _, group := range groups {
+			if group.speed <= 0 {
+				continue
+			}
+			groupFrames := int(math.Ceil(float64(len(group.charIndices)) / group.speed))
+			if groupFrames > longestGroupFrames {
+				longestGroupFrames = groupFrames
+			}
+		}
+	}
+	beamFrames += longestGroupFrames
+
+	wipeSpeed := b.finalWipeSpeed
+	if wipeSpeed < 1 {
+		wipeSpeed = 1
+	}
+	wipeFrames := (len(b.diagonalGroups) + wipeSpeed - 1) / wipeSpeed
+	if len(b.chars) > 0 {
+		gradientFrames := len(b.chars[0].brightenGradient) * b.finalGradientFrames
+		if gradientFrames > 0 {
+			wipeFrames += gradientFrames
+		}
+	}
+	return beamFrames + wipeFrames + 1
 }
 
 // updateBeamsPhase handles the beam movement phase
@@ -706,17 +779,7 @@ func (b *BeamTextEffect) updateCharacterAnimations() {
 
 // Render converts the beams effect to colored text output
 func (b *BeamTextEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, b.height)
-	colors := make([][]string, b.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, b.width)
-		colors[i] = make([]string, b.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
-			colors[i][j] = ""
-		}
-	}
+	b.clearBuffers()
 
 	// First, render background beams directly from their character data (as base layer)
 	if b.backgroundBeams != nil {
@@ -729,9 +792,9 @@ func (b *BeamTextEffect) Render() string {
 
 			if bgChar.y >= 0 && bgChar.y < b.height && bgChar.x >= 0 && bgChar.x < b.width {
 				// Only place background if position is empty
-				if canvas[bgChar.y][bgChar.x] == ' ' {
-					canvas[bgChar.y][bgChar.x] = bgChar.currentSymbol
-					colors[bgChar.y][bgChar.x] = bgChar.currentColor
+				if b.canvas[bgChar.y][bgChar.x] == ' ' {
+					b.canvas[bgChar.y][bgChar.x] = bgChar.currentSymbol
+					b.colors[bgChar.y][bgChar.x] = bgChar.currentColor
 				}
 			}
 		}
@@ -744,31 +807,32 @@ func (b *BeamTextEffect) Render() string {
 		}
 
 		if char.y >= 0 && char.y < b.height && char.x >= 0 && char.x < b.width {
-			canvas[char.y][char.x] = char.currentSymbol
-			colors[char.y][char.x] = char.currentColor
+			b.canvas[char.y][char.x] = char.currentSymbol
+			b.colors[char.y][char.x] = char.currentColor
 		}
 	}
 
 	// Convert to colored string
-	var lines []string
+	b.builder.Reset()
 	for y := 0; y < b.height; y++ {
-		var line strings.Builder
+		if y > 0 {
+			b.builder.WriteRune('\n')
+		}
 		for x := 0; x < b.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' && colors[y][x] != "" {
+			char := b.canvas[y][x]
+			if char != ' ' && b.colors[y][x] != "" {
 				// Characters with explicit colors
 				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
+					Foreground(lipgloss.Color(b.colors[y][x])).
 					Render(string(char))
-				line.WriteString(styled)
+				b.builder.WriteString(styled)
 			} else {
-				line.WriteRune(char)
+				b.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
 	}
 
-	return strings.Join(lines, "\n")
+	return b.builder.String()
 }
 
 // getBeamsCharacters is a helper to access the background beams' character array
@@ -813,10 +877,21 @@ func (b *BeamTextEffect) Reset() {
 	}
 }
 
+// SetText updates the displayed text and reinitializes the beam animation.
+func (b *BeamTextEffect) SetText(text string) {
+	b.text = normalizeMultilineText(text)
+	b.chars = b.chars[:0]
+	b.rowGroups = b.rowGroups[:0]
+	b.columnGroups = b.columnGroups[:0]
+	b.diagonalGroups = b.diagonalGroups[:0]
+	b.init()
+}
+
 // Resize reinitializes the beam text effect with new dimensions
 func (b *BeamTextEffect) Resize(width, height int) {
 	b.width = width
 	b.height = height
+	b.initBuffers()
 
 	// Resize background beams
 	if b.backgroundBeams != nil {

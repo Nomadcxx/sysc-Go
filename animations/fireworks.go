@@ -30,6 +30,9 @@ type FireworksEffect struct {
 	shells        [][]int // Indices of particles in each shell
 	launchDelay   int
 	activeShells  int
+	canvas        [][]rune
+	styles        [][]lipgloss.Style
+	builder       strings.Builder
 }
 
 // NewFireworksEffect creates a new fireworks effect
@@ -48,6 +51,8 @@ func NewFireworksEffect(width, height int, palette []string) *FireworksEffect {
 
 // Initialize fireworks with particles
 func (fw *FireworksEffect) init() {
+	fw.initBuffers()
+
 	// Create particles - for sysc-greet we'll create a fixed number of particles
 	// that continuously animate rather than animating text characters
 	particleCount := fw.width * 2
@@ -81,6 +86,30 @@ func (fw *FireworksEffect) init() {
 	}
 }
 
+func (fw *FireworksEffect) initBuffers() {
+	if fw.width <= 0 || fw.height <= 0 {
+		fw.canvas = nil
+		fw.styles = nil
+		return
+	}
+
+	fw.canvas = make([][]rune, fw.height)
+	fw.styles = make([][]lipgloss.Style, fw.height)
+	for y := 0; y < fw.height; y++ {
+		fw.canvas[y] = make([]rune, fw.width)
+		fw.styles[y] = make([]lipgloss.Style, fw.width)
+	}
+}
+
+func (fw *FireworksEffect) clearBuffers() {
+	for y := 0; y < fw.height; y++ {
+		for x := 0; x < fw.width; x++ {
+			fw.canvas[y][x] = ' '
+			fw.styles[y][x] = lipgloss.Style{}
+		}
+	}
+}
+
 // UpdatePalette changes the fireworks color palette
 func (fw *FireworksEffect) UpdatePalette(palette []string) {
 	fw.palette = palette
@@ -95,6 +124,7 @@ func (fw *FireworksEffect) Resize(width, height int) {
 
 	fw.width = width
 	fw.height = height
+	fw.initBuffers()
 
 	// Reset animation state but don't call init() to avoid resetting all particles
 	fw.activeShells = 0
@@ -123,9 +153,24 @@ func (fw *FireworksEffect) launchShell(shellIndex int) {
 	}
 
 	indices := fw.shells[shellIndex]
-	centerX := float64(rand.Intn(fw.width-20) + 10)           // Keep away from edges
-	centerY := float64(fw.height - 1)                         // Start from bottom
-	explodeY := float64(rand.Intn(fw.height/3) + fw.height/5) // Explosion in upper third
+	// width-20 and height/3 are non-positive on narrow panes (width <= 20,
+	// height < 3). Intn panics on those, so fall back to the full span.
+	if fw.width <= 0 || fw.height <= 0 {
+		return
+	}
+	xSpan := fw.width - 20
+	xOffset := 10
+	if xSpan < 1 {
+		xSpan = fw.width
+		xOffset = 0
+	}
+	centerX := float64(rand.Intn(xSpan) + xOffset)
+	centerY := float64(fw.height - 1) // Start from bottom
+	ySpan := fw.height / 3
+	if ySpan < 1 {
+		ySpan = 1
+	}
+	explodeY := float64(rand.Intn(ySpan) + fw.height/5)
 
 	for _, idx := range indices {
 		p := &fw.particles[idx]
@@ -330,14 +375,26 @@ func (fw *FireworksEffect) Update() {
 
 // Render converts the fireworks to colored text output
 func (fw *FireworksEffect) Render() string {
-	// Create empty canvas
-	canvas := make([][]rune, fw.height)
-	styles := make([][]lipgloss.Style, fw.height)
-	for i := range canvas {
-		canvas[i] = make([]rune, fw.width)
-		styles[i] = make([]lipgloss.Style, fw.width)
-		for j := range canvas[i] {
-			canvas[i][j] = ' '
+	if fw.width <= 0 || fw.height <= 0 {
+		return ""
+	}
+
+	if len(fw.canvas) != fw.height || len(fw.styles) != fw.height {
+		fw.initBuffers()
+	}
+
+	fw.clearBuffers()
+
+	canvas := fw.canvas
+	styles := fw.styles
+
+	for y := 0; y < fw.height; y++ {
+		if len(canvas[y]) != fw.width || len(styles[y]) != fw.width {
+			fw.initBuffers()
+			fw.clearBuffers()
+			canvas = fw.canvas
+			styles = fw.styles
+			break
 		}
 	}
 
@@ -355,19 +412,20 @@ func (fw *FireworksEffect) Render() string {
 	}
 
 	// Convert to colored string
-	var lines []string
+	fw.builder.Reset()
 	for y := 0; y < fw.height; y++ {
-		var line strings.Builder
 		for x := 0; x < fw.width; x++ {
 			char := canvas[y][x]
 			if char != ' ' {
-				line.WriteString(styles[y][x].Render(string(char)))
+				fw.builder.WriteString(styles[y][x].Render(string(char)))
 			} else {
-				line.WriteRune(char)
+				fw.builder.WriteRune(char)
 			}
 		}
-		lines = append(lines, line.String())
+		if y < fw.height-1 {
+			fw.builder.WriteByte('\n')
+		}
 	}
 
-	return strings.Join(lines, "\n")
+	return fw.builder.String()
 }

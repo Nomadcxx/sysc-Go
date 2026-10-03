@@ -5,16 +5,16 @@ package animations
 
 const (
 	// LibraryVersion is the sysc-Go animations library version
-	LibraryVersion = "1.0.2"
+	LibraryVersion = "1.0.3"
 )
 
 // EffectMetadata describes an animation effect
 type EffectMetadata struct {
-	Name          string // Effect name (e.g., "fire", "matrix")
-	RequiresText  bool   // Whether effect requires text input
-	Description   string // Brief description
-	VersionAdded  string // Version when effect was added
-	Category      string // Effect category (e.g., "particle", "text", "abstract")
+	Name         string // Effect name (e.g., "fire", "matrix")
+	RequiresText bool   // Whether effect requires text input
+	Description  string // Brief description
+	VersionAdded string // Version when effect was added
+	Category     string // Effect category (e.g., "particle", "text", "abstract")
 }
 
 // EffectRegistry contains metadata for all available effects
@@ -102,6 +102,20 @@ var EffectRegistry = []EffectMetadata{
 		Description:  "Animated underwater scene with fish",
 		VersionAdded: "1.0.0",
 		Category:     "scene",
+	},
+	{
+		Name:         "skull",
+		RequiresText: false,
+		Description:  "White skull with tron grid, sonar pulses, and scanline sweep",
+		VersionAdded: "1.0.3",
+		Category:     "scene",
+	},
+	{
+		Name:         "sonar",
+		RequiresText: false,
+		Description:  "Concurrent sonar pulses radiating from centre to viewport edges",
+		VersionAdded: "1.0.4",
+		Category:     "abstract",
 	},
 	{
 		Name:         "pour",
