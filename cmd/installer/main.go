@@ -717,10 +717,10 @@ func runInstaller() int {
 		m := newModel()
 		if err := runConfiguredTasks(&m); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return 1
 		}
 		fmt.Println("Installation complete.")
-		return
+		return 0
 	}
 
 	p := tea.NewProgram(newModel(), tea.WithAltScreen())
