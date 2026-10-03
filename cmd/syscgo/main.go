@@ -451,6 +451,10 @@ func runMatrixArt(width, height int, theme string, file string, frames int) {
 
 	// Create matrix-art effect
 	matrixArt := animations.NewMatrixArtEffect(width, height, palette, text)
+	updatesPerFrame := 1
+	if frames > 0 {
+		updatesPerFrame = animationUpdatesPerFrame(matrixArt.CompletionFrames(), frames)
+	}
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
@@ -464,7 +468,16 @@ func runMatrixArt(width, height int, theme string, file string, frames int) {
 		default:
 		}
 
-		matrixArt.Update()
+		updates := updatesPerFrame
+		if matrixArt.IsComplete() {
+			updates = 1
+		}
+		for i := 0; i < updates; i++ {
+			matrixArt.Update()
+			if matrixArt.IsComplete() {
+				break
+			}
+		}
 		output := matrixArt.Render()
 
 		fmt.Print("\033[H")
@@ -910,15 +923,13 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	// When display mode is enabled, ignore duration and run until completion
-	// This allows the multi-phase beam-text animation to reach its final "hold" state
-	effectiveFrames := frames
-	if display {
-		effectiveFrames = 0
+	updatesPerFrame := 1
+	if display && frames > 0 {
+		updatesPerFrame = animationUpdatesPerFrame(beamText.CompletionFrames(), frames)
 	}
 
 	frame := 0
-	for effectiveFrames == 0 || frame < effectiveFrames {
+	for frames == 0 || frame < frames {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -927,6 +938,9 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 		}
 
 		beamText.Update()
+		for i := 1; i < updatesPerFrame; i++ {
+			beamText.UpdateText()
+		}
 		output := beamText.Render()
 
 		fmt.Print("\033[H")
@@ -935,6 +949,18 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 		time.Sleep(50 * time.Millisecond)
 		frame++
 	}
+}
+
+func animationUpdatesPerFrame(completionFrames, runFrames int) int {
+	if completionFrames <= 0 || runFrames <= 0 {
+		return 1
+	}
+
+	revealFrames := (runFrames/10)*9 + (runFrames%10)*9/10
+	if revealFrames < 1 {
+		return 1 + (completionFrames-1)/runFrames
+	}
+	return 1 + (completionFrames-1)/revealFrames
 }
 
 func runRingText(width, height int, theme string, file string, frames int) {
