@@ -200,7 +200,8 @@ func (m Model) renderSelector(index int, label, value string) string {
 func (m Model) renderHelp() string {
 	var helpText string
 	if m.animationRunning {
-		helpText = "ESC Stop animation • ↑/↓ Navigate options • ←/→ Change selector"
+		// Arrow keys are ignored until Esc stops the preview.
+		helpText = "ESC Stop animation"
 	} else {
 		helpText = "↑/↓ Navigate options • ←/→ Change selector • ENTER Start animation • Ctrl+B BIT Editor • Q Quit"
 	}
