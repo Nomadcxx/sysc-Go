@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +20,7 @@ func TestInstallAssetFilesCopiesOnlyRuntimeAssets(t *testing.T) {
 	mustWrite(t, filepath.Join(src, "fonts", "preview.gif"), "font-gif")
 
 	share := t.TempDir()
-	if err := installAssetFiles(src, share); err != nil {
+	if err := installAssetFiles(context.Background(), src, share); err != nil {
 		t.Fatal(err)
 	}
 
