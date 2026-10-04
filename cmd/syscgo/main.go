@@ -44,6 +44,13 @@ func findAssetFile(filename string) string {
 	return ""
 }
 
+// assetShareDirs are the install layouts searched after user and local paths.
+// Tests replace this with a temporary directory that stands in for the share path.
+var assetShareDirs = []string{
+	filepath.Join("/usr/local/share/syscgo", "assets"),
+	filepath.Join("/usr/share/syscgo", "assets"),
+}
+
 // assetSearchPaths returns candidate paths for an asset file.
 // home is the user home directory; binaryDir is the directory containing the executable (empty if unknown).
 func assetSearchPaths(filename, home, binaryDir string) []string {
@@ -64,52 +71,72 @@ func assetSearchPaths(filename, home, binaryDir string) []string {
 	}
 
 	// Installer and PKGBUILD both use the syscgo share name, with texts under assets/.
-	locations = append(locations,
-		filepath.Join("/usr/local/share/syscgo", "assets", filename),
-		filepath.Join("/usr/share/syscgo", "assets", filename),
-	)
+	for _, dir := range assetShareDirs {
+		locations = append(locations, filepath.Join(dir, filename))
+	}
 
 	return locations
 }
 
-// readTextFile reads text from a file with fallback to SYSC.txt
-func readTextFile(file string) string {
+// resolveTextFile reads text from a file, falling back to the shared SYSC.txt asset search.
+// warning is set when the requested path was missing and the SYSC.txt fallback was used.
+func resolveTextFile(file string) (text string, warning string, err error) {
 	if file != "" {
-		// Try to read from provided file
 		data, readErr := os.ReadFile(file)
 		if readErr == nil {
-			return string(data)
+			return string(data), "", nil
 		}
 
-		// Fall back to SYSC.txt
 		fallbackPath := findAssetFile("SYSC.txt")
 		if fallbackPath != "" {
 			data, readErr = os.ReadFile(fallbackPath)
 			if readErr == nil {
-				fmt.Printf("Warning: Could not read %s, using %s\n", file, fallbackPath)
-				time.Sleep(1 * time.Second)
-				return string(data)
+				warning = fmt.Sprintf("Warning: Could not read %s, using %s\n", file, fallbackPath)
+				return string(data), warning, nil
 			}
 		}
 
-		fmt.Printf("Error: Could not read file %s and could not find fallback SYSC.txt\n", file)
-		os.Exit(1)
+		return "", "", fmt.Errorf("Error: Could not read file %s and could not find fallback SYSC.txt", file)
 	}
 
-	// No file provided, use SYSC.txt
 	fallbackPath := findAssetFile("SYSC.txt")
 	if fallbackPath != "" {
 		data, readErr := os.ReadFile(fallbackPath)
 		if readErr == nil {
-			return string(data)
+			return string(data), "", nil
 		}
-		fmt.Printf("Error: Could not read SYSC.txt from %s\n", fallbackPath)
-		os.Exit(1)
+		return "", "", fmt.Errorf("Error: Could not read SYSC.txt from %s", fallbackPath)
 	}
 
-	fmt.Println("Error: Could not find SYSC.txt in any asset location")
-	os.Exit(1)
-	return ""
+	return "", "", fmt.Errorf("Error: Could not find SYSC.txt in any asset location")
+}
+
+// effectFileText loads -file for pour, print, and blackhole.
+// blackhole with an empty file returns no text so the effect stays in particle mode.
+// Every other case uses the same asset search as the other text effects.
+func effectFileText(effect, file string) (string, string, error) {
+	if effect == "blackhole" && file == "" {
+		return "", "", nil
+	}
+	return resolveTextFile(file)
+}
+
+// presentTextFile prints a fallback warning and exits on error, matching readTextFile.
+func presentTextFile(text, warning string, err error) string {
+	if warning != "" {
+		fmt.Print(warning)
+		time.Sleep(time.Second)
+	}
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	return text
+}
+
+// readTextFile reads text from a file with fallback to SYSC.txt.
+func readTextFile(file string) string {
+	return presentTextFile(resolveTextFile(file))
 }
 
 func wrapText(text string, width int) string {
@@ -608,14 +635,8 @@ func runPour(width, height int, theme string, file string, frames int) {
 		gradientStops = []string{"#8A008A", "#00D1FF", "#FFFFFF"}
 	}
 
-	// Read text from file or use default
-	text := "POUR EFFECT\nDEMO TEXT\nTHIRD LINE"
-	if file != "" {
-		data, err := os.ReadFile(file)
-		if err == nil {
-			text = string(data)
-		}
-	}
+	// Same asset search as fire-text, including installed share paths.
+	text := presentTextFile(effectFileText("pour", file))
 
 	// Don't wrap text - ASCII art needs to be preserved as-is
 	// The pour effect will handle centering
@@ -698,14 +719,8 @@ func runPrint(width, height int, theme string, file string, frames int) {
 		gradientStops = []string{"#8A008A", "#00D1FF", "#FFFFFF"}
 	}
 
-	// Read text from file or use default
-	text := "PRINT EFFECT\nDEMO TEXT\nTHIRD LINE"
-	if file != "" {
-		data, err := os.ReadFile(file)
-		if err == nil {
-			text = string(data)
-		}
-	}
+	// Same asset search as fire-text, including installed share paths.
+	text := presentTextFile(effectFileText("print", file))
 
 	// Don't wrap text - ASCII art needs to be preserved as-is
 	// The print effect will handle centering
@@ -1104,32 +1119,8 @@ func runBlackhole(width, height int, theme string, file string, frames int) {
 		blackholeColor = "#ffffff"
 	}
 
-	// Read text from file
-	// If file is empty string, use empty text (triggers particle generation)
-	// Otherwise read from file or use default assets/SYSC.txt
-	var text string
-
-	if file == "" {
-		// Empty file means generate random particles (no text)
-		text = ""
-	} else {
-		// Try to read from provided file
-		data, readErr := os.ReadFile(file)
-		if readErr == nil {
-			text = string(data)
-		} else {
-			// Fall back to assets/SYSC.txt
-			data, readErr = os.ReadFile("assets/SYSC.txt")
-			if readErr == nil {
-				text = string(data)
-				fmt.Printf("Warning: Could not read %s, using assets/SYSC.txt\n", file)
-				time.Sleep(1 * time.Second)
-			} else {
-				fmt.Printf("Error: Could not read file %s or assets/SYSC.txt\n", file)
-				os.Exit(1)
-			}
-		}
-	}
+	// Empty -file keeps particle mode. A provided file uses the shared asset search.
+	text := presentTextFile(effectFileText("blackhole", file))
 
 	// Create blackhole effect configuration
 	config := animations.BlackholeConfig{
