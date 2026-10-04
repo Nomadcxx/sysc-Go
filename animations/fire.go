@@ -1,6 +1,7 @@
 package animations
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -85,17 +86,22 @@ func (f *FireEffect) Update() {
 }
 
 // hexToRGB converts hex color to RGB values
-func hexToRGB(hex string) (int, int, int) {
+func hexToRGB(value string) (int, int, int) {
 	// Remove # if present
-	if len(hex) > 0 && hex[0] == '#' {
-		hex = hex[1:]
+	if len(value) > 0 && value[0] == '#' {
+		value = value[1:]
 	}
 
-	// Parse RGB
-	var r, g, b int
-	if len(hex) == 6 {
-		fmt.Sscanf(hex, "%02x%02x%02x", &r, &g, &b)
+	if len(value) != 6 {
+		return 0, 0, 0
 	}
+	var rgb [3]byte
+	if _, err := hex.Decode(rgb[:], []byte(value)); err == nil {
+		return int(rgb[0]), int(rgb[1]), int(rgb[2])
+	}
+	// Preserve the scanner's partial result for malformed legacy colours.
+	var r, g, b int
+	fmt.Sscanf(value, "%02x%02x%02x", &r, &g, &b)
 	return r, g, b
 }
 
