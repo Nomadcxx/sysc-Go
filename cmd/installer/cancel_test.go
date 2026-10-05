@@ -290,3 +290,102 @@ func stopPID(pid int) {
 	_ = syscall.Kill(-pid, syscall.SIGKILL)
 	_ = syscall.Kill(pid, syscall.SIGKILL)
 }
+
+// A task can call something the context cannot interrupt (os.RemoveAll, one
+// large WriteFile). The first Q must stay graceful so a compiler or copy is
+// not torn down mid-write, but a second press has to be an unconditional exit
+// or the TUI is wedged with no key that works.
+func TestSecondCancelQuitsEvenWhenTaskIgnoresContext(t *testing.T) {
+	keys := []tea.KeyMsg{
+		{Type: tea.KeyRunes, Runes: []rune{'q'}},
+		{Type: tea.KeyRunes, Runes: []rune{'Q'}},
+		{Type: tea.KeyCtrlC},
+	}
+	for _, first := range keys {
+		t.Run("first="+first.String(), func(t *testing.T) {
+			release := make(chan struct{})
+			defer close(release)
+			entered := make(chan struct{})
+
+			m := newModel()
+			m.step = stepInstalling
+			m.width, m.height = 80, 24
+			m.currentTaskIndex = 0
+			m.tasks = []installTask{{
+				name:   "Uninterruptible",
+				status: statusRunning,
+				execute: func(*model) error {
+					close(entered)
+					<-release
+					return nil
+				},
+			}}
+
+			go func() { executeTask(0, &m)() }()
+			<-entered
+
+			// First press: graceful, no quit.
+			updated, cmd := m.Update(first)
+			if isQuit(cmd) {
+				t.Fatal("first cancel quit before the in-flight task returned")
+			}
+			cur := updated.(model)
+			if !cur.cancelled {
+				t.Fatal("first cancel did not mark the install cancelled")
+			}
+
+			// Second press, whichever key: must exit.
+			for _, second := range keys {
+				_, cmd := cur.Update(second)
+				if !isQuit(cmd) {
+					t.Fatalf("second %s did not quit while a task ignored the cancel", second.String())
+				}
+			}
+		})
+	}
+}
+
+// The per-entry guards inside the copy loop are the only thing that stops a
+// cancel from continuing on to the rest of the asset tree. A context that is
+// already cancelled exits at the first guard and never reaches them.
+//
+// b.txt is a FIFO, so the loop parks inside copyFile reading it. That holds
+// the copy open long enough to cancel deterministically instead of racing a
+// goroutine against three tiny writes.
+func TestCancelMidCopyStopsBeforeTheRestOfTheAssets(t *testing.T) {
+	src := t.TempDir()
+	share := t.TempDir()
+	mustWrite(t, filepath.Join(src, "a.txt"), "a")
+	mustWrite(t, filepath.Join(src, "c.txt"), "c")
+	if err := syscall.Mkfifo(filepath.Join(src, "b.txt"), 0o600); err != nil {
+		t.Skipf("mkfifo unsupported: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// ReadDir yields sorted names, so a.txt copies first and the loop then
+	// blocks on the b.txt FIFO. Unblock it once the cancel is in place.
+	go func() {
+		first := filepath.Join(share, "assets", "a.txt")
+		for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
+			if _, err := os.Stat(first); err == nil {
+				break
+			}
+			time.Sleep(time.Millisecond)
+		}
+		cancel()
+		if f, err := os.OpenFile(filepath.Join(src, "b.txt"), os.O_WRONLY, 0o600); err == nil {
+			_, _ = f.WriteString("b")
+			_ = f.Close()
+		}
+	}()
+
+	err := installAssetFiles(ctx, src, share)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if _, err := os.Stat(filepath.Join(share, "assets", "c.txt")); !os.IsNotExist(err) {
+		t.Fatal("c.txt was copied after the cancel")
+	}
+}
