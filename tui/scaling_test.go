@@ -151,3 +151,30 @@ func halfScaleModel(t *testing.T, font *BitFont, text, filename string) (Model, 
 	m.filenameInput.SetValue(filename)
 	return m, assetsDir
 }
+
+// ASCII-art fonts (3d-ascii default, block, banner, big, ...) draw with
+// characters like $ _ | / \. Scaling must keep that ink, not blank it
+// (#102): at 0.5x/2.0x/4.0x the preview went empty and Save refused.
+func TestScaleKeepsAsciiArtInk(t *testing.T) {
+	if got, want := scaleCharacter([]string{"$_"}, 2.0), []string{"████", "████"}; len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("scale 2.0 = %#v, want %#v", got, want)
+	}
+	if got, want := scaleCharacter([]string{"$$", "$$"}, 0.5), []string{"█"}; len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("scale 0.5 = %#v, want %#v", got, want)
+	}
+}
+
+// The reported BIT editor repro (#102): default font 3d-ascii must render
+// visible ink at every offered scale, not an all-blank preview.
+func TestEmbeddedAsciiFontScalesKeepInk(t *testing.T) {
+	font, err := loadEmbeddedBitFont("3d-ascii")
+	if err != nil {
+		t.Fatalf("load 3d-ascii: %v", err)
+	}
+	for _, scale := range []float64{0.5, 2.0, 4.0} {
+		got := scaleCharacter(font.Characters["A"], scale)
+		if !strings.Contains(strings.Join(got, "\n"), "█") {
+			t.Fatalf("scale %.1f = %#v, want ink", scale, got)
+		}
+	}
+}

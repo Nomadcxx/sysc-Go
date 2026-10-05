@@ -35,9 +35,14 @@ func ansiToExpandedBinary(ansiLines []string) [][]int {
 			case '▄': // Lower half block - bottom pixel on
 				topRow[charIdx] = 0
 				bottomRow[charIdx] = 1
-			default: // Space or other - both pixels off
+			case ' ': // Space - both pixels off
 				topRow[charIdx] = 0
 				bottomRow[charIdx] = 0
+			default: // Any other glyph is ink, approximated as a full block.
+				// ASCII-art fonts (3d-ascii, banner, big, ...) draw with characters
+				// like $ _ | / \; clearing them blanked scaled output (#102).
+				topRow[charIdx] = 1
+				bottomRow[charIdx] = 1
 			}
 		}
 
