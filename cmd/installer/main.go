@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -70,18 +73,23 @@ type model struct {
 	errors           []string
 	uninstallMode    bool
 	selectedOption   int // 0 = Install, 1 = Uninstall
+	ctx              context.Context
+	cancel           context.CancelFunc
+	cancelled        bool
 }
 
 type taskCompleteMsg struct {
-	index   int
-	success bool
-	error   string
+	index     int
+	success   bool
+	error     string
+	cancelled bool
 }
 
 func newModel() model {
 	s := spinner.New()
 	s.Style = lipgloss.NewStyle().Foreground(Secondary)
 	s.Spinner = spinner.Dot
+	ctx, cancel := context.WithCancel(context.Background())
 
 	return model{
 		step:             stepWelcome,
@@ -89,6 +97,8 @@ func newModel() model {
 		spinner:          s,
 		errors:           []string{},
 		selectedOption:   0,
+		ctx:              ctx,
+		cancel:           cancel,
 	}
 }
 
@@ -105,11 +115,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
-			// Allow exit from any step except during installation
-			if m.step != stepInstalling {
-				return m, tea.Quit
+		case "ctrl+c", "q", "Q":
+			if m.step == stepInstalling {
+				if m.cancelled {
+					// Already cancelling and the in-flight task has not
+					// returned. Some calls cannot be interrupted (os.RemoveAll,
+					// a single large WriteFile), so honour the key and leave.
+					return m, tea.Quit
+				}
+				// Stop builds immediately, but leave the program up until the
+				// in-flight task returns. Quitting first would exit while
+				// compilers are still running and could tear a file copy.
+				m.cancelled = true
+				m.stop()
+				return m, nil
 			}
+			return m, tea.Quit
 		case "up", "k":
 			if m.step == stepWelcome && m.selectedOption > 0 {
 				m.selectedOption--
@@ -135,6 +156,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case taskCompleteMsg:
+		if m.cancelled || msg.cancelled {
+			// Do not start the next copy or remove. Work already finished
+			// stays as it was; nothing further is rolled back or replaced.
+			m.cancelled = true
+			m.stop()
+			return m, tea.Quit
+		}
+
 		// Update task status
 		if msg.success {
 			m.tasks[msg.index].status = statusComplete
@@ -146,6 +175,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tasks[msg.index].status = statusFailed
 				m.errors = append(m.errors, fmt.Sprintf("%s: %s", m.tasks[msg.index].name, msg.error))
 				m.step = stepComplete
+				m.stop()
 				return m, nil
 			}
 		}
@@ -154,6 +184,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentTaskIndex++
 		if m.currentTaskIndex >= len(m.tasks) {
 			m.step = stepComplete
+			m.stop()
 			return m, nil
 		}
 
@@ -364,23 +395,38 @@ func (m model) getHelpText() string {
 	case stepComplete:
 		return "Enter: Exit  •  Q/Ctrl+C: Quit"
 	default:
+		if m.cancelled {
+			return "Cancelling..."
+		}
 		return "Q/Ctrl+C: Cancel"
 	}
 }
 
 func executeTask(index int, m *model) tea.Cmd {
 	return func() tea.Msg {
-		// Simulate work delay for visibility
-		time.Sleep(200 * time.Millisecond)
+		ctx := ctxOf(m)
+
+		// Keep the step visible briefly, but don't ignore cancel during the pause.
+		timer := time.NewTimer(200 * time.Millisecond)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return taskCompleteMsg{index: index, success: false, error: ctx.Err().Error(), cancelled: true}
+		case <-timer.C:
+		}
 
 		err := m.tasks[index].execute(m)
-
 		if err != nil {
+			cancelled := errors.Is(err, context.Canceled) || ctx.Err() != nil
 			return taskCompleteMsg{
-				index:   index,
-				success: false,
-				error:   err.Error(),
+				index:     index,
+				success:   false,
+				error:     err.Error(),
+				cancelled: cancelled,
 			}
+		}
+		if ctx.Err() != nil {
+			return taskCompleteMsg{index: index, success: false, error: ctx.Err().Error(), cancelled: true}
 		}
 
 		return taskCompleteMsg{
@@ -390,9 +436,32 @@ func executeTask(index int, m *model) tea.Cmd {
 	}
 }
 
+// ctxOf returns the install context, or Background when there is no model.
+func ctxOf(m *model) context.Context {
+	if m == nil || m.ctx == nil {
+		return context.Background()
+	}
+	return m.ctx
+}
+
+// errIfCancelled reports why the install was cancelled, or nil if it still runs.
+func errIfCancelled(m *model) error {
+	return ctxOf(m).Err()
+}
+
+// stop cancels the install context. It is safe to call more than once.
+func (m *model) stop() {
+	if m.cancel != nil {
+		m.cancel()
+	}
+}
+
 // Task functions
 
 func checkPrivileges(m *model) error {
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("installer must be run with sudo or as root")
 	}
@@ -400,37 +469,43 @@ func checkPrivileges(m *model) error {
 }
 
 func buildBinary(m *model) error {
-	out, err := stagedBinaryPath("syscgo")
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command("go", "build", "-o", out, "./cmd/syscgo")
-	cmd.Dir = getProjectRoot()
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("build failed: %s", string(output))
-	}
-	return nil
+	return buildStaged(m, "syscgo", "./cmd/syscgo")
 }
 
 func buildTuiBinary(m *model) error {
-	out, err := stagedBinaryPath("syscgo-tui")
+	return buildStaged(m, "syscgo-tui", "./cmd/syscgo-tui")
+}
+
+func buildStaged(m *model, name, pkg string) error {
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
+	out, err := stagedBinaryPath(name)
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("go", "build", "-o", out, "./cmd/syscgo-tui")
+	cmd := commandContext(m, "go", "build", "-o", out, pkg)
 	cmd.Dir = getProjectRoot()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if errIfCancelled(m) != nil {
+			return context.Canceled
+		}
 		return fmt.Errorf("build failed: %s", string(output))
 	}
 	return nil
 }
 
 func installAssets(m *model) error {
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	projectRoot := getProjectRoot()
 	srcPath := filepath.Join(projectRoot, "assets")
-	if err := installAssetFiles(srcPath, "/usr/local/share/syscgo"); err != nil {
+	if err := installAssetFiles(ctxOf(m), srcPath, "/usr/local/share/syscgo"); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return err
+		}
 		return fmt.Errorf("failed to copy assets: %v", err)
 	}
 	return nil
@@ -438,7 +513,11 @@ func installAssets(m *model) error {
 
 // installAssetFiles copies repo assets into the system share layout used by the
 // CLI and TUI: text files under <share>/assets and BIT fonts under <share>/fonts.
-func installAssetFiles(srcAssets, shareRoot string) error {
+// ctx must be non-nil; it is checked before every file so a cancel stops the copy.
+func installAssetFiles(ctx context.Context, srcAssets, shareRoot string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	entries, err := os.ReadDir(srcAssets)
 	if err != nil {
 		return err
@@ -450,6 +529,9 @@ func installAssetFiles(srcAssets, shareRoot string) error {
 	}
 
 	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		src := filepath.Join(srcAssets, entry.Name())
 		if entry.IsDir() {
 			if entry.Name() != "fonts" {
@@ -460,6 +542,9 @@ func installAssetFiles(srcAssets, shareRoot string) error {
 				return err
 			}
 			for _, font := range fonts {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				if font.IsDir() || !strings.EqualFold(filepath.Ext(font.Name()), ".bit") {
 					continue
 				}
@@ -485,6 +570,9 @@ func installAssetFiles(srcAssets, shareRoot string) error {
 }
 
 func installBinary(m *model) error {
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	srcPath, err := stagedBinaryPath("syscgo")
 	if err != nil {
 		return err
@@ -497,7 +585,10 @@ func installBinary(m *model) error {
 		return fmt.Errorf("failed to read binary: %v", err)
 	}
 
-	// Write to destination
+	// A cancel that lands before the write must not truncate an existing binary.
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	err = os.WriteFile(dstPath, data, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to install binary: %v", err)
@@ -507,6 +598,9 @@ func installBinary(m *model) error {
 }
 
 func installTuiBinary(m *model) error {
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	srcPath, err := stagedBinaryPath("syscgo-tui")
 	if err != nil {
 		return err
@@ -519,7 +613,9 @@ func installTuiBinary(m *model) error {
 		return fmt.Errorf("failed to read binary: %v", err)
 	}
 
-	// Write to destination
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	err = os.WriteFile(dstPath, data, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to install binary: %v", err)
@@ -529,6 +625,9 @@ func installTuiBinary(m *model) error {
 }
 
 func removeSyscgoBinary(m *model) error {
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	err := os.Remove("/usr/local/bin/syscgo")
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove binary: %v", err)
@@ -537,6 +636,9 @@ func removeSyscgoBinary(m *model) error {
 }
 
 func removeTuiBinary(m *model) error {
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	err := os.Remove("/usr/local/bin/syscgo-tui")
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove binary: %v", err)
@@ -545,6 +647,9 @@ func removeTuiBinary(m *model) error {
 }
 
 func removeAssets(m *model) error {
+	if err := errIfCancelled(m); err != nil {
+		return err
+	}
 	err := os.RemoveAll("/usr/local/share/syscgo")
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove assets: %v", err)
@@ -589,6 +694,30 @@ func stagedBinaryPath(name string) (string, error) {
 		buildOutputDir = dir
 	}
 	return filepath.Join(buildOutputDir, name), nil
+}
+
+// commandContext runs name so a cancelled install can stop it and the
+// children it spawned (go build launches compile and link).
+func commandContext(m *model, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctxOf(m), name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.WaitDelay = time.Second
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		// ponytail: the group id is the child's pid, so this is only safe while
+		// that pid is unreaped. os/exec can call Cancel in the same tick the
+		// child exits and its pid is recycled; a raw kill cannot detect that the
+		// way Process.Kill reports os.ErrProcessDone. Window is a few ns and the
+		// child is normally still running, which is why this stays.
+		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		if err != nil && !errors.Is(err, syscall.ESRCH) {
+			return err
+		}
+		return nil
+	}
+	return cmd
 }
 
 func cleanupBuildOutput() {
