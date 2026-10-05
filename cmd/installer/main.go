@@ -484,7 +484,11 @@ func buildStaged(m *model, name, pkg string) error {
 	if err != nil {
 		return err
 	}
-	cmd := commandContext(m, "go", "build", "-o", out, pkg)
+	goBin, err := goToolchain()
+	if err != nil {
+		return err
+	}
+	cmd := commandContext(m, goBin, "build", "-o", out, pkg)
 	cmd.Dir = getProjectRoot()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -808,8 +812,8 @@ func runInstaller() int {
 	// os.Exit skips defers in main, so cleanup lives in this function.
 	defer cleanupBuildOutput()
 
-	// Check if go is installed
-	if _, err := exec.LookPath("go"); err != nil {
+	// Check if go is installed (PATH, else the GOROOT this ran from under sudo)
+	if _, err := goToolchain(); err != nil {
 		fmt.Println("Error: Go is not installed or not in PATH")
 		fmt.Println("Please install Go from https://golang.org/dl/")
 		return 1
