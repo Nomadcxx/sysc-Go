@@ -9,6 +9,12 @@ import (
 const (
 	minTerminalWidth  = 100
 	minTerminalHeight = 30
+
+	// mainViewChromeRows is the vertical budget outside the canvas content
+	// box: rounded border (2) + selectors (4) + guidance (1) + help (1).
+	// Lipgloss Height sets the content box and draws the border outside it,
+	// so the canvas content height is terminal height minus this budget.
+	mainViewChromeRows = 8
 )
 
 // terminalTooSmall reports whether a sized terminal is below the TUI minimum.
@@ -86,13 +92,17 @@ func (m Model) renderCanvas() string {
 		content = m.renderWelcome()
 	}
 
-	// Calculate viewport dimensions - 80% of terminal height, full width minus padding
-	viewportHeight := int(float64(m.height) * 0.8)
+	// Content box leaves room for the border and the rows stacked under the
+	// canvas. Height pads short frames and does not clip, so an 80% box plus
+	// that chrome is taller than a 30-row terminal and pushes help off screen.
+	viewportHeight := m.height - mainViewChromeRows
+	if viewportHeight < 1 {
+		viewportHeight = 1
+	}
 	viewportWidth := m.width - 10 // Leave some margin
 
 	// Wrap raw content in a styled box WITHOUT transforming the content itself
 	// Pattern from installer/sysc-greet: only border, NO padding/align on ASCII
-	// Set explicit dimensions for 80% height viewport
 	// NO Align() here - that distorts ASCII. Centering happens at outer container.
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

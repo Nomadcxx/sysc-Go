@@ -25,9 +25,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Canvas takes up maximum available screen space
-		// Total overhead: Border (2) + Selectors (4) + Guidance (1) + Help (1) = 8 lines
-		m.canvasHeight = m.height - 8 // Account for canvas border + UI elements
+		// Canvas content box matches renderCanvas: border and the rows under it
+		// are outside that box, so the animation buffer uses the same budget.
+		m.canvasHeight = m.height - mainViewChromeRows
 		if m.canvasHeight < 20 {
 			m.canvasHeight = 20 // Minimum viewport height
 		}
