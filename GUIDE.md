@@ -317,16 +317,19 @@ Effects that don't require text input.
 
 #### Logo Spin Family
 - **Constructors**: `NewLogoSpinEffect(config LogoSpinConfig) *LogoSpinAnimation`
-- **Shapes**: `"sysc"` (block SYSC wordmark), `"cross"` (Latin cross), `"sysc-cross"` / `"cross-sysc"` (morph between the two while spinning)
+- **Shapes**: `"sysc"` (block SYSC wordmark), `"cross"` (Latin cross), `"justice"` (faceted justice-cross wireframe), `"sysc-cross"` / `"cross-sysc"` (morph between two while spinning)
+- **Styles**: `"wire"` (default, glowing contour rings + extruded edges), `"solid"` (filled beveled plate)
 - **Palette Function**: `GetLogoPalette(theme string) []string`
-- **Registry IDs**: `sysc-logo`, `cross-logo`, `logo-morph`
+- **Registry IDs**: `sysc-logo`, `cross-logo`, `justice-cross`, `logo-morph`
 - **Methods**:
   - `Update()` - Advance one frame (one rotation every 144 frames)
   - `Render() string` - Current frame as truecolor braille
   - `Reset()` - Restart from frame zero
   - `Resize(width, height int)` - Change dimensions
 - **Notes**: vector strokes are baked to a signed distance field once per shape,
-  extruded into a beveled 3D plate, and rasterized through a braille z-buffer.
+  extruded into a 3D surface, and rasterized through a braille z-buffer. The
+  `justice` shape is defined by its 16-vertex outline loop plus three inner
+  facet lines, matching the source wireframe SVG.
 
 #### Matrix Effect
 - **Constructor**: `NewMatrixEffect(width, height int, palette []string) *MatrixEffect`

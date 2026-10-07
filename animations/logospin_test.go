@@ -159,3 +159,27 @@ func TestLogoSpinRegistry(t *testing.T) {
 		}
 	}
 }
+
+func TestLogoJusticeShapeBakes(t *testing.T) {
+	field := logoSDF("justice")
+	if field == nil {
+		t.Fatal("missing justice field")
+	}
+	pos := 0
+	for _, v := range field {
+		if v > 0 {
+			pos++
+		}
+	}
+	if pos < 300 {
+		t.Errorf("justice field has only %d inside cells, want >= 300", pos)
+	}
+	if field[logoGrid*logoGrid-1] >= 0 {
+		t.Errorf("justice corner distance = %v, want < 0", field[logoGrid*logoGrid-1])
+	}
+	l := NewLogoSpinEffect(LogoSpinConfig{Width: 40, Height: 15, Shape: "justice"})
+	l.Update()
+	if out := l.Render(); !strings.Contains(out, string(rune(logoBrailleRuneBase))) && out == "" {
+		t.Fatal("empty justice render")
+	}
+}

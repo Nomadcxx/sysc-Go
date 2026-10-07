@@ -379,9 +379,11 @@ func main() {
 		runLogoSpin(width, height, *theme, "cross", frames)
 	case "logo-morph":
 		runLogoSpin(width, height, *theme, "sysc-cross", frames)
+	case "justice-cross":
+		runLogoSpin(width, height, *theme, "justice", frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro, sysc-logo, cross-logo, logo-morph")
+		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro, sysc-logo, cross-logo, justice-cross, logo-morph")
 		os.Exit(1)
 	}
 }

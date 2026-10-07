@@ -148,14 +148,21 @@ var EffectRegistry = []EffectMetadata{
 	{
 		Name:         "sysc-logo",
 		RequiresText: false,
-		Description:  "SYSC wordmark as a spinning 3D braille plate",
+		Description:  "SYSC wordmark as a spinning 3D wireframe braille plate",
 		VersionAdded: "1.0.6",
 		Category:     "abstract",
 	},
 	{
 		Name:         "cross-logo",
 		RequiresText: false,
-		Description:  "Latin cross as a spinning 3D braille plate",
+		Description:  "Latin cross as a spinning 3D wireframe braille plate",
+		VersionAdded: "1.0.6",
+		Category:     "abstract",
+	},
+	{
+		Name:         "justice-cross",
+		RequiresText: false,
+		Description:  "Faceted justice cross wireframe, spinning in 3D braille",
 		VersionAdded: "1.0.6",
 		Category:     "abstract",
 	},

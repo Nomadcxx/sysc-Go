@@ -19,6 +19,11 @@ const (
 	logoSpinFrames      = 144
 	logoMorphFrames     = 4 * logoSpinFrames
 	logoPerspective     = 4.4
+	logoTiltX           = 0.26
+	logoTiltZ           = 0.04
+	logoRingSpacing     = logoStep * 4
+	logoRingWidth       = logoStep * 0.7
+	logoTentRef         = 0.10
 	logoCanvasScaleX    = 0.2575 // 206/800: reference surface half-width ratio
 	logoCanvasScaleY    = 0.3745 // 206/550: reference surface half-height ratio
 	logoBrailleRuneBase = 0x2800
@@ -34,6 +39,11 @@ type logoStroke struct {
 	x1, y1, x2, y2, t float64
 }
 
+// logoRun is one filled horizontal span of a pixel-font glyph row.
+type logoRun struct {
+	r, c0, c1 int
+}
+
 // logoShapeStrokes returns the stroke list for a named shape, or nil.
 func logoShapeStrokes(name string) []logoStroke {
 	switch name {
@@ -42,30 +52,48 @@ func logoShapeStrokes(name string) []logoStroke {
 			{0.5, 0.06, 0.5, 0.94, 0.20},
 			{0.16, 0.34, 0.84, 0.34, 0.20},
 		}
-	case "sysc":
-		glyphs := [][]logoStroke{
-			// S
-			{{0.12, 0.12, 0.88, 0.12, 0.16}, {0.12, 0.12, 0.12, 0.50, 0.16},
-				{0.12, 0.50, 0.88, 0.50, 0.16}, {0.88, 0.50, 0.88, 0.88, 0.16},
-				{0.12, 0.88, 0.88, 0.88, 0.16}},
-			// Y
-			{{0.12, 0.12, 0.50, 0.50, 0.16}, {0.88, 0.12, 0.50, 0.50, 0.16},
-				{0.50, 0.50, 0.50, 0.88, 0.16}},
-			// S
-			{{0.12, 0.12, 0.88, 0.12, 0.16}, {0.12, 0.12, 0.12, 0.50, 0.16},
-				{0.12, 0.50, 0.88, 0.50, 0.16}, {0.88, 0.50, 0.88, 0.88, 0.16},
-				{0.12, 0.88, 0.88, 0.88, 0.16}},
-			// C
-			{{0.25, 0.12, 0.88, 0.12, 0.16}, {0.12, 0.12, 0.12, 0.88, 0.16},
-				{0.12, 0.88, 0.75, 0.88, 0.16}},
+	case "justice":
+		// Faceted "justice cross" wireframe: 16-vertex outline loop plus
+		// three inner facet lines, in the 486x486 viewBox coordinate space.
+		outline := [][2]float64{
+			{225, 71}, {262, 71}, {272, 113}, {336, 113}, {355, 144}, {337, 208},
+			{293, 208}, {326, 337}, {307, 407}, {180, 407}, {161, 337}, {194, 208},
+			{149, 208}, {132, 144}, {150, 113}, {214, 113},
 		}
 		var out []logoStroke
-		for i, g := range glyphs {
-			dx := float64(i) * 1.18
-			for _, s := range g {
-				s.x1 += dx
-				s.x2 += dx
-				out = append(out, s)
+		for i, p := range outline {
+			q := outline[(i+1)%len(outline)]
+			out = append(out, logoStroke{p[0], p[1], q[0], q[1], 3})
+		}
+		facets := [][4]float64{
+			{132, 144, 212, 144},
+			{278, 144, 355, 144},
+			{161, 337, 326, 337},
+		}
+		for _, f := range facets {
+			out = append(out, logoStroke{f[0], f[1], f[2], f[3], 3})
+		}
+		return out
+	case "sysc":
+		// 5x7 pixel-font glyphs as {row, colStart, colEnd} runs, one unit per pixel.
+		sGlyph := []logoRun{
+			{0, 1, 4}, {1, 0, 0}, {2, 0, 0}, {3, 1, 3}, {4, 4, 4}, {5, 4, 4}, {6, 0, 3},
+		}
+		yGlyph := []logoRun{
+			{0, 0, 0}, {0, 4, 4}, {1, 0, 0}, {1, 4, 4}, {2, 1, 1}, {2, 3, 3},
+			{3, 2, 2}, {4, 2, 2}, {5, 2, 2}, {6, 2, 2},
+		}
+		cGlyph := []logoRun{
+			{0, 1, 4}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0}, {4, 0, 0}, {5, 0, 0}, {6, 1, 4},
+		}
+		var out []logoStroke
+		for i, g := range [][]logoRun{sGlyph, yGlyph, sGlyph, cGlyph} {
+			dx := float64(i) * 6.0
+			for _, r := range g {
+				out = append(out, logoStroke{
+					dx + float64(r.c0), float64(r.r),
+					dx + float64(r.c1) + 1, float64(r.r), 1,
+				})
 			}
 		}
 		return out
@@ -79,6 +107,8 @@ func logoShapeName(shape string) (a, b string) {
 	switch shape {
 	case "cross":
 		return "cross", ""
+	case "justice":
+		return "justice", ""
 	case "sysc", "":
 		return "sysc", ""
 	case "sysc-cross", "cross-sysc", "morph":
@@ -274,6 +304,7 @@ type LogoSpinConfig struct {
 	Shape   string   // "sysc" | "cross" | "sysc-cross" | "cross-sysc"
 	Palette []string // GetLogoPalette(theme)
 	Theme   string
+	Style   string // "wire" (default, contour rings) or "solid" (beveled plate)
 }
 
 // LogoSpinAnimation renders a vector shape as a spinning 3D braille plate.
@@ -282,6 +313,7 @@ type LogoSpinAnimation struct {
 	shapeA        string
 	shapeB        string
 	morph         bool
+	wire          bool
 	palette       []string
 	theme         string
 
@@ -325,6 +357,7 @@ func NewLogoSpinEffect(c LogoSpinConfig) *LogoSpinAnimation {
 		shapeA:  a,
 		shapeB:  b,
 		morph:   b != "",
+		wire:    c.Style != "solid",
 		palette: palette,
 		theme:   c.Theme,
 	}
@@ -443,10 +476,12 @@ func (l *LogoSpinAnimation) Render() string {
 		l.count[i] = 0
 	}
 
-	sArg := math.Sin(rotation) * logoWobble
-	sx, cx := math.Sincos(sArg)
+	wob := math.Sin(rotation) * logoWobble
+	// Constant studio-camera tilt keeps the plate in a readable 3/4 view
+	// throughout the spin instead of flattening edge-on.
+	sx, cx := math.Sincos(logoTiltX + wob)
 	sy, cy := math.Sincos(rotation)
-	sz, cz := math.Sincos(sArg * 0.4)
+	sz, cz := math.Sincos(logoTiltZ + wob*0.4)
 
 	coefX := logoCanvasScaleX * float64(dotColumns)
 	coefY := logoCanvasScaleY * float64(dotRows)
@@ -512,11 +547,26 @@ func (l *LogoSpinAnimation) Render() string {
 			gx, gy := dx/length, dy/length
 
 			if d > 0 {
-				edge := clampLogo(1-d/bevel, 0, 1)
-				nz := math.Sqrt(1 - edge*edge)
-				z := logoHalfDepth - bevel + bevel*nz
-				project(x, y, z, -gx*edge, -gy*edge, nz)
-				project(x, y, -z, -gx*edge, -gy*edge, -nz)
+				if l.wire {
+					frac := math.Mod(d, logoRingSpacing)
+					if frac < logoRingWidth || frac > logoRingSpacing-logoRingWidth {
+						h := clampLogo(d/logoTentRef, 0, 1)
+						k := 0.0
+						if h < 1 {
+							k = logoHalfDepth / logoTentRef
+						}
+						nl := math.Sqrt(1 + k*k)
+						z := logoHalfDepth * h
+						project(x, y, z, -gx*k/nl, -gy*k/nl, 1/nl)
+						project(x, y, -z, -gx*k/nl, -gy*k/nl, -1/nl)
+					}
+				} else {
+					edge := clampLogo(1-d/bevel, 0, 1)
+					nz := math.Sqrt(1 - edge*edge)
+					z := logoHalfDepth - bevel + bevel*nz
+					project(x, y, z, -gx*edge, -gy*edge, nz)
+					project(x, y, -z, -gx*edge, -gy*edge, -nz)
+				}
 			}
 			if math.Abs(d) < logoStep*0.8 {
 				sideDepth := logoHalfDepth - bevel
