@@ -7,8 +7,10 @@ import (
 	"sync"
 )
 
-// logoSpinFrames is one full rotation in frames (~7.2 s at the 20 fps both
-// hosts drive effects at). logoMorphPeriodFrames is a full morph cycle.
+// logoSpinFrames is one spin loop in frames (~7.2 s at the 20 fps both hosts
+// drive effects at): two eased full turns, each covering 82% of a half-loop
+// followed by a facing-forward hold. logoMorphPeriodFrames is a full morph
+// cycle.
 const (
 	logoGrid            = 160
 	logoExtent          = 1.08
@@ -19,8 +21,6 @@ const (
 	logoSpinFrames      = 144
 	logoMorphFrames     = 4 * logoSpinFrames
 	logoPerspective     = 4.4
-	logoTiltX           = 0.26
-	logoTiltZ           = 0.04
 	logoRingSpacing     = logoStep * 4
 	logoRingWidth       = logoStep * 0.7
 	logoTentRef         = 0.10
@@ -589,6 +589,24 @@ func logoSmooth(v float64) float64 {
 
 func logoMorphPeriodFrames() int { return logoMorphFrames }
 
+// logoSpinRotation reproduces the reference bloom spin driver: phase loops
+// every logoSpinFrames; each half-loop eases one full turn over 82% of its
+// time then holds facing forward. X tilt oscillates once per turn, Z sways
+// once per loop.
+func logoSpinRotation(frame int) (rotation, tiltX, tiltZ float64) {
+	phase := float64(frame) / float64(logoSpinFrames)
+	phase -= math.Floor(phase)
+	second := 0.0
+	if phase >= 0.5 {
+		second = 1.0
+	}
+	spin := logoSmooth((phase*2 - second) / 0.82)
+	rotation = (second + spin) * 2 * math.Pi
+	tiltX = math.Sin(rotation) * logoWobble
+	tiltZ = math.Sin(phase*2*math.Pi) * 0.045
+	return rotation, tiltX, tiltZ
+}
+
 // Render draws the current frame.
 func (l *LogoSpinAnimation) Render() string {
 	if l.mode == logoModeEdge {
@@ -603,8 +621,7 @@ func (l *LogoSpinAnimation) Render() string {
 		b = logoSDFShared(l.shapeB)
 	}
 
-	phase := float64(l.frame) / float64(logoSpinFrames)
-	rotation := phase * 2 * math.Pi
+	rotation, tiltX, tiltZ := logoSpinRotation(l.frame)
 	blend := 0.0
 	if l.morph {
 		u := float64(l.frame) / float64(logoMorphFrames)
@@ -632,12 +649,11 @@ func (l *LogoSpinAnimation) Render() string {
 		l.count[i] = 0
 	}
 
-	wob := math.Sin(rotation) * logoWobble
-	// Constant studio-camera tilt keeps the plate in a readable 3/4 view
-	// throughout the spin instead of flattening edge-on.
-	sx, cx := math.Sincos(logoTiltX + wob)
+	// The plate swings ±6.4° about X once per turn and breathes on Z once per
+	// loop, exactly like the reference bloom driver; the turn itself eases.
+	sx, cx := math.Sincos(tiltX)
 	sy, cy := math.Sincos(rotation)
-	sz, cz := math.Sincos(logoTiltZ + wob*0.4)
+	sz, cz := math.Sincos(tiltZ)
 
 	coefX := logoCanvasScaleX * float64(dotColumns)
 	coefY := logoCanvasScaleY * float64(dotRows)
@@ -801,12 +817,10 @@ func (l *LogoSpinAnimation) renderEdges() string {
 		return ""
 	}
 
-	phase := float64(l.frame) / float64(logoSpinFrames)
-	rotation := phase * 2 * math.Pi
-	wob := math.Sin(rotation) * logoWobble
-	sx, cx := math.Sincos(logoTiltX + wob)
+	rotation, tiltX, tiltZ := logoSpinRotation(l.frame)
+	sx, cx := math.Sincos(tiltX)
 	sy, cy := math.Sincos(rotation)
-	sz, cz := math.Sincos(logoTiltZ + wob*0.4)
+	sz, cz := math.Sincos(tiltZ)
 
 	coefX := logoCanvasScaleX * float64(dotColumns)
 	coefY := logoCanvasScaleY * float64(dotRows)
