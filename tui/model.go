@@ -149,6 +149,10 @@ func NewModel() Model {
 			"blackhole-text",
 			"aquarium",
 			"sonar",
+			"sysc-logo",
+			"cross-logo",
+			"justice-cross",
+			"logo-morph",
 		},
 		themes: []string{
 			"dracula",
