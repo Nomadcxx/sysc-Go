@@ -318,7 +318,7 @@ Effects that don't require text input.
 #### Logo Spin Family
 - **Constructors**: `NewLogoSpinEffect(config LogoSpinConfig) *LogoSpinAnimation`
 - **Shapes**: `"sysc"` (block SYSC wordmark), `"cross"` (Latin cross), `"justice"` (faceted justice-cross wireframe), `"sysc-cross"` / `"cross-sysc"` (morph between two while spinning)
-- **Styles**: `"wire"` (default, glowing contour rings + extruded edges), `"solid"` (filled beveled plate)
+- **Styles**: `"edge"` (default: crisp 3D wireframe — front/back outline loops, vertex struts and facet creases, rigid under rotation), `"ring"` (contour bands; `"wire"` is its alias), `"solid"` (filled beveled plate)
 - **Palette Function**: `GetLogoPalette(theme string) []string`
 - **Registry IDs**: `sysc-logo`, `cross-logo`, `justice-cross`, `logo-morph`
 - **Methods**:
@@ -326,10 +326,12 @@ Effects that don't require text input.
   - `Render() string` - Current frame as truecolor braille
   - `Reset()` - Restart from frame zero
   - `Resize(width, height int)` - Change dimensions
-- **Notes**: vector strokes are baked to a signed distance field once per shape,
-  extruded into a 3D surface, and rasterized through a braille z-buffer. The
-  `justice` shape is defined by its 16-vertex outline loop plus three inner
-  facet lines, matching the source wireframe SVG.
+- **Notes**: in `edge` style the shape's loops are extruded into real 3D wire
+  segments and rasterized through a braille z-buffer, so the spin reads as one
+  solid object turning; ring/solid styles bake a signed distance field once per
+  shape instead. The `justice` shape is defined by its 16-vertex outline loop
+  plus three inner facet lines, matching the source wireframe SVG. Morph
+  shapes blend two distance fields, so `edge` downgrades to `ring` for them.
 
 #### Matrix Effect
 - **Constructor**: `NewMatrixEffect(width, height int, palette []string) *MatrixEffect`

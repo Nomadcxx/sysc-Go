@@ -44,6 +44,22 @@ type logoRun struct {
 	r, c0, c1 int
 }
 
+// Faceted "justice cross" geometry in the 486x486 viewBox space: one closed
+// outline and three inner crease lines. Shared by the stroke (surface) and
+// edge (wireframe) builders.
+var (
+	logoJusticeOutline = [][2]float64{
+		{225, 71}, {262, 71}, {272, 113}, {336, 113}, {355, 144}, {337, 208},
+		{293, 208}, {326, 337}, {307, 407}, {180, 407}, {161, 337}, {194, 208},
+		{149, 208}, {132, 144}, {150, 113}, {214, 113},
+	}
+	logoJusticeFacets = [][4]float64{
+		{132, 144, 212, 144},
+		{278, 144, 355, 144},
+		{161, 337, 326, 337},
+	}
+)
+
 // logoShapeStrokes returns the stroke list for a named shape, or nil.
 func logoShapeStrokes(name string) []logoStroke {
 	switch name {
@@ -55,22 +71,12 @@ func logoShapeStrokes(name string) []logoStroke {
 	case "justice":
 		// Faceted "justice cross" wireframe: 16-vertex outline loop plus
 		// three inner facet lines, in the 486x486 viewBox coordinate space.
-		outline := [][2]float64{
-			{225, 71}, {262, 71}, {272, 113}, {336, 113}, {355, 144}, {337, 208},
-			{293, 208}, {326, 337}, {307, 407}, {180, 407}, {161, 337}, {194, 208},
-			{149, 208}, {132, 144}, {150, 113}, {214, 113},
-		}
 		var out []logoStroke
-		for i, p := range outline {
-			q := outline[(i+1)%len(outline)]
+		for i, p := range logoJusticeOutline {
+			q := logoJusticeOutline[(i+1)%len(logoJusticeOutline)]
 			out = append(out, logoStroke{p[0], p[1], q[0], q[1], 3})
 		}
-		facets := [][4]float64{
-			{132, 144, 212, 144},
-			{278, 144, 355, 144},
-			{161, 337, 326, 337},
-		}
-		for _, f := range facets {
+		for _, f := range logoJusticeFacets {
 			out = append(out, logoStroke{f[0], f[1], f[2], f[3], 3})
 		}
 		return out
@@ -297,14 +303,150 @@ func logoGridSize() int        { return logoGrid }
 func logoStepLength() float64  { return logoStep }
 func logoExtentValue() float64 { return logoExtent }
 
+// logoEdge is one 3D wire segment with per-endpoint object normals.
+type logoEdge struct {
+	ax, ay, az    float64
+	bx, by, bz    float64
+	nax, nay, naz float64
+	nbx, nby, nbz float64
+}
+
+// logoLoop is a polyline in raw shape space. Closed loops are extruded with
+// front and back copies joined by vertex struts; struts use radial normals.
+type logoLoop struct {
+	pts    [][2]float64
+	closed bool
+	struts bool
+}
+
+// logoShapeLoops returns the wireframe loop set for a shape.
+func logoShapeLoops(name string) []logoLoop {
+	switch name {
+	case "justice":
+		loops := []logoLoop{{pts: logoJusticeOutline, closed: true, struts: true}}
+		for _, f := range logoJusticeFacets {
+			loops = append(loops, logoLoop{
+				pts: [][2]float64{{f[0], f[1]}, {f[2], f[3]}},
+			})
+		}
+		return loops
+	default:
+		strokes := logoShapeStrokes(name)
+		if strokes == nil {
+			return nil
+		}
+		var loops []logoLoop
+		for _, s := range strokes {
+			dx, dy := s.x2-s.x1, s.y2-s.y1
+			length := math.Hypot(dx, dy)
+			if length == 0 {
+				continue
+			}
+			nx, ny := -dy/length, dx/length
+			h := s.t / 2
+			loops = append(loops, logoLoop{
+				pts: [][2]float64{
+					{s.x1 + nx*h, s.y1 + ny*h}, {s.x2 + nx*h, s.y2 + ny*h},
+					{s.x2 - nx*h, s.y2 - ny*h}, {s.x1 - nx*h, s.y1 - ny*h},
+				},
+				closed: true,
+				struts: true,
+			})
+		}
+		return loops
+	}
+}
+
+// logoBuildEdges normalizes loops to the shared [-1,1] space and extrudes
+// them into the front/back/strut edge set of a solid wireframe plate.
+func logoBuildEdges(name string) []logoEdge {
+	loops := logoShapeLoops(name)
+	if len(loops) == 0 {
+		return nil
+	}
+	minx, miny := math.Inf(1), math.Inf(1)
+	maxx, maxy := math.Inf(-1), math.Inf(-1)
+	for _, lp := range loops {
+		for _, p := range lp.pts {
+			minx = math.Min(minx, p[0])
+			maxx = math.Max(maxx, p[0])
+			miny = math.Min(miny, p[1])
+			maxy = math.Max(maxy, p[1])
+		}
+	}
+	scale := math.Max(maxx-minx, maxy-miny) / 2
+	if scale <= 0 {
+		return nil
+	}
+	cx, cy := (minx+maxx)/2, (miny+maxy)/2
+	var out []logoEdge
+	for _, lp := range loops {
+		norm := make([][2]float64, len(lp.pts))
+		for i, p := range lp.pts {
+			norm[i] = [2]float64{(p[0] - cx) / scale, (p[1] - cy) / scale}
+		}
+		segments := len(norm) - 1
+		if lp.closed {
+			segments = len(norm)
+		}
+		for i := 0; i < segments; i++ {
+			a := norm[i]
+			b := norm[(i+1)%len(norm)]
+			out = append(out,
+				logoEdge{a[0], a[1], logoHalfDepth, b[0], b[1], logoHalfDepth, 0, 0, 1, 0, 0, 1},
+				logoEdge{a[0], a[1], -logoHalfDepth, b[0], b[1], -logoHalfDepth, 0, 0, -1, 0, 0, -1},
+			)
+		}
+		if lp.struts {
+			for _, p := range norm {
+				ox, oy := p[0], p[1]
+				m := math.Hypot(ox, oy)
+				if m == 0 {
+					continue
+				}
+				ox, oy = ox/m, oy/m
+				out = append(out, logoEdge{
+					p[0], p[1], logoHalfDepth, p[0], p[1], -logoHalfDepth,
+					ox, oy, 0, ox, oy, 0,
+				})
+			}
+		}
+	}
+	return out
+}
+
+var (
+	logoEdgeMu    sync.Mutex
+	logoEdgeCache = map[string][]logoEdge{}
+)
+
+// logoEdges returns the cached edge set for a shape (nil if unknown).
+func logoEdges(name string) []logoEdge {
+	logoEdgeMu.Lock()
+	defer logoEdgeMu.Unlock()
+	if e, ok := logoEdgeCache[name]; ok {
+		return e
+	}
+	e := logoBuildEdges(name)
+	logoEdgeCache[name] = e
+	return e
+}
+
+// Style modes for LogoSpinConfig.Style.
+const (
+	logoModeEdge = iota
+	logoModeRing
+	logoModeSolid
+)
+
 // LogoSpinConfig configures a LogoSpinAnimation.
 type LogoSpinConfig struct {
 	Width   int
 	Height  int
-	Shape   string   // "sysc" | "cross" | "sysc-cross" | "cross-sysc"
+	Shape   string   // "sysc" | "cross" | "justice" | "sysc-cross" | "cross-sysc"
 	Palette []string // GetLogoPalette(theme)
 	Theme   string
-	Style   string // "wire" (default, contour rings) or "solid" (beveled plate)
+	Style   string // "edge" (default: crisp 3D wireframe), "ring" (contour bands; old "wire"), "solid" (beveled plate)
 }
 
 // LogoSpinAnimation renders a vector shape as a spinning 3D braille plate.
@@ -313,7 +455,7 @@ type LogoSpinAnimation struct {
 	shapeA        string
 	shapeB        string
 	morph         bool
-	wire          bool
+	mode          int
 	palette       []string
 	theme         string
 
@@ -351,13 +493,24 @@ func NewLogoSpinEffect(c LogoSpinConfig) *LogoSpinAnimation {
 	if len(palette) < 7 {
 		palette = GetLogoPalette(c.Theme)
 	}
+	mode := logoModeEdge
+	switch c.Style {
+	case "ring", "wire":
+		mode = logoModeRing
+	case "solid":
+		mode = logoModeSolid
+	}
+	if b != "" && mode == logoModeEdge {
+		// Morphing blends two distance fields, so it needs a surface mode.
+		mode = logoModeRing
+	}
 	l := &LogoSpinAnimation{
 		width:   c.Width,
 		height:  c.Height,
 		shapeA:  a,
 		shapeB:  b,
 		morph:   b != "",
-		wire:    c.Style != "solid",
+		mode:    mode,
 		palette: palette,
 		theme:   c.Theme,
 	}
@@ -438,6 +591,9 @@ func logoMorphPeriodFrames() int { return logoMorphFrames }
 
 // Render draws the current frame.
 func (l *LogoSpinAnimation) Render() string {
+	if l.mode == logoModeEdge {
+		return l.renderEdges()
+	}
 	a := logoSDFShared(l.shapeA)
 	if a == nil {
 		return ""
@@ -547,7 +703,7 @@ func (l *LogoSpinAnimation) Render() string {
 			gx, gy := dx/length, dy/length
 
 			if d > 0 {
-				if l.wire {
+				if l.mode == logoModeRing {
 					frac := math.Mod(d, logoRingSpacing)
 					if frac < logoRingWidth || frac > logoRingSpacing-logoRingWidth {
 						h := clampLogo(d/logoTentRef, 0, 1)
@@ -582,6 +738,12 @@ func (l *LogoSpinAnimation) Render() string {
 		}
 	}
 
+	return l.compose()
+}
+
+// compose turns the shaded dot buffers into the ANSI braille frame.
+func (l *LogoSpinAnimation) compose() string {
+	dotColumns := l.width * 2
 	l.builder.Reset()
 	for row := 0; row < l.height; row++ {
 		for column := 0; column < l.width; column++ {
@@ -621,6 +783,84 @@ func (l *LogoSpinAnimation) Render() string {
 		}
 	}
 	return l.builder.String()
+}
+
+// renderEdges draws the crisp 3D wireframe mode: rigid front and back
+// outline loops joined by vertex struts, projected through the same camera
+// as the surface modes and z-buffered per braille dot. Because every sample
+// comes from a real 3D segment, the spin reads as one solid object turning
+// instead of contour bands crawling over a surface.
+func (l *LogoSpinAnimation) renderEdges() string {
+	dotColumns := l.width * 2
+	dotRows := l.height * 4
+	for i := range l.depth {
+		l.depth[i] = math.Inf(-1)
+	}
+	edges := logoEdges(l.shapeA)
+	if len(edges) == 0 {
+		return ""
+	}
+
+	phase := float64(l.frame) / float64(logoSpinFrames)
+	rotation := phase * 2 * math.Pi
+	wob := math.Sin(rotation) * logoWobble
+	sx, cx := math.Sincos(logoTiltX + wob)
+	sy, cy := math.Sincos(rotation)
+	sz, cz := math.Sincos(logoTiltZ + wob*0.4)
+
+	coefX := logoCanvasScaleX * float64(dotColumns)
+	coefY := logoCanvasScaleY * float64(dotRows)
+	halfColumns := float64(dotColumns) / 2
+	halfRows := float64(dotRows) / 2
+
+	rot := func(x, y, z float64) (float64, float64, float64) {
+		x1 := x*cy + z*sy
+		z1 := -x*sy + z*cy
+		y2 := y*cx - z1*sx
+		z2 := y*sx + z1*cx
+		return x1*cz - y2*sz, x1*sz + y2*cz, z2
+	}
+
+	for _, e := range edges {
+		aX, aY, aZ := rot(e.ax, e.ay, e.az)
+		bX, bY, bZ := rot(e.bx, e.by, e.bz)
+		pa := logoPerspective / (logoPerspective - aZ)
+		pb := logoPerspective / (logoPerspective - bZ)
+		x0 := halfColumns + aX*coefX*pa
+		y0 := halfRows + aY*coefY*pa
+		x1 := halfColumns + bX*coefX*pb
+		y1 := halfRows + bY*coefY*pb
+		nax, nay, naz := rot(e.nax, e.nay, e.naz)
+		nbx, nby, nbz := rot(e.nbx, e.nby, e.nbz)
+
+		steps := int(math.Ceil(math.Hypot(x1-x0, y1-y0) / 0.55))
+		if steps < 1 {
+			steps = 1
+		}
+		for k := 0; k <= steps; k++ {
+			t := float64(k) / float64(steps)
+			col := int(math.Floor(x0 + (x1-x0)*t))
+			row := int(math.Floor(y0 + (y1-y0)*t))
+			if col < 0 || col >= dotColumns || row < 0 || row >= dotRows {
+				continue
+			}
+			i := row*dotColumns + col
+			z2 := aZ + (bZ-aZ)*t
+			if z2 <= l.depth[i] {
+				continue
+			}
+			nx := nax + (nbx-nax)*t
+			ny := nay + (nby-nay)*t
+			nz := naz + (nbz-naz)*t
+			n := math.Sqrt(nx*nx + ny*ny + nz*nz)
+			if n == 0 {
+				continue
+			}
+			l.depth[i] = z2
+			l.crgb[i] = logoShade([3]float64{nx / n, ny / n, nz / n}, z2, 0, l)
+		}
+	}
+	return l.compose()
 }
 
 func logoShade(n [3]float64, depth, grain float64, l *LogoSpinAnimation) uint32 {

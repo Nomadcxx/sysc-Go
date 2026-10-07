@@ -183,3 +183,35 @@ func TestLogoJusticeShapeBakes(t *testing.T) {
 		t.Fatal("empty justice render")
 	}
 }
+
+func TestLogoEdgeGeometry(t *testing.T) {
+	justice := logoEdges("justice")
+	// 16-vertex loop: 16 front + 16 back + 16 struts, 3 facet lines x2.
+	if len(justice) != 54 {
+		t.Errorf("justice edge count = %d, want 54", len(justice))
+	}
+	if logoEdges("no-such-shape") != nil {
+		t.Error("unknown shape must return nil edges")
+	}
+	if len(logoEdges("sysc")) == 0 {
+		t.Error("sysc produced no edges")
+	}
+}
+
+func TestLogoStyleModes(t *testing.T) {
+	for _, style := range []string{"", "edge", "ring", "wire", "solid"} {
+		l := NewLogoSpinEffect(LogoSpinConfig{Width: 40, Height: 15, Shape: "justice", Style: style})
+		l.Update()
+		if out := l.Render(); out == "" {
+			t.Errorf("style %q: empty render", style)
+		}
+	}
+	m := NewLogoSpinEffect(LogoSpinConfig{Width: 40, Height: 15, Shape: "sysc-cross", Style: "edge"})
+	m.Update()
+	if out := m.Render(); out == "" {
+		t.Error("morph with edge style fell silent")
+	}
+	if m.mode != logoModeRing {
+		t.Error("morph should downgrade edge style to ring")
+	}
+}
