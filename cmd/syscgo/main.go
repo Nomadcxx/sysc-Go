@@ -373,9 +373,15 @@ func main() {
 		runSonar(width, height, *theme, frames)
 	case "cracktro":
 		runCracktro(width, height, *theme, frames)
+	case "sysc-logo":
+		runLogoSpin(width, height, *theme, "sysc", frames)
+	case "cross-logo":
+		runLogoSpin(width, height, *theme, "cross", frames)
+	case "logo-morph":
+		runLogoSpin(width, height, *theme, "sysc-cross", frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro")
+		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro, sysc-logo, cross-logo, logo-morph")
 		os.Exit(1)
 	}
 }
@@ -1402,6 +1408,38 @@ func runSkull(width, height int, theme string, frames int) {
 
 		skull.Update()
 		output := skull.Render()
+
+		fmt.Print("\033[H")
+		fmt.Print(output)
+		os.Stdout.Sync()
+		time.Sleep(cliFrameInterval)
+		frame++
+	}
+}
+
+func runLogoSpin(width, height int, theme, shape string, frames int) {
+	palette := animations.GetLogoPalette(theme)
+	logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{
+		Width:   width,
+		Height:  height,
+		Shape:   shape,
+		Palette: palette,
+		Theme:   theme,
+	})
+
+	quit, stopInterrupt := setupKeyboardInterrupt()
+	defer stopInterrupt()
+
+	frame := 0
+	for frames == 0 || frame < frames {
+		select {
+		case <-quit:
+			return
+		default:
+		}
+
+		logo.Update()
+		output := logo.Render()
 
 		fmt.Print("\033[H")
 		fmt.Print(output)

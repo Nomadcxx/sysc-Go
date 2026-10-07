@@ -315,6 +315,19 @@ Effects that don't require text input.
   - `Resize(width, height int)` - Change dimensions
   - `UpdatePalette(palette []string)` - Change colors
 
+#### Logo Spin Family
+- **Constructors**: `NewLogoSpinEffect(config LogoSpinConfig) *LogoSpinAnimation`
+- **Shapes**: `"sysc"` (block SYSC wordmark), `"cross"` (Latin cross), `"sysc-cross"` / `"cross-sysc"` (morph between the two while spinning)
+- **Palette Function**: `GetLogoPalette(theme string) []string`
+- **Registry IDs**: `sysc-logo`, `cross-logo`, `logo-morph`
+- **Methods**:
+  - `Update()` - Advance one frame (one rotation every 144 frames)
+  - `Render() string` - Current frame as truecolor braille
+  - `Reset()` - Restart from frame zero
+  - `Resize(width, height int)` - Change dimensions
+- **Notes**: vector strokes are baked to a signed distance field once per shape,
+  extruded into a beveled 3D plate, and rasterized through a braille z-buffer.
+
 #### Matrix Effect
 - **Constructor**: `NewMatrixEffect(width, height int, palette []string) *MatrixEffect`
 - **Palette Function**: `GetMatrixPalette(theme string) []string`

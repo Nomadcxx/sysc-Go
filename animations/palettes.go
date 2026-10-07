@@ -452,3 +452,37 @@ func GetCracktroPalette(themeName string) []string {
 		return []string{"#3a3a3a", "#6a6a6a", "#ffffff", "#a0a0a0", "#707070", "#ffffff", "#1a1a1a"}
 	}
 }
+
+// GetLogoPalette returns theme-specific colors for the logo-spin family.
+// Slots: 0 deep shadow, 1 shadow, 2 mid, 3 lit, 4 highlight, 5 rim accent,
+// 6 background.
+func GetLogoPalette(themeName string) []string {
+	switch strings.ToLower(themeName) {
+	case "dracula":
+		return []string{"#282a36", "#44475a", "#6272a4", "#bd93f9", "#f8f8f2", "#8be9fd", "#282a36"}
+	case "catppuccin", "catppuccin-mocha":
+		return []string{"#11111b", "#313244", "#585b70", "#cba6f7", "#cdd6f4", "#89dceb", "#1e1e2e"}
+	case "nord":
+		return []string{"#242831", "#3b4252", "#4c566a", "#81a1c1", "#eceff4", "#88c0d0", "#2e3440"}
+	case "tokyo-night", "tokyonight":
+		return []string{"#16161e", "#1a1b26", "#414868", "#7aa2f7", "#c0caf5", "#7dcfff", "#1a1b26"}
+	case "gruvbox":
+		return []string{"#1d2021", "#282828", "#504945", "#d79921", "#ebdbb2", "#689d6a", "#282828"}
+	case "material":
+		return []string{"#1e272c", "#263238", "#546e7a", "#82aaff", "#eceff1", "#89ddff", "#263238"}
+	case "solarized":
+		return []string{"#001f27", "#002b36", "#586e75", "#268bd2", "#fdf6e3", "#2aa198", "#002b36"}
+	case "monochrome":
+		return []string{"#0a0a0a", "#2a2a2a", "#5a5a5a", "#9a9a9a", "#ffffff", "#c0c0c0", "#111111"}
+	case "transishardjob":
+		return []string{"#1a1a1a", "#2a2a2a", "#55cdfc", "#ffffff", "#ffffff", "#f7a8b8", "#1a1a1a"}
+	case "rama":
+		return []string{"#1a1c2a", "#2b2d42", "#8d99ae", "#d90429", "#edf2f4", "#ef233c", "#2b2d42"}
+	case "eldritch":
+		return []string{"#1a1b2a", "#212337", "#7081d0", "#04d1f9", "#ebfafa", "#37f499", "#212337"}
+	case "dark":
+		return []string{"#000000", "#1a1a1a", "#444444", "#999999", "#ffffff", "#cccccc", "#000000"}
+	default:
+		return []string{"#0f1117", "#1f2330", "#4a5068", "#9aa5c8", "#f2f4ff", "#7fc7ff", "#12141c"}
+	}
+}

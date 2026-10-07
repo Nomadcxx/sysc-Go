@@ -5,7 +5,7 @@ package animations
 
 const (
 	// LibraryVersion is the sysc-Go animations library version
-	LibraryVersion = "1.0.5"
+	LibraryVersion = "1.0.6"
 )
 
 // EffectMetadata describes an animation effect
@@ -144,6 +144,27 @@ var EffectRegistry = []EffectMetadata{
 		Description:  "Text decryption/reveal effect",
 		VersionAdded: "1.0.0",
 		Category:     "text",
+	},
+	{
+		Name:         "sysc-logo",
+		RequiresText: false,
+		Description:  "SYSC wordmark as a spinning 3D braille plate",
+		VersionAdded: "1.0.6",
+		Category:     "abstract",
+	},
+	{
+		Name:         "cross-logo",
+		RequiresText: false,
+		Description:  "Latin cross as a spinning 3D braille plate",
+		VersionAdded: "1.0.6",
+		Category:     "abstract",
+	},
+	{
+		Name:         "logo-morph",
+		RequiresText: false,
+		Description:  "SYSC and cross morphing on a spinning 3D braille plate",
+		VersionAdded: "1.0.6",
+		Category:     "abstract",
 	},
 }
 
