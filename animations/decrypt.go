@@ -69,7 +69,7 @@ func NewDecryptEffect(config DecryptConfig) *DecryptEffect {
 	effect := &DecryptEffect{
 		width:                  config.Width,
 		height:                 config.Height,
-		text:                   config.Text,
+		text:                   normalizeMultilineText(config.Text),
 		palette:                config.Palette,
 		typingSpeed:            config.TypingSpeed,
 		ciphertextColors:       config.CiphertextColors,
@@ -97,12 +97,13 @@ func (d *DecryptEffect) init() {
 
 	// Create characters from all lines
 	for lineIdx, line := range lines {
-		startX := (d.width - len(line)) / 2
+		runes := []rune(line)
+		startX := (d.width - len(runes)) / 2
 		if startX < 0 {
 			startX = 0
 		}
 
-		for charIdx, char := range line {
+		for charIdx, char := range runes {
 			finalX := startX + charIdx
 			finalY := startY + lineIdx
 
@@ -566,7 +567,7 @@ func (d *DecryptEffect) Reset() {
 
 // SetText updates the displayed text and reinitializes the decrypt animation.
 func (d *DecryptEffect) SetText(text string) {
-	d.text = text
+	d.text = normalizeMultilineText(text)
 	d.init()
 	d.prepareAnimations()
 }

@@ -91,8 +91,8 @@ func (r *RainEffect) Resize(width, height int) {
 	r.width = width
 	r.height = height
 	r.maxDrops = width * 2
-	r.initBuffers()
-	r.init()
+	r.drops = r.drops[:0] // init() re-seeds for the new size
+	r.init()              // init() already calls initBuffers()
 }
 
 // getRandomColor returns a random color from the theme palette
