@@ -1,6 +1,8 @@
 package animations
 
 import (
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -217,5 +219,49 @@ func TestLogoStyleModes(t *testing.T) {
 	}
 	if m.mode != logoModeRing {
 		t.Error("morph should downgrade edge style to ring")
+	}
+}
+
+// logoSpinCell is one lit braille dot cell: a true-colour escape, the glyph,
+// then a reset. Components are matched as plain decimal with no sign and no
+// padding, which is exactly what fmt's %d produced before compose() started
+// writing the bytes itself.
+var logoSpinCell = regexp.MustCompile("\x1b\\[38;2;(0|[1-9][0-9]*);(0|[1-9][0-9]*);(0|[1-9][0-9]*)m([\u2800-\u28ff])\x1b\\[0m")
+
+// A frame is spaces and newlines with one such escape per lit cell. If the
+// hand-rolled formatter drifts — a dropped semicolon, a padded component, an
+// unterminated escape — the leftovers stop being layout and this fails.
+func TestLogoSpinFrameIsLayoutPlusTruecolourCells(t *testing.T) {
+	m := NewLogoSpinEffect(LogoSpinConfig{Width: 80, Height: 30, Shape: "sysc", Theme: "dracula"})
+	frame := m.Render()
+
+	if strings.Contains(frame, "%!") {
+		t.Fatalf("frame carries a fmt error token: %q", frame)
+	}
+	cells := logoSpinCell.FindAllStringIndex(frame, -1)
+	if len(cells) == 0 {
+		t.Fatal("no lit cells, so the escape path went untested")
+	}
+
+	var residue strings.Builder
+	end := 0
+	for _, cell := range cells {
+		residue.WriteString(frame[end:cell[0]])
+		end = cell[1]
+		parts := logoSpinCell.FindStringSubmatch(frame[cell[0]:cell[1]])
+		for _, comp := range parts[1:4] {
+			n, err := strconv.Atoi(comp)
+			if err != nil || n > 255 {
+				t.Errorf("colour component %q is not a byte in %q", comp, frame[cell[0]:cell[1]])
+			}
+		}
+		if parts[4] == "" {
+			t.Errorf("cell %q carries no glyph", frame[cell[0]:cell[1]])
+		}
+	}
+	residue.WriteString(frame[end:])
+
+	if left := strings.TrimLeft(residue.String(), " \n"); left != "" {
+		t.Errorf("bytes between or after the cells: %q", left)
 	}
 }
