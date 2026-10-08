@@ -26,6 +26,8 @@ import (
 //   - filename: The name for the exported file (e.g., "my-art.txt").
 //     Path separators and shell metacharacters are automatically stripped.
 //   - content: The ASCII art content to export (plain text).
+//   - overwrite: Whether an existing file at the destination may be replaced.
+//     With false an existing file yields an error wrapping ErrFileExists.
 //
 // Returns:
 //   - nil on success
@@ -34,7 +36,7 @@ import (
 // Example:
 //
 //	art := "HELLO\nWORLD"
-//	err := ExportToSyscWalls("greeting.txt", art)
+//	err := ExportToSyscWalls("greeting.txt", art, false)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -44,7 +46,7 @@ import (
 //   - Only safe characters allowed in filenames
 //   - Files created with 0600 permissions (user-only read/write)
 //   - Directories created with 0700 permissions (user-only access)
-func ExportToSyscWalls(filename, content string) error {
+func ExportToSyscWalls(filename, content string, overwrite bool) error {
 	// Sanitize filename: strip any directory components to prevent path traversal
 	filename = filepath.Base(filename)
 
@@ -81,6 +83,9 @@ func ExportToSyscWalls(filename, content string) error {
 	}
 
 	// Save ASCII art file with user-only permissions
+	if err := refuseExisting(artPath, overwrite); err != nil {
+		return err
+	}
 	if err := os.WriteFile(artPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to save ASCII art: %w", err)
 	}
@@ -118,14 +123,14 @@ func updateSyscWallsConfig(configPath, artPath string) error {
 	// If config exists, read and merge
 	if data, err := os.ReadFile(configPath); err == nil {
 		parseINI(string(data), config)
-		// Update animation section with new file
+		// Point the screensaver at the new file and nothing else.  The type,
+		// theme and cycle keys above are defaults for a config we are creating
+		// from scratch; forcing them onto an existing config silently rewrote
+		// settings the user chose.
 		if config["animation"] == nil {
 			config["animation"] = make(map[string]string)
 		}
 		config["animation"]["file"] = artPath
-		config["animation"]["type"] = "beam-text"
-		config["animation"]["theme"] = "dracula"
-		config["animation"]["cycle"] = "false"
 	}
 
 	// Write config
@@ -208,6 +213,7 @@ func writeINI(path string, config map[string]map[string]string) error {
 //   - filename: The base filename for the export (extension added if missing)
 //   - content: The ASCII art content as an array of lines (may contain ANSI codes)
 //   - target: The export destination (0 = syscgo assets, 1 = sysc-walls daemon)
+//   - overwrite: Whether an existing destination file may be replaced
 //
 // Returns:
 //   - nil on success
@@ -216,11 +222,11 @@ func writeINI(path string, config map[string]map[string]string) error {
 // Example:
 //
 //	art := []string{"\x1b[31mHello\x1b[0m", "\x1b[32mWorld\x1b[0m"}
-//	err := ExportBitArt("greeting", art, 1)
+//	err := ExportBitArt("greeting", art, 1, false)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func ExportBitArt(filename string, content []string, target int) error {
+func ExportBitArt(filename string, content []string, target int, overwrite bool) error {
 	// Strip ANSI codes
 	plainContent := ""
 	for _, line := range content {
@@ -234,10 +240,10 @@ func ExportBitArt(filename string, content []string, target int) error {
 
 	switch target {
 	case 0: // syscgo
-		return saveToAssets(filename, plainContent)
+		return saveToAssets(filename, plainContent, overwrite)
 
 	case 1: // sysc-walls
-		return ExportToSyscWalls(filename, plainContent)
+		return ExportToSyscWalls(filename, plainContent, overwrite)
 
 	default:
 		return fmt.Errorf("unknown export target: %d", target)

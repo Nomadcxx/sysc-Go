@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -297,6 +298,22 @@ func (m Model) handleEditorKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Handle save prompt separately
 	if m.showSavePrompt {
+		// While a collision is pending the prompt answers y/n only, so a stray
+		// character cannot land in the filename and retry with a new name.
+		if m.confirmOverwrite {
+			switch msg.String() {
+			case "y", "Y":
+				m.overwrite = true
+				m.confirmOverwrite = false
+				return m.saveFile()
+			default:
+				m.confirmOverwrite = false
+				m.overwrite = false
+				m.overwritePath = ""
+				m.saveError = ""
+				return m, nil
+			}
+		}
 		switch msg.String() {
 		case "esc":
 			// Cancel save prompt
@@ -371,13 +388,23 @@ func (m Model) saveFile() (Model, tea.Cmd) {
 	var err error
 	switch m.exportTarget {
 	case 0:
-		err = saveToAssets(filename, m.textarea.Value())
+		err = saveToAssets(filename, m.textarea.Value(), m.overwrite)
 	case 1:
-		err = ExportToSyscWalls(filename, m.textarea.Value())
+		err = ExportToSyscWalls(filename, m.textarea.Value(), m.overwrite)
 	default:
 		m.saveError = fmt.Sprintf("unknown export target: %d", m.exportTarget)
 		return m, nil
 	}
+
+	// A collision is not an error to report: hold the prompt open and wait for
+	// an explicit yes before anything on disk is replaced.
+	var exists *ExistsError
+	if errors.As(err, &exists) {
+		m.confirmOverwrite = true
+		m.overwritePath = exists.Path
+		return m, nil
+	}
+
 	if err != nil {
 		m.saveError = err.Error()
 		return m, nil
@@ -387,6 +414,9 @@ func (m Model) saveFile() (Model, tea.Cmd) {
 	m.editorMode = false
 	m.showSavePrompt = false
 	m.saveError = ""
+	m.confirmOverwrite = false
+	m.overwrite = false
+	m.overwritePath = ""
 	m.textarea.Blur()
 	m.textarea.Reset()
 	m.filenameInput.SetValue("")

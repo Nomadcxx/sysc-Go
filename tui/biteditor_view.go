@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -25,39 +26,67 @@ func (m Model) renderBitEditorView() string {
 		return m.renderBitSavePrompt()
 	}
 
-	var sections []string
-
 	// Title
 	title := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#88C0D0")).
 		Padding(1, 0).
 		Render("BIT Text Editor - Banner Text Generator")
-	sections = append(sections, title)
-
-	// Preview canvas
-	sections = append(sections, m.renderBitPreview())
 
 	// Text input
-	sections = append(sections, m.renderBitTextInput())
+	input := m.renderBitTextInput()
 
 	// Controls
-	sections = append(sections, m.renderBitControls())
+	controls := m.renderBitControls()
 
 	// Help text
-	sections = append(sections, m.renderBitHelp())
+	help := m.renderBitHelp()
+
+	// The banner can be far taller than the terminal, so give the preview
+	// whatever the rest leaves over and clip the rest away.  Measuring the
+	// chrome keeps this honest when any of these blocks changes height.
+	chrome := lipgloss.Height(lipgloss.JoinVertical(lipgloss.Left, title, input, controls, help))
+	sections := []string{title, m.renderBitPreview(m.bitPreviewHeight(chrome)), input, controls, help}
 
 	// No background wrapping to prevent bleeding
 	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
 	return content
 }
 
-// renderBitPreview renders the live preview canvas
-func (m Model) renderBitPreview() string {
+// bitPreviewRowsFrame is what the preview's own rounded border and padding
+// cost, beyond the preview lines themselves.
+const bitPreviewRowsFrame = 4
+
+// bitPreviewHeight is how many preview rows fit below chrome rows of editor
+// furniture, once the preview frame's own border and padding are paid for.
+func (m Model) bitPreviewHeight(chrome int) int {
+	h := m.height - chrome - bitPreviewRowsFrame
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
+// renderBitPreview renders the live preview canvas, showing at most maxRows
+// rows of a banner that does not fit.
+func (m Model) renderBitPreview(maxRows int) string {
 	var preview string
 	if len(m.bitPreviewLines) > 0 {
-		// Render all preview lines - no truncation, let terminal handle scrolling
-		preview = strings.Join(m.bitPreviewLines, "\n")
+		lines := m.bitPreviewLines
+		truncated := false
+		// The notice is a preview row too, so a clipped banner gives one up.
+		keep := len(lines)
+		if keep > maxRows {
+			keep = maxRows
+			if maxRows > 1 {
+				keep = maxRows - 1
+				truncated = true
+			}
+		}
+		preview = strings.Join(lines[len(lines)-keep:], "\n")
+		if truncated {
+			preview = "… " + strconv.Itoa(len(m.bitPreviewLines)-keep) + " earlier rows hidden\n" + preview
+		}
 	} else {
 		// Show placeholder
 		preview = "Preview will appear here... Type text below to see it rendered."
@@ -422,19 +451,31 @@ func (m Model) renderBitSavePrompt() string {
 		Render("Save Banner Text")
 	sections = append(sections, title)
 
+	warningStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#BF616A")).
+		Bold(true).
+		Padding(1, 0)
 	if m.saveError != "" {
-		errorStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#BF616A")).
-			Bold(true).
-			Padding(1, 0)
-		sections = append(sections, errorStyle.Render("⚠ "+m.saveError))
+		sections = append(sections, warningStyle.Render("⚠ "+m.saveError))
 	}
 
-	instructions := lipgloss.NewStyle().
+	instructionsStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#ECEFF4")).
-		Padding(1, 0).
-		Render("Enter filename (will be saved to assets/ folder):")
-	sections = append(sections, instructions)
+		Padding(1, 0)
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#4C566A")).
+		Padding(1, 0)
+
+	// A pending collision replaces the filename form with the question.
+	if m.confirmOverwrite {
+		sections = append(sections, warningStyle.Render("⚠ "+m.overwritePath+" already exists"))
+		sections = append(sections, instructionsStyle.Render("Overwrite it with the banner on screen?"))
+		sections = append(sections, helpStyle.Render("y Overwrite • any other key Keep existing"))
+		return lipgloss.JoinVertical(lipgloss.Left, sections...)
+	}
+
+	// The destination follows the selected target, so name it.
+	sections = append(sections, instructionsStyle.Render(fmt.Sprintf("Enter filename (will be saved to %s):", exportDirLabel(m.exportTarget))))
 
 	inputStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -443,8 +484,7 @@ func (m Model) renderBitSavePrompt() string {
 		Width(m.width - 6)
 	sections = append(sections, inputStyle.Render(m.filenameInput.View()))
 
-	helpText := "Enter Confirm • Esc Cancel"
-	sections = append(sections, m.styles.Help.Render(helpText))
+	sections = append(sections, m.styles.Help.Render("Enter Confirm • Esc Cancel"))
 
 	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
 	return content

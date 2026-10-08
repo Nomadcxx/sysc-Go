@@ -121,8 +121,9 @@ func validateFilename(filename string) error {
 	return nil
 }
 
-// saveToAssets saves content to a file in the assets directory
-func saveToAssets(filename, content string) error {
+// saveToAssets saves content to a file in the assets directory.  An existing
+// file is left alone unless overwrite is set.
+func saveToAssets(filename, content string, overwrite bool) error {
 	// Validate filename
 	if err := validateFilename(filename); err != nil {
 		return fmt.Errorf("invalid filename: %w", err)
@@ -165,9 +166,33 @@ func saveToAssets(filename, content string) error {
 
 	// Write file
 	filePath := filepath.Join(targetPath, filename)
+	if err := refuseExisting(filePath, overwrite); err != nil {
+		return err
+	}
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("could not write file: %w", err)
 	}
 
+	return nil
+}
+
+// exportDirLabel names where an export target actually writes, for the save
+// prompt.  0 lands in the assets folder, 1 under the sysc-walls data dir.
+func exportDirLabel(target int) string {
+	if target == 1 {
+		return filepath.Join("~", ".local", "share", "syscgo", "walls")
+	}
+	return "the assets/ folder"
+}
+
+// refuseExisting returns an *ExistsError when path is already there and the
+// caller did not opt into overwriting it.
+func refuseExisting(path string, overwrite bool) error {
+	if overwrite {
+		return nil
+	}
+	if _, err := os.Stat(path); err == nil {
+		return &ExistsError{Path: path}
+	}
 	return nil
 }
