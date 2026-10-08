@@ -202,10 +202,10 @@ func (m *MatrixEffect) Update() {
 		// Low probability to create new streaks
 		if rand.Float64() < 0.02 && len(m.streaks) < 150 { // Limit total streaks
 			streak := MatrixStreak{
-				X:       i,
-				Y:       -rand.Intn(5),     // Start just above screen
-				Length:  rand.Intn(15) + 5, // Length 5-20
-				Speed:   rand.Intn(3) + 1,  // Speed 1-3
+				X:       rand.Intn(m.width), // Keep capped spawns spread across the grid.
+				Y:       -rand.Intn(5),      // Start just above screen
+				Length:  rand.Intn(15) + 5,  // Length 5-20
+				Speed:   rand.Intn(3) + 1,   // Speed 1-3
 				Counter: 0,
 				Active:  true,
 			}
