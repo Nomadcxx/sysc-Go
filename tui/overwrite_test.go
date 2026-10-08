@@ -81,10 +81,19 @@ func TestUpdateSyscWallsConfigKeepsExistingSettings(t *testing.T) {
 		t.Fatalf("read config: %v", err)
 	}
 	conf := string(got)
-	for _, want := range []string{"type = matrix", "theme = solarized", "cycle = true", "file = " + artPath} {
+	for _, want := range []string{"theme = solarized", "cycle = true", "file = " + artPath} {
 		if !strings.Contains(conf, want) {
 			t.Errorf("config lost %q:\n%s", want, conf)
 		}
+	}
+	// The export does have to pick the effect, otherwise the new file is never
+	// drawn, and `type` is the one key it removes: sysc-walls has no such key,
+	// so a stale one only misleads whoever reads the config next.
+	if !strings.Contains(conf, "effect = beam-text") {
+		t.Errorf("config did not select the text effect:\n%s", conf)
+	}
+	if strings.Contains(conf, "type =") {
+		t.Errorf("config kept the ignored `type` key:\n%s", conf)
 	}
 }
 

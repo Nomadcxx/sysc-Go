@@ -23,8 +23,10 @@ Terminal Animation Library
 `
 
 // wrapText wraps text to fit within the specified width
-// findAssetFile searches for an asset file in multiple locations
-// Priority order: user writable directories first, then system read-only paths
+// findAssetFile searches for an asset file in multiple locations.
+// Priority order: user writable directories first, then system read-only paths.
+// A candidate only counts when it is a readable regular file, so an unreadable
+// or directory entry earlier in the list does not shadow a good match later.
 func findAssetFile(filename string) string {
 	// Get the directory containing the binary
 	exePath, err := os.Executable()
@@ -36,7 +38,13 @@ func findAssetFile(filename string) string {
 	locations := assetSearchPaths(filename, os.Getenv("HOME"), binaryDir)
 
 	for _, path := range locations {
-		if _, err := os.Stat(path); err == nil {
+		f, openErr := os.Open(path)
+		if openErr != nil {
+			continue
+		}
+		info, statErr := f.Stat()
+		f.Close()
+		if statErr == nil && info.Mode().IsRegular() {
 			return path
 		}
 	}
@@ -51,6 +59,19 @@ var assetShareDirs = []string{
 	filepath.Join("/usr/share/syscgo", "assets"),
 }
 
+// userAssetsDataDir is where the TUI saves new art: $XDG_DATA_HOME/syscgo,
+// defaulting to ~/.local/share/syscgo.  A relative or empty XDG_DATA_HOME is
+// ignored per the XDG spec.
+// ponytail: duplicated from tui/files.go rather than adding a shared package for one
+// function; move it into a shared package if a third copy appears.
+func userAssetsDataDir(home string) string {
+	base := os.Getenv("XDG_DATA_HOME")
+	if base == "" || !filepath.IsAbs(base) {
+		base = filepath.Join(home, ".local", "share")
+	}
+	return filepath.Join(base, "syscgo", "assets")
+}
+
 // assetSearchPaths returns candidate paths for an asset file.
 // home is the user home directory; binaryDir is the directory containing the executable (empty if unknown).
 func assetSearchPaths(filename, home, binaryDir string) []string {
@@ -59,12 +80,18 @@ func assetSearchPaths(filename, home, binaryDir string) []string {
 	// 2. Local relative paths
 	// 3. Binary-relative path
 	// 4. System install paths (read-only)
-	locations := []string{
-		filepath.Join(home, "sysc-Go", "assets", filename), // User home (writable, TUI saves here)
-		filepath.Join("assets", filename),                  // ./assets/ (current dir)
-		filepath.Join("../assets", filename),               // ../assets/ (parent dir, for TUI context)
-		filename,                                           // Bare filename in current directory
+	locations := []string{}
+	if home != "" {
+		locations = append(locations,
+			filepath.Join(home, "sysc-Go", "assets", filename), // Legacy checkout (writable)
+			filepath.Join(userAssetsDataDir(home), filename),   // Where the TUI saves new art
+		)
 	}
+	locations = append(locations,
+		filepath.Join("assets", filename),    // ./assets/ (current dir)
+		filepath.Join("../assets", filename), // ../assets/ (parent dir, for TUI context)
+		filename,                             // Bare filename in current directory
+	)
 
 	if binaryDir != "" {
 		locations = append(locations, filepath.Join(binaryDir, "assets", filename))
@@ -85,6 +112,19 @@ func resolveTextFile(file string) (text string, warning string, err error) {
 		data, readErr := os.ReadFile(file)
 		if readErr == nil {
 			return string(data), "", nil
+		}
+
+		// A bare name like SYSC2.txt or an exported art file is not a cwd path:
+		// search the asset directories for that name before giving up on it.
+		// Names with a path component are left alone so an asset dir is never
+		// probed with a traversal-like relative path.
+		if !filepath.IsAbs(file) && filepath.Base(file) == file {
+			if assetPath := findAssetFile(file); assetPath != "" {
+				data, assetErr := os.ReadFile(assetPath)
+				if assetErr == nil {
+					return string(data), "", nil
+				}
+			}
 		}
 
 		fallbackPath := findAssetFile("SYSC.txt")
