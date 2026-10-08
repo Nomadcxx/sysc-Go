@@ -18,10 +18,13 @@ func TestFindModuleRootFromInstallScriptLayout(t *testing.T) {
 		t.Fatalf("findModuleRoot(%s) = %q, %v; want %s", filepath.Dir(execPath), got, ok, root)
 	}
 
-	// Three filepath.Dir calls from that binary leave the module.
+	// Three filepath.Dir calls from that binary overshoot the module, which is
+	// why the lookup walks instead of assuming a depth. Asserted by arithmetic
+	// rather than by stat: a go.mod anywhere above t.TempDir() — a stray
+	// /tmp/go.mod, say — belongs to the machine, not to this fixture.
 	old := filepath.Dir(filepath.Dir(filepath.Dir(execPath)))
-	if _, err := os.Stat(filepath.Join(old, "go.mod")); err == nil {
-		t.Fatalf("old fixed-depth root %s unexpectedly contains go.mod", old)
+	if inside(root, old) {
+		t.Fatalf("fixed-depth root %s did not overshoot the module %s", old, root)
 	}
 }
 
@@ -40,32 +43,102 @@ func TestFindModuleRootFromCmdInstaller(t *testing.T) {
 }
 
 func TestFindModuleRootMissing(t *testing.T) {
-	if _, ok := findModuleRoot(t.TempDir()); ok {
-		t.Fatal("expected no module root")
+	useTempDirWithoutModule(t)
+	start := t.TempDir()
+	if _, err := os.Stat(filepath.Join(start, "go.mod")); err == nil {
+		t.Fatalf("%s already contains a go.mod", start)
+	}
+
+	if got, ok := findModuleRoot(start); ok {
+		t.Fatalf("findModuleRoot(%s) = %q, %v; want no module root", start, got, ok)
 	}
 }
 
-func TestGetProjectRootFallsBackToCwd(t *testing.T) {
-	root := t.TempDir()
-	writeGoMod(t, root)
-	nested := filepath.Join(root, "cmd", "installer")
-	if err := os.MkdirAll(nested, 0755); err != nil {
+// getProjectRoot resolves from the executable before the cwd, because
+// install.sh builds the binary into the repo root and runs it from elsewhere.
+// projectRootFrom takes that path as an argument so both halves of the order
+// can be exercised; a real test binary cannot be moved out of its build dir.
+func TestProjectRootFromPrefersExecutableModule(t *testing.T) {
+	planted := t.TempDir()
+	writeGoMod(t, planted)
+	exeDir := filepath.Join(planted, "go-build", "b001", "exe")
+	if err := os.MkdirAll(exeDir, 0755); err != nil {
 		t.Fatal(err)
 	}
+	exe := filepath.Join(exeDir, "installer.test")
 
+	cwd := t.TempDir()
+	writeGoMod(t, cwd)
+	chdir(t, filepath.Join(cwd, "cmd", "installer"))
+
+	if got, want := projectRootFrom(exe), planted; got != want {
+		t.Fatalf("projectRootFrom(%s) = %q, want the executable's module %q", exe, got, want)
+	}
+}
+
+// A binary built outside any module — `go run ./cmd/installer`, which lands in
+// the build cache — still resolves, from the cwd it was invoked in.
+func TestProjectRootFromFallsBackToCwd(t *testing.T) {
+	useTempDirWithoutModule(t)
+	exe := filepath.Join(t.TempDir(), "go-build", "b001", "exe", "installer.test")
+
+	cwd := t.TempDir()
+	writeGoMod(t, cwd)
+	chdir(t, filepath.Join(cwd, "cmd", "installer"))
+
+	if got, want := projectRootFrom(exe), cwd; got != want {
+		t.Fatalf("projectRootFrom(%s) = %q, want the cwd's module %q", exe, got, want)
+	}
+}
+
+func TestProjectRootFromWithNothingToFind(t *testing.T) {
+	useTempDirWithoutModule(t)
+	exe := filepath.Join(t.TempDir(), "installer.test")
+
+	chdir(t, t.TempDir())
+
+	if got, want := projectRootFrom(exe), "."; got != want {
+		t.Fatalf("projectRootFrom(%s) = %q, want %q", exe, got, want)
+	}
+}
+
+// t.TempDir lives under os.TempDir, and a go.mod anywhere above that — a stray
+// /tmp/go.mod is enough to poison every walk on the machine — makes "no module
+// root" untestable. These tests need a directory whose whole ancestry is
+// go.mod-free, so TMPDIR is moved to one that is. Candidates are probed rather
+// than hardcoded because none of them exist on every machine.
+func useTempDirWithoutModule(t *testing.T) {
+	t.Helper()
+	for _, candidate := range []string{os.Getenv("XDG_RUNTIME_DIR"), "/var/tmp", "/dev/shm"} {
+		if candidate == "" {
+			continue
+		}
+		probe, err := os.MkdirTemp(candidate, "syscgo-clean-*")
+		if err != nil {
+			continue
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(probe) })
+		if _, found := findModuleRoot(probe); found {
+			continue
+		}
+		t.Setenv("TMPDIR", probe)
+		return
+	}
+	t.Skip("no directory with a go.mod-free ancestry is available on this machine")
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chdir(wd) })
-	if err := os.Chdir(nested); err != nil {
+	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
-	}
-
-	// The test binary lives outside this temp module, so resolution uses cwd.
-	got := getProjectRoot()
-	if got != root {
-		t.Fatalf("getProjectRoot() = %q, want %q", got, root)
 	}
 }
 
