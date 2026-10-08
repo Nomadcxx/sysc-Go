@@ -8,6 +8,31 @@ import (
 	"strings"
 )
 
+// userAssetsDir is where the TUI saves art: $XDG_DATA_HOME/syscgo/assets,
+// defaulting to ~/.local/share/syscgo/assets.  A relative or empty
+// XDG_DATA_HOME is ignored per the XDG spec, so art never lands in the cwd.
+// ponytail: the XDG rule is duplicated in cmd/syscgo/main.go; share it via a
+// package if a third copy shows up.
+func userAssetsDir() string {
+	base := os.Getenv("XDG_DATA_HOME")
+	if base == "" || !filepath.IsAbs(base) {
+		base = filepath.Join(os.Getenv("HOME"), ".local", "share")
+	}
+	return filepath.Join(base, "syscgo", "assets")
+}
+
+// legacyAssetsDir is the assets folder of a source checkout, still honoured for
+// users who already save there.
+func legacyAssetsDir() string {
+	return filepath.Join(os.Getenv("HOME"), "sysc-Go", "assets")
+}
+
+// isDir reports whether path is an existing directory.
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
 // discoverAssetFiles finds all .txt files in the assets directory
 func discoverAssetFiles() []string {
 	var files []string
@@ -22,10 +47,11 @@ func discoverAssetFiles() []string {
 
 	// Try multiple possible asset paths (prioritize user-writable locations)
 	assetPaths := []string{
-		filepath.Join(os.Getenv("HOME"), "sysc-Go", "assets"), // User home (writable)
-		"assets",    // Current directory
-		"./assets",  // Explicit relative
-		"../assets", // Parent directory
+		legacyAssetsDir(), // Legacy source checkout
+		userAssetsDir(),   // Where the TUI saves new art
+		"assets",          // Current directory
+		"./assets",        // Explicit relative
+		"../assets",       // Parent directory
 		filepath.Join("/usr/local/share/syscgo", "assets"), // Local install (matches installer)
 		filepath.Join("/usr/share/syscgo", "assets"),       // System install (matches installer)
 	}
@@ -66,10 +92,11 @@ func getAssetPath(filename string) string {
 	}
 
 	assetPaths := []string{
-		filepath.Join(os.Getenv("HOME"), "sysc-Go", "assets", filename), // User home (writable, TUI saves here)
-		filepath.Join("assets", filename),                               // ./assets/ (current dir)
-		filepath.Join("../assets", filename),                            // ../assets/ (parent dir)
-		filename,                                                        // Bare filename in current directory
+		filepath.Join(legacyAssetsDir(), filename), // Legacy source checkout
+		filepath.Join(userAssetsDir(), filename),   // Where the TUI saves new art
+		filepath.Join("assets", filename),          // ./assets/ (current dir)
+		filepath.Join("../assets", filename),       // ../assets/ (parent dir)
+		filename,                                   // Bare filename in current directory
 	}
 
 	// Add binary-relative path if available
@@ -134,34 +161,16 @@ func saveToAssets(filename, content string, overwrite bool) error {
 		return fmt.Errorf("content cannot be empty")
 	}
 
-	// Try to find writable assets directory
-	assetPaths := []string{
-		filepath.Join(os.Getenv("HOME"), "sysc-Go", "assets"), // User home (writable)
-		"assets",    // Current directory
-		"./assets",  // Explicit relative
-		"../assets", // Parent directory
+	// Save to a stable per-user directory so art is found from any working
+	// directory.  A legacy ~/sysc-Go/assets keeps priority for users who
+	// already have one; the cwd is never written to, which would otherwise
+	// drop the file into whatever unrelated project the TUI was started in.
+	targetPath := userAssetsDir()
+	if legacy := legacyAssetsDir(); isDir(legacy) {
+		targetPath = legacy
 	}
-
-	var targetPath string
-	for _, assetPath := range assetPaths {
-		// Check if directory exists
-		if info, err := os.Stat(assetPath); err == nil && info.IsDir() {
-			// Check if writable by trying to create a temp file
-			testFile := filepath.Join(assetPath, ".write_test")
-			if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
-				os.Remove(testFile)
-				targetPath = assetPath
-				break
-			}
-		}
-	}
-
-	// If no writable directory found, try to create ./assets
-	if targetPath == "" {
-		targetPath = "assets"
-		if err := os.MkdirAll(targetPath, 0755); err != nil {
-			return fmt.Errorf("could not create assets directory: %w", err)
-		}
+	if err := os.MkdirAll(targetPath, 0o755); err != nil {
+		return fmt.Errorf("could not create assets directory: %w", err)
 	}
 
 	// Write file

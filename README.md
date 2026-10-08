@@ -163,6 +163,9 @@ When you create ASCII art using the TUI (syscgo-tui) and export it, files are sa
 ~/.local/share/syscgo/assets/
 ```
 
+Set `XDG_DATA_HOME` to save under a different data root. If you already keep a
+`~/sysc-Go/assets/` directory from a source checkout, exports keep going there.
+
 **Example usage:**
 ```bash
 # Create art in TUI

@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -100,7 +99,66 @@ func ExportToSyscWalls(filename, content string, overwrite bool) error {
 	return nil
 }
 
-// updateSyscWallsConfig updates or creates the sysc-walls daemon config
+// syscWallsDefaultConfig is written when no config exists yet.  It mirrors
+// sysc-walls' own default layout so the daemon still shows its help comments.
+// The four [animation] values an export owns are filled in by the caller.
+const syscWallsDefaultConfig = `# sysc-walls daemon configuration
+
+[idle]
+timeout = 5m
+min_duration = 30s
+
+[daemon]
+debug = false
+
+[animation]
+# Available effects: fire, matrix, rain, beam-text, ring-text, pour, print,
+# matrix-art, rain-art, blackhole-text
+# Available themes: dracula, gruvbox, nord, tokyo-night, catppuccin, material,
+# solarized, monochrome, transishardjob, rama, eldritch, dark
+effect = %EFFECT%
+file = %FILE%
+theme = %THEME%
+datetime = false
+cycle = false
+cycle_interval = 5m
+
+[datetime]
+position = bottom
+interval = 1s
+
+[terminal]
+kitty = true
+fullscreen = true
+`
+
+// syscWallsOwnedKeys are the [animation] keys an export owns.  sysc-walls
+// reads `effect`, not `type`: an unknown key is silently ignored, which is why
+// exporting used to leave the screensaver running whatever effect the user
+// already had, showing no exported art at all.
+//
+// An existing config only ever gets effect and file.  An export picks what
+// plays; rewriting the user's theme or cycle would restate a setting they
+// chose (#114).  A config created from scratch has nothing to preserve, so it
+// gets the full default set.
+func syscWallsOwnedKeys(artPath string, fresh bool) [][2]string {
+	if !fresh {
+		return [][2]string{
+			{"effect", "beam-text"},
+			{"file", artPath},
+		}
+	}
+	return [][2]string{
+		{"effect", "beam-text"},
+		{"file", artPath},
+		{"theme", "dracula"},
+		{"cycle", "false"},
+	}
+}
+
+// updateSyscWallsConfig points the [animation] section at artPath, creating a
+// default config when there is none.  An existing config is edited in place:
+// comments, blank lines, key order and every other section survive untouched.
 func updateSyscWallsConfig(configPath, artPath string) error {
 	// Create config directory with user-only permissions
 	configDir := filepath.Dir(configPath)
@@ -108,100 +166,260 @@ func updateSyscWallsConfig(configPath, artPath string) error {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	// Read existing config or create default
-	config := make(map[string]map[string]string)
-	config["idle"] = map[string]string{"timeout": "300s", "min_duration": "30s"}
-	config["daemon"] = map[string]string{"debug": "false"}
-	config["terminal"] = map[string]string{"fullscreen": "true", "kitty": "true"}
-	config["animation"] = map[string]string{
-		"type":  "beam-text",
-		"theme": "dracula",
-		"file":  artPath,
-		"cycle": "false",
-	}
+	// An existing file keeps its own mode; a new one is user-only.
+	mode := os.FileMode(0600)
 
-	// If config exists, read and merge
-	if data, err := os.ReadFile(configPath); err == nil {
-		parseINI(string(data), config)
-		// Point the screensaver at the new file and nothing else.  The type,
-		// theme and cycle keys above are defaults for a config we are creating
-		// from scratch; forcing them onto an existing config silently rewrote
-		// settings the user chose.
-		if config["animation"] == nil {
-			config["animation"] = make(map[string]string)
+	data, readErr := os.ReadFile(configPath)
+	if readErr != nil {
+		if !os.IsNotExist(readErr) {
+			return fmt.Errorf("failed to read config: %w", readErr)
 		}
-		config["animation"]["file"] = artPath
+		content := syscWallsDefaultConfig
+		for _, kv := range syscWallsOwnedKeys(artPath, true) {
+			content = strings.Replace(content, "%"+strings.ToUpper(kv[0])+"%", kv[1], 1)
+		}
+		return writeConfigAtomic(configPath, []byte(content), mode)
 	}
 
-	// Write config
-	if err := writeINI(configPath, config); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
+	if info, err := os.Stat(configPath); err == nil {
+		mode = info.Mode().Perm()
 	}
 
+	updated := setAnimationKeys(string(data), syscWallsOwnedKeys(artPath, false))
+	return writeConfigAtomic(configPath, []byte(updated), mode)
+}
+
+// writeConfigAtomic replaces path via a temp file in the same directory, so a
+// reader never sees a half-written config.  A symlinked config is resolved
+// first: renaming onto the link itself would replace the link.
+func writeConfigAtomic(path string, content []byte, mode os.FileMode) error {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".daemon.conf.tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	committed := false
+	defer func() {
+		tmp.Close()
+		if !committed {
+			os.Remove(tmpName)
+		}
+	}()
+
+	if _, err := tmp.Write(content); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	// Chmod before the rename so the file is never visible at the wrong mode.
+	if err := tmp.Chmod(mode); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	committed = true
 	return nil
 }
 
-// parseINI parses a simple INI format config
-func parseINI(content string, config map[string]map[string]string) {
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	var currentSection string
+// setAnimationKeys rewrites the owned keys inside [animation] of an INI config
+// and returns the result.  Only the owned keys change; every other byte of the
+// file, including comments and blank lines, is preserved.
+func setAnimationKeys(content string, owned [][2]string) string {
+	lines := splitLinesKeepEndings(content)
 
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	// Which owned keys still need a value written.
+	missing := make([][2]string, len(owned))
+	copy(missing, owned)
+	seen := map[string]bool{}
+	has := map[string]bool{}
 
-		// Skip empty lines and comments
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+	inAnimation := false
+	sawAnimation := false
+	lastContent := -1 // index of the last non-blank line of the section
+
+	ending := "\n"
+	if strings.Contains(content, "\r\n") {
+		ending = "\r\n"
+	}
+
+	for i, line := range lines {
+		body := strings.TrimRight(line, "\r\n")
+
+		trimmed := strings.TrimSpace(body)
+		if trimmed == "" {
 			continue
 		}
-
-		// Section header
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			currentSection = line[1 : len(line)-1]
-			if config[currentSection] == nil {
-				config[currentSection] = make(map[string]string)
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			if inAnimation {
+				// Section ended: append anything still missing after its last
+				// real line, so trailing blank lines stay trailing.
+				lines, _ = insertAt(lines, insertIndex(lines, i, lastContent), missing, ending)
+				missing = nil
+			}
+			inAnimation = strings.EqualFold(strings.TrimSpace(trimmed[1:len(trimmed)-1]), "animation")
+			if inAnimation {
+				sawAnimation = true
+				lastContent = -1
 			}
 			continue
 		}
 
-		// Key-value pair
-		if currentSection != "" && strings.Contains(line, "=") {
-			parts := strings.SplitN(line, "=", 2)
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			config[currentSection][key] = value
+		if !inAnimation {
+			continue
+		}
+
+		if !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, ";") {
+			lastContent = i
+		}
+
+		key, prefix, ok := splitConfigAssignment(body)
+		if !ok {
+			continue
+		}
+
+		// `type` is what older sysc-Go versions wrote; sysc-walls never read it.
+		if key == "type" {
+			lines[i] = ""
+			continue
+		}
+
+		if !isOwnedKey(owned, key) {
+			continue
+		}
+		if seen[key] {
+			lines[i] = "" // Collapse a repeated owned key.
+			continue
+		}
+
+		seen[key] = true
+		has[key] = true
+		missing = dropKey(missing, key)
+		lines[i] = prefix + valueOf(owned, key) + lineEnding(line)
+	}
+
+	if sawAnimation {
+		lines, _ = insertAt(lines, insertIndex(lines, len(lines), lastContent), missing, ending)
+	} else {
+		if len(lines) > 0 && lines[len(lines)-1] != "\n" && lines[len(lines)-1] != "\r\n" {
+			lines = append(lines, ending)
+		}
+		lines = append(lines, ending, "[animation]"+ending)
+		for _, kv := range owned {
+			lines = append(lines, kv[0]+" = "+kv[1]+ending)
 		}
 	}
+
+	return strings.Join(lines, "")
 }
 
-// writeINI writes config to INI format
-func writeINI(path string, config map[string]map[string]string) error {
-	var content strings.Builder
+// splitConfigAssignment splits "  key = value" into its trimmed key and the
+// prefix to keep verbatim: indentation, the key, and the spacing up to and
+// including "=".  That keeps "  effect = x" and "effect=x" spelled the way the
+// user spelled them.
+func splitConfigAssignment(body string) (key, prefix string, ok bool) {
+	eq := strings.Index(body, "=")
+	if eq < 0 {
+		return "", "", false
+	}
+	prefix = body[:eq+1]
+	rest := body[eq+1:]
+	// Carry the spacing that followed "=" onto the new value.
+	i := 0
+	for i < len(rest) && (rest[i] == ' ' || rest[i] == '\t') {
+		i++
+	}
+	prefix += rest[:i]
+	key = strings.TrimSpace(body[:eq])
+	if key == "" {
+		return "", "", false
+	}
+	return key, prefix, true
+}
 
-	// Write sections in a specific order
-	sectionOrder := []string{"idle", "daemon", "animation", "terminal"}
+func lineEnding(line string) string {
+	if strings.HasSuffix(line, "\r\n") {
+		return "\r\n"
+	}
+	if strings.HasSuffix(line, "\n") {
+		return "\n"
+	}
+	return ""
+}
 
-	for _, section := range sectionOrder {
-		if values, ok := config[section]; ok {
-			content.WriteString(fmt.Sprintf("[%s]\n", section))
-			for key, value := range values {
-				content.WriteString(fmt.Sprintf("%s = %s\n", key, value))
-			}
-			content.WriteString("\n")
-			delete(config, section) // Mark as written
+func splitLinesKeepEndings(content string) []string {
+	var lines []string
+	for len(content) > 0 {
+		i := strings.IndexByte(content, '\n')
+		if i < 0 {
+			lines = append(lines, content)
+			break
+		}
+		lines = append(lines, content[:i+1])
+		content = content[i+1:]
+	}
+	return lines
+}
+
+// insertIndex is where a section's missing keys belong: straight after its last
+// non-blank line, or at the next header (EOF) when the section has none.
+func insertIndex(lines []string, at, lastContent int) int {
+	if lastContent >= 0 && lastContent+1 <= len(lines) {
+		return lastContent + 1
+	}
+	return at
+}
+
+func insertAt(lines []string, at int, keys [][2]string, ending string) ([]string, int) {
+	if len(keys) == 0 {
+		return lines, at
+	}
+	added := make([]string, 0, len(keys))
+	for _, kv := range keys {
+		added = append(added, kv[0]+" = "+kv[1]+ending)
+	}
+	out := make([]string, 0, len(lines)+len(added))
+	out = append(out, lines[:at]...)
+	out = append(out, added...)
+	out = append(out, lines[at:]...)
+	return out, at + len(added)
+}
+
+func isOwnedKey(owned [][2]string, key string) bool {
+	for _, kv := range owned {
+		if strings.EqualFold(kv[0], key) {
+			return true
 		}
 	}
+	return false
+}
 
-	// Write any remaining sections
-	for section, values := range config {
-		content.WriteString(fmt.Sprintf("[%s]\n", section))
-		for key, value := range values {
-			content.WriteString(fmt.Sprintf("%s = %s\n", key, value))
+func valueOf(owned [][2]string, key string) string {
+	for _, kv := range owned {
+		if strings.EqualFold(kv[0], key) {
+			return kv[1]
 		}
-		content.WriteString("\n")
 	}
+	return ""
+}
 
-	// Write config file with user-only permissions
-	return os.WriteFile(path, []byte(content.String()), 0600)
+func dropKey(keys [][2]string, key string) [][2]string {
+	out := keys[:0]
+	for _, kv := range keys {
+		if !strings.EqualFold(kv[0], key) {
+			out = append(out, kv)
+		}
+	}
+	return out
 }
 
 // ExportBitArt handles export target selection and saves accordingly.
