@@ -387,20 +387,32 @@ func (m Model) renderSavePrompt() string {
 	sections = append(sections, title)
 
 	// Error message if any
+	warningStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#BF616A")).
+		Bold(true).
+		Padding(1, 0)
 	if m.saveError != "" {
-		errorStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#BF616A")).
-			Bold(true).
-			Padding(1, 0)
-		sections = append(sections, errorStyle.Render("⚠ "+m.saveError))
+		sections = append(sections, warningStyle.Render("⚠ "+m.saveError))
 	}
 
-	// Instructions
-	instructions := lipgloss.NewStyle().
+	instructionsStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#ECEFF4")).
-		Padding(1, 0).
-		Render("Enter filename (will be saved to assets/ folder):")
-	sections = append(sections, instructions)
+		Padding(1, 0)
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#4C566A")).
+		Padding(1, 0)
+
+	// A pending collision replaces the filename form with the question.
+	if m.confirmOverwrite {
+		sections = append(sections, warningStyle.Render("⚠ "+m.overwritePath+" already exists"))
+		sections = append(sections, instructionsStyle.Render("Overwrite it with the file on screen?"))
+		sections = append(sections, helpStyle.Render("y Overwrite • any other key Keep existing"))
+		return lipgloss.JoinVertical(lipgloss.Left, sections...)
+	}
+
+	// Instructions.  The destination depends on the selected target, so name
+	// it rather than claiming everything lands in assets/.
+	sections = append(sections, instructionsStyle.Render(fmt.Sprintf("Enter filename (will be saved to %s):", exportDirLabel(m.exportTarget))))
 
 	// Filename input
 	inputStyle := lipgloss.NewStyle().
@@ -412,11 +424,7 @@ func (m Model) renderSavePrompt() string {
 	sections = append(sections, inputStyle.Render(m.filenameInput.View()))
 
 	// Help text
-	helpText := "Enter Confirm • Esc Cancel"
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#4C566A")).
-		Padding(1, 0)
-	sections = append(sections, helpStyle.Render(helpText))
+	sections = append(sections, helpStyle.Render("Enter Confirm • Esc Cancel"))
 
 	// No background wrapping to prevent bleeding
 	content := lipgloss.JoinVertical(lipgloss.Left, sections...)

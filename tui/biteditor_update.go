@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"errors"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -260,6 +262,23 @@ func (m Model) handleBitExportPromptKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd
 func (m Model) handleBitSavePromptKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
+	// A pending collision turns the prompt into a y/n answer, so nothing typed
+	// here can be mistaken for a filename.
+	if m.confirmOverwrite {
+		switch msg.String() {
+		case "y", "Y":
+			m.overwrite = true
+			m.confirmOverwrite = false
+			return m.saveBitArt()
+		default:
+			m.confirmOverwrite = false
+			m.overwrite = false
+			m.overwritePath = ""
+			m.saveError = ""
+			return m, nil
+		}
+	}
+
 	switch msg.String() {
 	case "esc":
 		m.showSavePrompt = false
@@ -464,7 +483,16 @@ func (m Model) saveBitArt() (Model, tea.Cmd) {
 	}
 
 	// Export using selected target
-	err := ExportBitArt(filename, m.bitPreviewLines, m.exportTarget)
+	err := ExportBitArt(filename, m.bitPreviewLines, m.exportTarget, m.overwrite)
+
+	// Hold the prompt open on a collision instead of replacing the file.
+	var exists *ExistsError
+	if errors.As(err, &exists) {
+		m.confirmOverwrite = true
+		m.overwritePath = exists.Path
+		return m, nil
+	}
+
 	if err != nil {
 		m.saveError = err.Error()
 		return m, nil
@@ -474,6 +502,9 @@ func (m Model) saveBitArt() (Model, tea.Cmd) {
 	m.bitEditorMode = false
 	m.showSavePrompt = false
 	m.saveError = ""
+	m.confirmOverwrite = false
+	m.overwrite = false
+	m.overwritePath = ""
 	m.filenameInput.SetValue("")
 	m.filenameInput.Blur()
 	m.bitTextInput.SetValue("")

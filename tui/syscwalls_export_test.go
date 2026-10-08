@@ -37,7 +37,7 @@ func TestExportToSyscWalls_PathTraversal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ExportToSyscWalls(tt.filename, "test content")
+			err := ExportToSyscWalls(tt.filename, "test content", false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExportToSyscWalls() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -68,7 +68,7 @@ func TestExportToSyscWalls_FilePermissions(t *testing.T) {
 	t.Setenv("HOME", tmpHome)
 
 	filename := "test-art.txt"
-	err := ExportToSyscWalls(filename, "test content")
+	err := ExportToSyscWalls(filename, "test content", false)
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestExportToSyscWalls_ConfigUpdate(t *testing.T) {
 	filename := "custom-art.txt"
 	content := "My ASCII Art"
 
-	err := ExportToSyscWalls(filename, content)
+	err := ExportToSyscWalls(filename, content, false)
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestExportToSyscWalls_ContentIntegrity(t *testing.T) {
 	filename := "content-test.txt"
 	content := "Line 1\nLine 2\nLine 3"
 
-	err := ExportToSyscWalls(filename, content)
+	err := ExportToSyscWalls(filename, content, false)
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestExportToSyscWalls_AutoTxtExtension(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ExportToSyscWalls(tt.inputFilename, "test")
+			err := ExportToSyscWalls(tt.inputFilename, "test", false)
 			if err != nil {
 				t.Fatalf("Export failed: %v", err)
 			}
@@ -212,7 +212,7 @@ func TestExportToSyscWalls_MultipleExports(t *testing.T) {
 	files := []string{"art1.txt", "art2.txt", "art3.txt"}
 	for i, filename := range files {
 		content := "Content " + string(rune('A'+i))
-		err := ExportToSyscWalls(filename, content)
+		err := ExportToSyscWalls(filename, content, false)
 		if err != nil {
 			t.Fatalf("Export %d failed: %v", i, err)
 		}

@@ -47,6 +47,9 @@ type Model struct {
 	exportTarget     int    // 0=syscgo, 1=sysc-walls
 	saveError        string // Error message from save operation
 	savingInProgress bool
+	overwrite        bool   // Replace an existing destination, once confirmed
+	confirmOverwrite bool   // Waiting on a y/n for the collision in overwritePath
+	overwritePath    string // Destination the collision was found at
 
 	// BIT Editor mode for banner text creation
 	bitEditorMode     bool
@@ -193,6 +196,9 @@ func NewModel() Model {
 		exportTarget:      0,
 		saveError:         "",
 		savingInProgress:  false,
+		overwrite:         false,
+		confirmOverwrite:  false,
+		overwritePath:     "",
 		// BIT Editor defaults
 		bitEditorMode:     false,
 		bitTextInput:      bitInput,

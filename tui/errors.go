@@ -1,6 +1,26 @@
 package tui
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+// ErrFileExists reports that an export would overwrite a file that is already
+// there.  Export functions return it wrapped with the destination path when
+// called with overwrite=false, so the caller can ask before clobbering.
+var ErrFileExists = errors.New("file already exists")
+
+// ExistsError names the destination that blocked an export.
+type ExistsError struct {
+	Path string
+}
+
+func (e *ExistsError) Error() string {
+	return fmt.Sprintf("%s already exists", e.Path)
+}
+
+// Unwrap lets errors.Is(err, ErrFileExists) match.
+func (e *ExistsError) Unwrap() error { return ErrFileExists }
 
 // ExportError represents an error during export operation.
 //
