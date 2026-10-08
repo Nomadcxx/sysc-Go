@@ -227,10 +227,10 @@ func writeINI(path string, config map[string]map[string]string) error {
 //	    log.Fatal(err)
 //	}
 func ExportBitArt(filename string, content []string, target int, overwrite bool) error {
-	// Strip ANSI codes
+	// Strip ANSI codes and any trailing alignment padding
 	plainContent := ""
 	for _, line := range content {
-		plainContent += stripANSI(line) + "\n"
+		plainContent += strings.TrimRight(stripANSI(line), " ") + "\n"
 	}
 
 	// Add .txt extension if not present

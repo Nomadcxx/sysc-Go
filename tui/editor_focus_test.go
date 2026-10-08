@@ -31,6 +31,8 @@ func TestCustomTextReentryFocusesTextarea(t *testing.T) {
 	m.width = 120
 	m.height = 40
 	initialW, initialH := m.textarea.Width(), m.textarea.Height()
+	// The editors are File entries, so a text animation is selected first.
+	m = selectAnimation(t, m, "fire-text")
 	m = selectFile(t, m, "Custom text")
 
 	entered, _ := m.Update(key(tea.KeyEnter))

@@ -430,17 +430,13 @@ func (m Model) handleBitControlDown() Model {
 	return m
 }
 
-// updateBitPreview regenerates the preview with current settings
-func (m Model) updateBitPreview() Model {
-	text := m.bitTextInput.Value()
-	if text == "" || m.bitCurrentFont == nil {
-		m.bitPreviewLines = []string{}
-		return m
-	}
-
-	opts := TUIRenderOptions{
+// bitRenderOptions builds the render options for the on-screen preview. The
+// preview is aligned against the canvas so alignment is visible (#78), which is
+// why MaxWidth tracks the terminal.
+func (m Model) bitRenderOptions() TUIRenderOptions {
+	return TUIRenderOptions{
 		Font:          m.bitCurrentFont,
-		Text:          text,
+		Text:          m.bitTextInput.Value(),
 		Alignment:     m.bitAlignment,
 		Color:         m.bitColor,
 		Scale:         m.bitScale,
@@ -456,8 +452,32 @@ func (m Model) updateBitPreview() Model {
 		GradientDir:   m.bitGradientDir,
 		MaxWidth:      m.width - 10,
 	}
+}
 
-	m.bitPreviewLines = RenderBitText(opts)
+// bitExportLines renders the banner for writing to a file. MaxWidth is dropped so
+// the canvas alignment padding never reaches disk: the text engines centre art by
+// its widest line, so a saved indent would shift the banner off centre and a saved
+// Right indent would push it off screen entirely.
+func (m Model) bitExportLines() []string {
+	opts := m.bitRenderOptions()
+	opts.MaxWidth = 0
+
+	// Plain text: this is what lands in the file.
+	lines := RenderBitText(opts)
+	for i, line := range lines {
+		lines[i] = stripANSI(line)
+	}
+	return lines
+}
+
+// updateBitPreview regenerates the preview with current settings
+func (m Model) updateBitPreview() Model {
+	if m.bitTextInput.Value() == "" || m.bitCurrentFont == nil {
+		m.bitPreviewLines = []string{}
+		return m
+	}
+
+	m.bitPreviewLines = RenderBitText(m.bitRenderOptions())
 	return m
 }
 
@@ -483,7 +503,7 @@ func (m Model) saveBitArt() (Model, tea.Cmd) {
 	}
 
 	// Export using selected target
-	err := ExportBitArt(filename, m.bitPreviewLines, m.exportTarget, m.overwrite)
+	err := ExportBitArt(filename, m.bitExportLines(), m.exportTarget, m.overwrite)
 
 	// Hold the prompt open on a collision instead of replacing the file.
 	var exists *ExistsError

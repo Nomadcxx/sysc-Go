@@ -29,6 +29,17 @@ func (a *AnimationWrapper) Reset() {
 	// Not implemented for most animations
 }
 
+// animationNeedsFile reports whether animName reads an ASCII art file, and
+// therefore whether the File selector is live for it. Single source of truth:
+// the editors are File entries, so they are only reachable for these.
+func animationNeedsFile(animName string) bool {
+	switch animName {
+	case "fire-text", "matrix-art", "rain-art", "pour", "print", "beam-text", "ring-text", "blackhole-text":
+		return true
+	}
+	return false
+}
+
 // createAnimation creates an animation instance based on the selected type and settings
 // Returns nil if the animation requires user interaction (editors) or isn't supported yet
 func (m *Model) createAnimation() animations.Animation {
@@ -40,29 +51,32 @@ func (m *Model) createAnimation() animations.Animation {
 	width := m.width - 10 // Leave small margin for UI elements
 	height := m.canvasHeight
 
-	// Handle editor modes
-	if fileName == "BIT Text Editor" {
-		m.bitEditorMode = true
-		// Ensure font is loaded when entering BIT editor
-		if m.bitCurrentFont == nil && len(m.bitFonts) > 0 {
-			font, err := loadBitFontByName(m.bitFonts[m.bitSelectedFont])
-			if err == nil {
-				m.bitCurrentFont = font
+	// Handle editor modes. The editors are File entries, so they are only
+	// reachable while the File selector is live for the chosen animation.
+	if animationNeedsFile(animName) {
+		if fileName == "BIT Text Editor" {
+			m.bitEditorMode = true
+			// Ensure font is loaded when entering BIT editor
+			if m.bitCurrentFont == nil && len(m.bitFonts) > 0 {
+				font, err := loadBitFontByName(m.bitFonts[m.bitSelectedFont])
+				if err == nil {
+					m.bitCurrentFont = font
+				}
 			}
+			m.bitTextInput.Focus()
+			return nil
 		}
-		m.bitTextInput.Focus()
-		return nil
-	}
-	if fileName == "Custom text" {
-		m.editorMode = true
-		// Esc and save blur the textarea. bubbles drops keystrokes while unfocused,
-		// so every entry must focus it again (NewModel only focuses the first one).
-		m.textarea.Focus()
-		if m.width > 10 && m.height > 10 {
-			m.textarea.SetWidth(m.width - 10)
-			m.textarea.SetHeight(m.height - 10)
+		if fileName == "Custom text" {
+			m.editorMode = true
+			// Esc and save blur the textarea. bubbles drops keystrokes while unfocused,
+			// so every entry must focus it again (NewModel only focuses the first one).
+			m.textarea.Focus()
+			if m.width > 10 && m.height > 10 {
+				m.textarea.SetWidth(m.width - 10)
+				m.textarea.SetHeight(m.height - 10)
+			}
+			return nil
 		}
-		return nil
 	}
 
 	// Create animation based on type (only simple constructors for now)
