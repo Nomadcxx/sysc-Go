@@ -89,11 +89,11 @@ type gridCell struct {
 
 // SkullAnimation implements the white-skull cyberpunk scene effect.
 type SkullAnimation struct {
-	width       int
-	height      int
-	palette     []string
-	theme       string
-	skullColor  string // Always bright — skull stays white through every phase.
+	width      int
+	height     int
+	palette    []string
+	theme      string
+	skullColor string // Always bright — skull stays white through every phase.
 
 	// Skull state
 	skullChars   []SkullChar
