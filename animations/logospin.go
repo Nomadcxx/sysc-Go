@@ -277,9 +277,8 @@ func sortLogoCrossings(c []struct {
 }
 
 var (
-	logoSDFMu     sync.Mutex
-	logoSDFCache  = map[string][]float64{}
-	logoSDFShared = func(name string) []float64 { return logoSDF(name) }
+	logoSDFMu    sync.Mutex
+	logoSDFCache = map[string][]float64{}
 )
 
 // logoSDF returns the shared baked field for a shape (nil if unknown).
@@ -612,13 +611,13 @@ func (l *LogoSpinAnimation) Render() string {
 	if l.mode == logoModeEdge {
 		return l.renderEdges()
 	}
-	a := logoSDFShared(l.shapeA)
+	a := logoSDF(l.shapeA)
 	if a == nil {
 		return ""
 	}
 	var b []float64
 	if l.morph {
-		b = logoSDFShared(l.shapeB)
+		b = logoSDF(l.shapeB)
 	}
 
 	rotation, tiltX, tiltZ := logoSpinRotation(l.frame)

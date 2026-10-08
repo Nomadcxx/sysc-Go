@@ -153,10 +153,14 @@ func TestLogoPaletteCoverage(t *testing.T) {
 }
 
 func TestLogoSpinRegistry(t *testing.T) {
-	for _, id := range []string{"sysc-logo", "cross-logo", "logo-morph"} {
+	ids := []string{"sysc-logo", "cross-logo", "justice-cross", "logo-morph"}
+	for _, id := range ids {
 		if GetEffectMetadata(id) == nil {
 			t.Errorf("registry missing %q", id)
 		}
+	}
+	if got := LibraryVersion; got != "1.0.6" {
+		t.Errorf("LibraryVersion = %q, want 1.0.6", got)
 	}
 }
 
