@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -85,11 +86,15 @@ type taskCompleteMsg struct {
 	cancelled bool
 }
 
-func newModel() model {
+func newModel(parent ...context.Context) model {
 	s := spinner.New()
 	s.Style = lipgloss.NewStyle().Foreground(Secondary)
 	s.Spinner = spinner.Dot
-	ctx, cancel := context.WithCancel(context.Background())
+	p := context.Background()
+	if len(parent) > 0 && parent[0] != nil {
+		p = parent[0]
+	}
+	ctx, cancel := context.WithCancel(p)
 
 	return model{
 		step:             stepWelcome,
@@ -812,6 +817,13 @@ func runInstaller() int {
 	// os.Exit skips defers in main, so cleanup lives in this function.
 	defer cleanupBuildOutput()
 
+	// Builds run with Setpgid (commandContext), so the compiler group never sees
+	// the terminal's SIGINT. Without this the --yes path would die by default
+	// SIGINT action, skip the deferred cleanup and orphan `go build` while
+	// install.sh's EXIT trap deleted the tree it was compiling from.
+	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+
 	// Check if go is installed (PATH, else the GOROOT this ran from under sudo)
 	if _, err := goToolchain(); err != nil {
 		fmt.Println("Error: Go is not installed or not in PATH")
@@ -820,8 +832,13 @@ func runInstaller() int {
 	}
 
 	if nonInteractiveRequested(os.Args[1:], os.Getenv("SYSCGO_INSTALL_NONINTERACTIVE")) {
-		m := newModel()
-		if err := runConfiguredTasks(&m); err != nil {
+		m := newModel(ctx)
+		err := runConfiguredTasks(&m)
+		switch {
+		case ctx.Err() != nil:
+			fmt.Fprintln(os.Stderr, "Error: install cancelled")
+			return 130
+		case err != nil:
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			return 1
 		}
@@ -829,11 +846,46 @@ func runInstaller() int {
 		return 0
 	}
 
-	p := tea.NewProgram(newModel(), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(ctx), tea.WithAltScreen())
 
-	if _, err := p.Run(); err != nil {
+	final, err := p.Run()
+	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return 1
 	}
+	// The alt screen is gone, so whatever it showed is gone with it. Print the
+	// outcome to the normal terminal and carry it in the exit status.
+	if fm, ok := final.(model); ok {
+		return fm.report()
+	}
 	return 0
+}
+
+// report prints the install outcome after the alt screen closes and returns the
+// exit code. The step alone tells the outcome: stepInstalling means the run
+// ended before finishing (Q, Ctrl+C, or a signal), stepComplete means it ran to
+// the end, and only then can a task have failed.
+func (m model) report() int {
+	switch {
+	case m.step == stepInstalling:
+		fmt.Fprintln(os.Stderr, "Installation cancelled. Nothing further was installed.")
+		return 130
+	case m.failed():
+		fmt.Fprintf(os.Stderr, "Installation failed: %s\n", strings.Join(m.errors, "; "))
+		return 1
+	default:
+		fmt.Println("Installation complete.")
+		return 0
+	}
+}
+
+// failed reports whether a required task failed. Optional skips are recorded in
+// errors too, so the task status is what separates them.
+func (m model) failed() bool {
+	for _, t := range m.tasks {
+		if t.status == statusFailed {
+			return true
+		}
+	}
+	return false
 }

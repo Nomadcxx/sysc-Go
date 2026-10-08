@@ -1,6 +1,8 @@
-# Binaries
-syscgo
-installer
+# Binaries (anchored: bare names also matched directories, e.g. cmd/installer/)
+/syscgo
+/installer
+/syscgo-tui
+/flf2bit
 *.exe
 *.dll
 *.so
@@ -34,8 +36,6 @@ Thumbs.db
 # AI/Editor config files
 CLAUDE.md
 opencode.json
-syscgo-tui
-flf2bit
 
 # Development/design documents (internal only)
 *_DESIGN.md
