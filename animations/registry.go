@@ -298,6 +298,12 @@ var ThemeRegistry = []ThemeMetadata{
 		Description:  "Simple dark theme with grayscale",
 		VersionAdded: "1.0.0",
 	},
+	{Name: "ayu", Description: "sysc-shell ayu dark palette", VersionAdded: "1.0.6"},
+	{Name: "amber", Description: "sysc-shell amber dark palette", VersionAdded: "1.0.6"},
+	{Name: "blue", Description: "sysc-shell blue dark palette", VersionAdded: "1.0.6"},
+	{Name: "purple", Description: "sysc-shell purple dark palette", VersionAdded: "1.0.6"},
+	{Name: "green", Description: "sysc-shell green dark palette", VersionAdded: "1.0.6"},
+	{Name: "orange", Description: "sysc-shell orange dark palette", VersionAdded: "1.0.6"},
 }
 
 // GetThemeNames returns all available theme names (including aliases)

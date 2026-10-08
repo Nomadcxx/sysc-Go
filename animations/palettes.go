@@ -6,6 +6,18 @@ import "strings"
 func GetFirePalette(themeName string) []string {
 	// Case-insensitive matching
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#0b0e14", "#1e222a", "#39bae6", "#e6b450", "#d95757", "#e6b450", "#d1d1c7"}
+	case "amber":
+		return []string{"#17130b", "#39342b", "#ffd54f", "#ffc107", "#f2b8b5", "#ffc107", "#ebe1d4"}
+	case "blue":
+		return []string{"#101418", "#32353a", "#8ab4f8", "#f8d38a", "#f2b8b5", "#42a5f5", "#e0e2e8"}
+	case "purple":
+		return []string{"#141218", "#36343a", "#d0bcff", "#f1daad", "#f2b8b5", "#d0bcff", "#e6e0e9"}
+	case "green":
+		return []string{"#10140f", "#323630", "#81c995", "#e4ba66", "#f2b8b5", "#4caf50", "#e0e4db"}
+	case "orange":
+		return []string{"#1a120e", "#3d332e", "#ffb74d", "#ff6d00", "#f2b8b5", "#ff6d00", "#f0dfd8"}
 	case "dracula":
 		return []string{
 			"#282a36", // Background
@@ -152,6 +164,18 @@ func GetDefaultFirePalette() []string {
 // GetMatrixPalette returns theme-specific matrix rain colors
 func GetMatrixPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#0b0e14", "#1e222a", "#39bae6", "#aad94c", "#e6b450", "#d1d1c7"}
+	case "amber":
+		return []string{"#17130b", "#39342b", "#ffd54f", "#ffd54f", "#ffc107", "#ebe1d4"}
+	case "blue":
+		return []string{"#101418", "#32353a", "#8ab4f8", "#8ab4f8", "#42a5f5", "#e0e2e8"}
+	case "purple":
+		return []string{"#141218", "#36343a", "#d0bcff", "#ccc2dc", "#d0bcff", "#e6e0e9"}
+	case "green":
+		return []string{"#10140f", "#323630", "#81c995", "#81c995", "#4caf50", "#e0e4db"}
+	case "orange":
+		return []string{"#1a120e", "#3d332e", "#ffb74d", "#ffb74d", "#ff6d00", "#f0dfd8"}
 	case "dracula":
 		return []string{"#282a36", "#44475a", "#6272a4", "#8be9fd", "#50fa7b", "#ff5555"}
 	case "catppuccin", "catppuccin-mocha":
@@ -184,6 +208,18 @@ func GetMatrixPalette(themeName string) []string {
 // GetParticlePalette returns theme-specific particle colors
 func GetParticlePalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#e6b450", "#aad94c", "#39bae6", "#d1d1c7"}
+	case "amber":
+		return []string{"#ffc107", "#ffd54f", "#ffd54f", "#ebe1d4"}
+	case "blue":
+		return []string{"#42a5f5", "#8ab4f8", "#8ab4f8", "#e0e2e8"}
+	case "purple":
+		return []string{"#d0bcff", "#ccc2dc", "#d0bcff", "#e6e0e9"}
+	case "green":
+		return []string{"#4caf50", "#81c995", "#81c995", "#e0e4db"}
+	case "orange":
+		return []string{"#ff6d00", "#ffb74d", "#ffb74d", "#f0dfd8"}
 	case "dracula":
 		return []string{"#bd93f9", "#ff79c6", "#8be9fd", "#50fa7b"}
 	case "catppuccin", "catppuccin-mocha":
@@ -216,6 +252,18 @@ func GetParticlePalette(themeName string) []string {
 // GetRainPalette returns theme-specific rain colors
 func GetRainPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#e6b450", "#aad94c", "#39bae6", "#9a9a95"}
+	case "amber":
+		return []string{"#ffc107", "#ffd54f", "#ffd54f", "#b0a79c"}
+	case "blue":
+		return []string{"#42a5f5", "#8ab4f8", "#8ab4f8", "#a6a8ae"}
+	case "purple":
+		return []string{"#d0bcff", "#ccc2dc", "#d0bcff", "#aba6ae"}
+	case "green":
+		return []string{"#4caf50", "#81c995", "#81c995", "#a6aaa2"}
+	case "orange":
+		return []string{"#ff6d00", "#ffb74d", "#ffb74d", "#b4a69f"}
 	case "dracula":
 		return []string{"#8be9fd", "#50fa7b", "#ffb86c", "#ff79c6", "#bd93f9"}
 	case "catppuccin", "catppuccin-mocha":
@@ -248,6 +296,18 @@ func GetRainPalette(themeName string) []string {
 // GetFireworksPalette returns theme-specific fireworks colors
 func GetFireworksPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#e6b450", "#aad94c", "#39bae6", "#e6b450", "#d95757", "#d1d1c7"}
+	case "amber":
+		return []string{"#ffc107", "#ffd54f", "#ffd54f", "#ffc107", "#f2b8b5", "#ebe1d4"}
+	case "blue":
+		return []string{"#42a5f5", "#8ab4f8", "#8ab4f8", "#f8d38a", "#f2b8b5", "#e0e2e8"}
+	case "purple":
+		return []string{"#d0bcff", "#ccc2dc", "#d0bcff", "#f1daad", "#f2b8b5", "#e6e0e9"}
+	case "green":
+		return []string{"#4caf50", "#81c995", "#81c995", "#e4ba66", "#f2b8b5", "#e0e4db"}
+	case "orange":
+		return []string{"#ff6d00", "#ffb74d", "#ffb74d", "#ff6d00", "#f2b8b5", "#f0dfd8"}
 	case "dracula":
 		return []string{"#ff5555", "#ff79c6", "#bd93f9", "#8be9fd", "#50fa7b", "#ffb86c", "#ffffff"}
 	case "catppuccin", "catppuccin-mocha":
@@ -282,6 +342,18 @@ func GetFireworksPalette(themeName string) []string {
 // Returns: [background, ascii_primary, ascii_secondary, clock_primary, clock_secondary, date_color]
 func GetScreensaverPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#0b0e14", "#e6b450", "#aad94c", "#39bae6", "#e6b450", "#d1d1c7"}
+	case "amber":
+		return []string{"#17130b", "#ffc107", "#ffd54f", "#ffd54f", "#ffc107", "#ebe1d4"}
+	case "blue":
+		return []string{"#101418", "#42a5f5", "#8ab4f8", "#8ab4f8", "#f8d38a", "#e0e2e8"}
+	case "purple":
+		return []string{"#141218", "#d0bcff", "#ccc2dc", "#d0bcff", "#f1daad", "#e6e0e9"}
+	case "green":
+		return []string{"#10140f", "#4caf50", "#81c995", "#81c995", "#e4ba66", "#e0e4db"}
+	case "orange":
+		return []string{"#1a120e", "#ff6d00", "#ffb74d", "#ffb74d", "#ff6d00", "#f0dfd8"}
 	case "dracula":
 		return []string{"#282a36", "#bd93f9", "#8be9fd", "#50fa7b", "#f1fa8c", "#f8f8f2"}
 	case "catppuccin", "catppuccin-mocha":
@@ -318,6 +390,18 @@ func GetScreensaverPalette(themeName string) []string {
 // Index 11: Background/canvas color
 func GetBurnPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#d1d1c7", "#b9bab2", "#aad94c", "#39bae6", "#e6b450", "#e6b450", "#d95757", "#1e222a", "#0b0e14", "#9a9a95", "#1e222a", "#0b0e14"}
+	case "amber":
+		return []string{"#ebe1d4", "#d2c8bc", "#ffd54f", "#ffd54f", "#ffc107", "#ffc107", "#f2b8b5", "#39342b", "#17130b", "#b0a79c", "#39342b", "#17130b"}
+	case "blue":
+		return []string{"#e0e2e8", "#c7c9cf", "#8ab4f8", "#8ab4f8", "#42a5f5", "#f8d38a", "#f2b8b5", "#32353a", "#101418", "#a6a8ae", "#32353a", "#101418"}
+	case "purple":
+		return []string{"#e6e0e9", "#cdc7d0", "#ccc2dc", "#d0bcff", "#d0bcff", "#f1daad", "#f2b8b5", "#36343a", "#141218", "#aba6ae", "#36343a", "#141218"}
+	case "green":
+		return []string{"#e0e4db", "#c7cbc3", "#81c995", "#81c995", "#4caf50", "#e4ba66", "#f2b8b5", "#323630", "#10140f", "#a6aaa2", "#323630", "#10140f"}
+	case "orange":
+		return []string{"#f0dfd8", "#d6c6c0", "#ffb74d", "#ffb74d", "#ff6d00", "#ff6d00", "#f2b8b5", "#3d332e", "#1a120e", "#b4a69f", "#3d332e", "#1a120e"}
 	case "dracula":
 		return []string{
 			"#f8f8f2", "#f5f5dc", "#dda0dd", "#da70d6", "#ba55d3", "#9370db", "#8b008b", "#4b0082", "#1a0033",
@@ -390,6 +474,18 @@ func GetBurnPalette(themeName string) []string {
 // Returns: [base_muted, accent1_dark, accent2_mid, accent3_bright, accent4_brightest, ash1_dark, ash2_darker]
 func GetSkullPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#1e222a", "#9a9a95", "#e6b450", "#aad94c", "#d1d1c7", "#0b0e14", "#0b0e14"}
+	case "amber":
+		return []string{"#39342b", "#b0a79c", "#ffc107", "#ffd54f", "#ebe1d4", "#17130b", "#17130b"}
+	case "blue":
+		return []string{"#32353a", "#a6a8ae", "#42a5f5", "#8ab4f8", "#e0e2e8", "#101418", "#101418"}
+	case "purple":
+		return []string{"#36343a", "#aba6ae", "#d0bcff", "#ccc2dc", "#e6e0e9", "#141218", "#141218"}
+	case "green":
+		return []string{"#323630", "#a6aaa2", "#4caf50", "#81c995", "#e0e4db", "#10140f", "#10140f"}
+	case "orange":
+		return []string{"#3d332e", "#b4a69f", "#ff6d00", "#ffb74d", "#f0dfd8", "#1a120e", "#1a120e"}
 	case "dracula":
 		return []string{"#44475a", "#6272a4", "#bd93f9", "#8be9fd", "#f8f8f2", "#282a36", "#1a1c26"}
 	case "catppuccin", "catppuccin-mocha":
@@ -424,6 +520,18 @@ func GetSkullPalette(themeName string) []string {
 // 4=bar secondary, 5=wireframe, 6=deep background.
 func GetCracktroPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#1e222a", "#9a9a95", "#d1d1c7", "#e6b450", "#aad94c", "#d1d1c7", "#0b0e14"}
+	case "amber":
+		return []string{"#39342b", "#b0a79c", "#ebe1d4", "#ffc107", "#ffd54f", "#ebe1d4", "#17130b"}
+	case "blue":
+		return []string{"#32353a", "#a6a8ae", "#e0e2e8", "#42a5f5", "#8ab4f8", "#e0e2e8", "#101418"}
+	case "purple":
+		return []string{"#36343a", "#aba6ae", "#e6e0e9", "#d0bcff", "#ccc2dc", "#e6e0e9", "#141218"}
+	case "green":
+		return []string{"#323630", "#a6aaa2", "#e0e4db", "#4caf50", "#81c995", "#e0e4db", "#10140f"}
+	case "orange":
+		return []string{"#3d332e", "#b4a69f", "#f0dfd8", "#ff6d00", "#ffb74d", "#f0dfd8", "#1a120e"}
 	case "dracula":
 		return []string{"#44475a", "#6272a4", "#f8f8f2", "#bd93f9", "#50fa7b", "#f8f8f2", "#282a36"}
 	case "catppuccin", "catppuccin-mocha":
@@ -458,6 +566,18 @@ func GetCracktroPalette(themeName string) []string {
 // 6 background.
 func GetLogoPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "ayu":
+		return []string{"#0b0e14", "#1e222a", "#9a9a95", "#e6b450", "#d1d1c7", "#39bae6", "#0b0e14"}
+	case "amber":
+		return []string{"#17130b", "#39342b", "#b0a79c", "#ffc107", "#ebe1d4", "#ffd54f", "#17130b"}
+	case "blue":
+		return []string{"#101418", "#32353a", "#a6a8ae", "#42a5f5", "#e0e2e8", "#8ab4f8", "#101418"}
+	case "purple":
+		return []string{"#141218", "#36343a", "#aba6ae", "#d0bcff", "#e6e0e9", "#d0bcff", "#141218"}
+	case "green":
+		return []string{"#10140f", "#323630", "#a6aaa2", "#4caf50", "#e0e4db", "#81c995", "#10140f"}
+	case "orange":
+		return []string{"#1a120e", "#3d332e", "#b4a69f", "#ff6d00", "#f0dfd8", "#ffb74d", "#1a120e"}
 	case "dracula":
 		return []string{"#282a36", "#44475a", "#6272a4", "#bd93f9", "#f8f8f2", "#8be9fd", "#282a36"}
 	case "catppuccin", "catppuccin-mocha":
