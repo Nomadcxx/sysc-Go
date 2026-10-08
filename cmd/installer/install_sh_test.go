@@ -207,12 +207,21 @@ func scriptCmd(t *testing.T, bin, logPath, statePath string) *exec.Cmd {
 	return cmd
 }
 
+// installScriptTools is every external command install.sh reaches for. Keep it
+// in step with install.sh: a tool missing here is a 127 that aborts the script
+// under set -e, which looks like an install.sh bug rather than a harness gap.
+// git and go stay out on purpose so a test can never clone or build for real.
+var installScriptTools = []string{
+	"bash", "mktemp", "rm", "chmod", "mkdir", "cat", "pwd", "cp", "mv",
+	"basename", "dirname", "getent", "cut", "sed", "tail", "find", "sort",
+}
+
 // isolatedPath keeps stub binaries ahead of a small tool directory that does
 // not include git, so tests cannot accidentally clone the real repository.
 func isolatedPath(t *testing.T, stub string) string {
 	t.Helper()
 	tools := t.TempDir()
-	for _, name := range []string{"bash", "mktemp", "rm", "chmod", "mkdir", "cat", "pwd", "cp", "mv", "basename", "dirname"} {
+	for _, name := range installScriptTools {
 		src, err := exec.LookPath(name)
 		if err != nil {
 			t.Fatal(err)
@@ -230,4 +239,71 @@ func writeStub(t *testing.T, dir, name, body string) {
 	if err := os.WriteFile(path, []byte(body), 0755); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestIsolatedPathCoversInstallScript guards the tool list the sudo tests skip
+// past on hosts without passwordless sudo: it runs install.sh under the same
+// isolated PATH without sudo, so a command missing from installScriptTools
+// surfaces here as a 127 instead of silently skipping on every other machine.
+func TestIsolatedPathCoversInstallScript(t *testing.T) {
+	currentUser, err := user.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "bin")
+	goDir := filepath.Join(dir, "go")
+	for _, path := range []string{bin, goDir} {
+		if err := os.Mkdir(path, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	logPath := filepath.Join(dir, "log")
+
+	writeStub(t, bin, "sudo", `#!/bin/bash
+printf '__SYSC_PATH__%s\n' "$PATH"
+`)
+	writeStub(t, bin, "git", `#!/bin/bash
+if [ "$1" = "clone" ]; then mkdir -p sysc-Go; fi
+`)
+	writeStub(t, bin, "curl", `#!/bin/bash
+exit 1
+`)
+	writeStub(t, goDir, "go", `#!/bin/bash
+if [ "$1" = "build" ]; then
+  cat > install-syscgo << 'INNER'
+#!/bin/bash
+exit 0
+INNER
+  chmod +x install-syscgo
+fi
+`)
+
+	script, err := os.ReadFile(filepath.Join("..", "..", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootCheck := `if [ "$EUID" -ne 0 ]; then`
+	if !strings.Contains(string(script), rootCheck) {
+		t.Fatal("install.sh root check changed; update this test's unprivileged harness")
+	}
+	testScript := filepath.Join(dir, "install.sh")
+	if err := os.WriteFile(testScript, []byte(strings.Replace(string(script), rootCheck, "if false; then", 1)), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("bash", testScript)
+	cmd.Env = append(os.Environ(),
+		"PATH="+isolatedPath(t, bin+":"+goDir),
+		"SUDO_USER="+currentUser.Username,
+		"TEST_LOG="+logPath,
+	)
+	out, err := cmd.CombinedOutput()
+	if strings.Contains(string(out), "command not found") {
+		t.Fatalf("isolated PATH is missing a tool install.sh needs; add it to installScriptTools\n%s", out)
+	}
+	// install.sh exits non-zero here for unrelated reasons (no network, nothing
+	// installed), so only the missing-tool signal is fatal here.
+	_ = err
 }
