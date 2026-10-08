@@ -1,8 +1,8 @@
 package animations
 
 import (
-	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -460,6 +460,9 @@ type LogoSpinAnimation struct {
 
 	frame   int
 	builder strings.Builder
+	// num backs writeUint's decimal conversion. Ten bytes is a whole uint32,
+	// so strconv.AppendUint never grows it and nothing reaches the heap.
+	num [10]byte
 
 	shape []float64
 	depth []float64
@@ -791,13 +794,28 @@ func (l *LogoSpinAnimation) compose() string {
 			r := (rs + n/2) / n
 			g := (gs + n/2) / n
 			bv := (bs + n/2) / n
-			fmt.Fprintf(&l.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, bv, rune(logoBrailleRuneBase)+rune(dots))
+			l.builder.WriteString("\033[38;2;")
+			l.writeUint(r)
+			l.builder.WriteByte(';')
+			l.writeUint(g)
+			l.builder.WriteByte(';')
+			l.writeUint(bv)
+			l.builder.WriteString("m")
+			l.builder.WriteRune(rune(logoBrailleRuneBase) + rune(dots))
+			l.builder.WriteString("\033[0m")
 		}
 		if row < l.height-1 {
 			l.builder.WriteByte('\n')
 		}
 	}
 	return l.builder.String()
+}
+
+// writeUint appends v in decimal. The conversion goes through l.num rather than
+// fmt, so a frame costs no allocations per lit cell; see l.num for why that
+// buffer cannot be grown out from under us.
+func (l *LogoSpinAnimation) writeUint(v uint32) {
+	l.builder.Write(strconv.AppendUint(l.num[:0], uint64(v), 10))
 }
 
 // renderEdges draws the crisp 3D wireframe mode: rigid front and back
