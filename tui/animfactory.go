@@ -300,6 +300,34 @@ func (m *Model) createAnimation() animations.Animation {
 			update: sonar.Update,
 		}
 
+	case "sysc-logo":
+		logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{Width: width, Height: height, Shape: "sysc", Palette: animations.GetLogoPalette(themeName), Theme: themeName})
+		return &AnimationWrapper{
+			render: logo.Render,
+			update: logo.Update,
+		}
+
+	case "cross-logo":
+		logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{Width: width, Height: height, Shape: "cross", Palette: animations.GetLogoPalette(themeName), Theme: themeName})
+		return &AnimationWrapper{
+			render: logo.Render,
+			update: logo.Update,
+		}
+
+	case "justice-cross":
+		logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{Width: width, Height: height, Shape: "justice", Palette: animations.GetLogoPalette(themeName), Theme: themeName})
+		return &AnimationWrapper{
+			render: logo.Render,
+			update: logo.Update,
+		}
+
+	case "logo-morph":
+		logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{Width: width, Height: height, Shape: "sysc-cross", Palette: animations.GetLogoPalette(themeName), Theme: themeName})
+		return &AnimationWrapper{
+			render: logo.Render,
+			update: logo.Update,
+		}
+
 	case "aquarium":
 		aquaColors := getAquariumColors(themeName)
 		var fishColors, waterColors, seaweedColors []string
