@@ -493,7 +493,9 @@ func buildStaged(m *model, name, pkg string) error {
 	if err != nil {
 		return err
 	}
-	cmd := commandContext(m, goBin, "build", "-o", out, pkg)
+	// -buildvcs=false: the build runs as root against a user-owned checkout, so
+	// git cannot read the repo state and "go build" fails with exit status 128.
+	cmd := commandContext(m, goBin, "build", "-buildvcs=false", "-o", out, pkg)
 	cmd.Dir = getProjectRoot()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -505,13 +507,78 @@ func buildStaged(m *model, name, pkg string) error {
 	return nil
 }
 
+// Install destinations. Package variables so tests can point them at a temp
+// directory instead of the real filesystem.
+var (
+	binDir   = "/usr/local/bin"
+	shareDir = "/usr/local/share/syscgo"
+)
+
+// Modes are applied explicitly rather than relying on the process umask: sudo
+// keeps the invoking user's stricter umask, so a 0755 request can otherwise
+// land as 0700 and leave the installed binary or asset unreadable.
+const (
+	binMode   = 0o755
+	dirMode   = 0o755
+	assetMode = 0o644
+)
+
+// installFileAtomic writes data to dst by way of a temporary file in dst's own
+// directory, so the final rename is atomic and never truncates the destination.
+// That keeps a running binary executable (no ETXTBSY) and stops a failed write
+// from leaving a truncated, unbootable file behind.
+func installFileAtomic(dst string, data []byte, mode os.FileMode) error {
+	dir := filepath.Dir(dst)
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(dst)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	committed := false
+	defer func() {
+		if !committed {
+			tmp.Close()
+			os.Remove(tmpName)
+		}
+	}()
+	if _, err := tmp.Write(data); err != nil {
+		return err
+	}
+	// Chmod before the rename so the file is never visible at dst with the
+	// 0600 mode CreateTemp gives it, and never depends on the umask.
+	if err := tmp.Chmod(mode); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, dst); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
+// ensureDir creates dir and sets its mode explicitly, which both defeats a
+// restrictive umask and repairs the permissions of a directory a previous run
+// already created too tight.
+func ensureDir(dir string) error {
+	if err := os.MkdirAll(dir, dirMode); err != nil {
+		return err
+	}
+	return os.Chmod(dir, dirMode)
+}
+
 func installAssets(m *model) error {
 	if err := errIfCancelled(m); err != nil {
 		return err
 	}
 	projectRoot := getProjectRoot()
 	srcPath := filepath.Join(projectRoot, "assets")
-	if err := installAssetFiles(ctxOf(m), srcPath, "/usr/local/share/syscgo"); err != nil {
+	if err := installAssetFiles(ctxOf(m), srcPath, shareDir); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return err
 		}
@@ -533,7 +600,7 @@ func installAssetFiles(ctx context.Context, srcAssets, shareRoot string) error {
 	}
 
 	assetsDst := filepath.Join(shareRoot, "assets")
-	if err := os.MkdirAll(assetsDst, 0755); err != nil {
+	if err := ensureDir(assetsDst); err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
 	}
 
@@ -558,7 +625,7 @@ func installAssetFiles(ctx context.Context, srcAssets, shareRoot string) error {
 					continue
 				}
 				fontsDst := filepath.Join(shareRoot, "fonts")
-				if err := os.MkdirAll(fontsDst, 0755); err != nil {
+				if err := ensureDir(fontsDst); err != nil {
 					return fmt.Errorf("failed to create directory: %v", err)
 				}
 				if err := copyFile(filepath.Join(src, font.Name()), filepath.Join(fontsDst, font.Name())); err != nil {
@@ -586,7 +653,7 @@ func installBinary(m *model) error {
 	if err != nil {
 		return err
 	}
-	dstPath := "/usr/local/bin/syscgo"
+	dstPath := filepath.Join(binDir, "syscgo")
 
 	// Read the source file
 	data, err := os.ReadFile(srcPath)
@@ -598,7 +665,7 @@ func installBinary(m *model) error {
 	if err := errIfCancelled(m); err != nil {
 		return err
 	}
-	err = os.WriteFile(dstPath, data, 0755)
+	err = installFileAtomic(dstPath, data, binMode)
 	if err != nil {
 		return fmt.Errorf("failed to install binary: %v", err)
 	}
@@ -614,7 +681,7 @@ func installTuiBinary(m *model) error {
 	if err != nil {
 		return err
 	}
-	dstPath := "/usr/local/bin/syscgo-tui"
+	dstPath := filepath.Join(binDir, "syscgo-tui")
 
 	// Read the source file
 	data, err := os.ReadFile(srcPath)
@@ -625,7 +692,7 @@ func installTuiBinary(m *model) error {
 	if err := errIfCancelled(m); err != nil {
 		return err
 	}
-	err = os.WriteFile(dstPath, data, 0755)
+	err = installFileAtomic(dstPath, data, binMode)
 	if err != nil {
 		return fmt.Errorf("failed to install binary: %v", err)
 	}
@@ -637,7 +704,7 @@ func removeSyscgoBinary(m *model) error {
 	if err := errIfCancelled(m); err != nil {
 		return err
 	}
-	err := os.Remove("/usr/local/bin/syscgo")
+	err := os.Remove(filepath.Join(binDir, "syscgo"))
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove binary: %v", err)
 	}
@@ -648,7 +715,7 @@ func removeTuiBinary(m *model) error {
 	if err := errIfCancelled(m); err != nil {
 		return err
 	}
-	err := os.Remove("/usr/local/bin/syscgo-tui")
+	err := os.Remove(filepath.Join(binDir, "syscgo-tui"))
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove binary: %v", err)
 	}
@@ -659,34 +726,22 @@ func removeAssets(m *model) error {
 	if err := errIfCancelled(m); err != nil {
 		return err
 	}
-	err := os.RemoveAll("/usr/local/share/syscgo")
+	err := os.RemoveAll(shareDir)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove assets: %v", err)
 	}
 	return nil
 }
 
-// copyFile copies a single file
+// copyFile copies a single file. The destination mode is assetMode rather than
+// the source's: a checkout made under a restrictive umask carries 0600 files,
+// and copying those modes verbatim installs assets nobody else can read.
 func copyFile(src, dst string) error {
-	// Read source file
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-
-	// Get source file permissions
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
-	// Write to destination
-	err = os.WriteFile(dst, data, srcInfo.Mode())
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return installFileAtomic(dst, data, assetMode)
 }
 
 // buildOutputDir is the temp directory that receives syscgo and syscgo-tui
