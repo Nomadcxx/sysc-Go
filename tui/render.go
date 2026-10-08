@@ -91,6 +91,11 @@ func RenderTextWithFont(text string, fontData FontData, options RenderOptions) [
 		renderedTextLines = append(renderedTextLines, lineRendered)
 	}
 
+	// The canvas is as wide as the widest text line, or the requested width when
+	// one is given. A single banner line is as wide as maxTextLineWidth, so
+	// sibling-only alignment never moves it.
+	canvasWidth := max(maxTextLineWidth, options.MaxWidth)
+
 	// Second pass: apply alignment, styling, and shadow to each text line's block
 	for i, lineRendered := range renderedTextLines {
 		if len(lineRendered) == 1 && lineRendered[0] == "" {
@@ -100,13 +105,7 @@ func RenderTextWithFont(text string, fontData FontData, options RenderOptions) [
 			continue
 		}
 
-		// Pad to the canvas when one is given. A single banner line is as wide
-		// as maxTextLineWidth, so sibling-only alignment never moves it.
-		alignWidth := maxTextLineWidth
-		if options.MaxWidth > alignWidth {
-			alignWidth = options.MaxWidth
-		}
-		alignedBlock := applyAlignmentToTextLine(lineRendered, alignWidth, options.Alignment)
+		alignedBlock := applyAlignmentToTextLine(lineRendered, canvasWidth, options.Alignment)
 
 		// Apply styling and shadow
 		finalBlock := applyStylingAndShadow(alignedBlock, options)
@@ -121,16 +120,14 @@ func RenderTextWithFont(text string, fontData FontData, options RenderOptions) [
 		allRenderedLines = append(allRenderedLines, finalBlock...)
 	}
 
-	// Final pass to ensure all lines have the same width for consistent rendering
-	maxWidth := 0
-	for _, line := range allRenderedLines {
-		maxWidth = max(maxWidth, utf8.RuneCountInString(stripANSI(line)))
-	}
-
+	// Final pass so every line is exactly the canvas wide. Alignment padding is
+	// part of the canvas, so padding here rather than trimming in
+	// applyStylingAndShadow keeps Center/Right padding symmetric: the saved
+	// art carries the indent only, and the text engines re-centre it correctly.
 	for i, line := range allRenderedLines {
 		lineWidth := utf8.RuneCountInString(stripANSI(line))
-		if lineWidth < maxWidth {
-			allRenderedLines[i] = line + strings.Repeat(" ", maxWidth-lineWidth)
+		if lineWidth < canvasWidth {
+			allRenderedLines[i] = line + strings.Repeat(" ", canvasWidth-lineWidth)
 		}
 	}
 

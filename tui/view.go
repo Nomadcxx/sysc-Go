@@ -148,8 +148,7 @@ func (m Model) renderSelector(index int, label, value string) string {
 	// Check if this is the File selector and current animation doesn't need a file
 	isFileSelector := (index == 2)
 	animName := m.animations[m.selectedAnimation]
-	needsFile := animName == "fire-text" || animName == "matrix-art" || animName == "rain-art" || animName == "pour" ||
-		animName == "print" || animName == "beam-text" || animName == "ring-text" || animName == "blackhole-text"
+	needsFile := animationNeedsFile(animName)
 
 	// Disable file selector for non-text animations
 	if isFileSelector && !needsFile {
@@ -252,18 +251,21 @@ func (m Model) renderGuidance() string {
 		guidance = animName
 	}
 
-	// Add file info inline if relevant
-	if fileName == "BIT Text Editor" {
-		guidance += " • BIT Editor (130 fonts)"
-	} else if fileName == "Custom text" {
-		guidance += " • Custom text editor"
-	} else if fileName != "(disabled)" && fileName != "" {
-		// Truncate long filenames
-		displayName := fileName
-		if len(displayName) > 20 {
-			displayName = displayName[:17] + "..."
+	// Add file info inline, but only while the File selector is live. Otherwise
+	// the box would advertise an editor the selector shows as (disabled).
+	if animationNeedsFile(animName) {
+		if fileName == "BIT Text Editor" {
+			guidance += " • BIT Editor (130 fonts)"
+		} else if fileName == "Custom text" {
+			guidance += " • Custom text editor"
+		} else if fileName != "(disabled)" && fileName != "" {
+			// Truncate long filenames
+			displayName := fileName
+			if len(displayName) > 20 {
+				displayName = displayName[:17] + "..."
+			}
+			guidance += " • " + displayName
 		}
-		guidance += " • " + displayName
 	}
 
 	return m.styles.GuidanceBox.Render(guidance)

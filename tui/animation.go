@@ -92,13 +92,8 @@ func LaunchAnimation(animName, theme, file, duration string) error {
 	}
 
 	// Add file if it's for a text-based animation
-	needsFile := []string{"fire-text", "matrix-art", "rain-art", "print", "pour", "beam-text", "ring-text", "blackhole-text", "fireworks"}
-	for _, effect := range needsFile {
-		if animName == effect {
-			filePath := getAssetPath(file)
-			args = append(args, "-file", filePath)
-			break
-		}
+	if animationNeedsFile(animName) {
+		args = append(args, "-file", getAssetPath(file))
 	}
 
 	// Add duration
