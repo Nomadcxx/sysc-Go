@@ -6,6 +6,24 @@ import "strings"
 func GetFirePalette(themeName string) []string {
 	// Case-insensitive matching
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#191724", "#26233a", "#31748f", "#ebbcba", "#eb6f92", "#ebbcba", "#e0def4"}
+	case "kanagawa":
+		return []string{"#1f1f28", "#2a2a37", "#7e9cd8", "#76946a", "#c34043", "#76946a", "#c8c093"}
+	case "noctalia":
+		return []string{"#070722", "#21215f", "#9bfece", "#fff59b", "#fd4663", "#fff59b", "#f3edf7"}
+	case "eldritch-abyss":
+		return []string{"#171928", "#474852", "#8b75d9", "#2dcc82", "#cc5860", "#2dcc82", "#d8e6e6"}
+	case "void":
+		return []string{"#000000", "#1a1a1a", "#808080", "#ffffff", "#999999", "#ffffff", "#ffffff"}
+	case "red":
+		return []string{"#1a1110", "#3d3231", "#f28b82", "#f44336", "#f2b8b5", "#f44336", "#f1dedc"}
+	case "cyan":
+		return []string{"#0e1416", "#303637", "#4dd0e1", "#00bcd4", "#f2b8b5", "#00bcd4", "#dee3e5"}
+	case "coral":
+		return []string{"#1a1110", "#3d3231", "#ffb4ab", "#ffb4ab", "#f2b8b5", "#ffb4ab", "#f1dedc"}
+	case "pink":
+		return []string{"#191112", "#3c3233", "#f8bbd9", "#e91e63", "#f2b8b5", "#e91e63", "#f0dee0"}
 	case "ayu":
 		return []string{"#0b0e14", "#1e222a", "#39bae6", "#e6b450", "#d95757", "#e6b450", "#d1d1c7"}
 	case "amber":
@@ -164,6 +182,24 @@ func GetDefaultFirePalette() []string {
 // GetMatrixPalette returns theme-specific matrix rain colors
 func GetMatrixPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#191724", "#26233a", "#31748f", "#9ccfd8", "#ebbcba", "#e0def4"}
+	case "kanagawa":
+		return []string{"#1f1f28", "#2a2a37", "#7e9cd8", "#c0a36e", "#76946a", "#c8c093"}
+	case "noctalia":
+		return []string{"#070722", "#21215f", "#9bfece", "#a9aefe", "#fff59b", "#f3edf7"}
+	case "eldritch-abyss":
+		return []string{"#171928", "#474852", "#8b75d9", "#0396b3", "#2dcc82", "#d8e6e6"}
+	case "void":
+		return []string{"#000000", "#1a1a1a", "#808080", "#ffffff", "#ffffff", "#ffffff"}
+	case "red":
+		return []string{"#1a1110", "#3d3231", "#f28b82", "#f28b82", "#f44336", "#f1dedc"}
+	case "cyan":
+		return []string{"#0e1416", "#303637", "#4dd0e1", "#4dd0e1", "#00bcd4", "#dee3e5"}
+	case "coral":
+		return []string{"#1a1110", "#3d3231", "#ffb4ab", "#f9dedc", "#ffb4ab", "#f1dedc"}
+	case "pink":
+		return []string{"#191112", "#3c3233", "#f8bbd9", "#f8bbd9", "#e91e63", "#f0dee0"}
 	case "ayu":
 		return []string{"#0b0e14", "#1e222a", "#39bae6", "#aad94c", "#e6b450", "#d1d1c7"}
 	case "amber":
@@ -208,6 +244,24 @@ func GetMatrixPalette(themeName string) []string {
 // GetParticlePalette returns theme-specific particle colors
 func GetParticlePalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#ebbcba", "#9ccfd8", "#31748f", "#e0def4"}
+	case "kanagawa":
+		return []string{"#76946a", "#c0a36e", "#7e9cd8", "#c8c093"}
+	case "noctalia":
+		return []string{"#fff59b", "#a9aefe", "#9bfece", "#f3edf7"}
+	case "eldritch-abyss":
+		return []string{"#2dcc82", "#0396b3", "#8b75d9", "#d8e6e6"}
+	case "void":
+		return []string{"#ffffff", "#ffffff", "#808080", "#ffffff"}
+	case "red":
+		return []string{"#f44336", "#f28b82", "#f28b82", "#f1dedc"}
+	case "cyan":
+		return []string{"#00bcd4", "#4dd0e1", "#4dd0e1", "#dee3e5"}
+	case "coral":
+		return []string{"#ffb4ab", "#f9dedc", "#ffb4ab", "#f1dedc"}
+	case "pink":
+		return []string{"#e91e63", "#f8bbd9", "#f8bbd9", "#f0dee0"}
 	case "ayu":
 		return []string{"#e6b450", "#aad94c", "#39bae6", "#d1d1c7"}
 	case "amber":
@@ -252,6 +306,24 @@ func GetParticlePalette(themeName string) []string {
 // GetRainPalette returns theme-specific rain colors
 func GetRainPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#ebbcba", "#9ccfd8", "#31748f", "#a8a6ba"}
+	case "kanagawa":
+		return []string{"#76946a", "#c0a36e", "#7e9cd8", "#999375"}
+	case "noctalia":
+		return []string{"#fff59b", "#a9aefe", "#9bfece", "#b1adbb"}
+	case "eldritch-abyss":
+		return []string{"#2dcc82", "#0396b3", "#8b75d9", "#a2adb1"}
+	case "void":
+		return []string{"#ffffff", "#ffffff", "#808080", "#b8b8b8"}
+	case "red":
+		return []string{"#f44336", "#f28b82", "#f28b82", "#b5a5a3"}
+	case "cyan":
+		return []string{"#00bcd4", "#4dd0e1", "#4dd0e1", "#a4a9ab"}
+	case "coral":
+		return []string{"#ffb4ab", "#f9dedc", "#ffb4ab", "#b5a5a3"}
+	case "pink":
+		return []string{"#e91e63", "#f8bbd9", "#f8bbd9", "#b4a5a6"}
 	case "ayu":
 		return []string{"#e6b450", "#aad94c", "#39bae6", "#9a9a95"}
 	case "amber":
@@ -296,6 +368,24 @@ func GetRainPalette(themeName string) []string {
 // GetFireworksPalette returns theme-specific fireworks colors
 func GetFireworksPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#ebbcba", "#9ccfd8", "#31748f", "#ebbcba", "#eb6f92", "#e0def4"}
+	case "kanagawa":
+		return []string{"#76946a", "#c0a36e", "#7e9cd8", "#76946a", "#c34043", "#c8c093"}
+	case "noctalia":
+		return []string{"#fff59b", "#a9aefe", "#9bfece", "#fff59b", "#fd4663", "#f3edf7"}
+	case "eldritch-abyss":
+		return []string{"#2dcc82", "#0396b3", "#8b75d9", "#2dcc82", "#cc5860", "#d8e6e6"}
+	case "void":
+		return []string{"#ffffff", "#ffffff", "#808080", "#ffffff", "#999999", "#ffffff"}
+	case "red":
+		return []string{"#f44336", "#f28b82", "#f28b82", "#f44336", "#f2b8b5", "#f1dedc"}
+	case "cyan":
+		return []string{"#00bcd4", "#4dd0e1", "#4dd0e1", "#00bcd4", "#f2b8b5", "#dee3e5"}
+	case "coral":
+		return []string{"#ffb4ab", "#f9dedc", "#ffb4ab", "#ffb4ab", "#f2b8b5", "#f1dedc"}
+	case "pink":
+		return []string{"#e91e63", "#f8bbd9", "#f8bbd9", "#e91e63", "#f2b8b5", "#f0dee0"}
 	case "ayu":
 		return []string{"#e6b450", "#aad94c", "#39bae6", "#e6b450", "#d95757", "#d1d1c7"}
 	case "amber":
@@ -342,6 +432,24 @@ func GetFireworksPalette(themeName string) []string {
 // Returns: [background, ascii_primary, ascii_secondary, clock_primary, clock_secondary, date_color]
 func GetScreensaverPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#191724", "#ebbcba", "#9ccfd8", "#31748f", "#ebbcba", "#e0def4"}
+	case "kanagawa":
+		return []string{"#1f1f28", "#76946a", "#c0a36e", "#7e9cd8", "#76946a", "#c8c093"}
+	case "noctalia":
+		return []string{"#070722", "#fff59b", "#a9aefe", "#9bfece", "#fff59b", "#f3edf7"}
+	case "eldritch-abyss":
+		return []string{"#171928", "#2dcc82", "#0396b3", "#8b75d9", "#2dcc82", "#d8e6e6"}
+	case "void":
+		return []string{"#000000", "#ffffff", "#ffffff", "#808080", "#ffffff", "#ffffff"}
+	case "red":
+		return []string{"#1a1110", "#f44336", "#f28b82", "#f28b82", "#f44336", "#f1dedc"}
+	case "cyan":
+		return []string{"#0e1416", "#00bcd4", "#4dd0e1", "#4dd0e1", "#00bcd4", "#dee3e5"}
+	case "coral":
+		return []string{"#1a1110", "#ffb4ab", "#f9dedc", "#ffb4ab", "#ffb4ab", "#f1dedc"}
+	case "pink":
+		return []string{"#191112", "#e91e63", "#f8bbd9", "#f8bbd9", "#e91e63", "#f0dee0"}
 	case "ayu":
 		return []string{"#0b0e14", "#e6b450", "#aad94c", "#39bae6", "#e6b450", "#d1d1c7"}
 	case "amber":
@@ -390,6 +498,24 @@ func GetScreensaverPalette(themeName string) []string {
 // Index 11: Background/canvas color
 func GetBurnPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#e0def4", "#c8c6db", "#9ccfd8", "#31748f", "#ebbcba", "#ebbcba", "#eb6f92", "#26233a", "#191724", "#a8a6ba", "#26233a", "#191724"}
+	case "kanagawa":
+		return []string{"#c8c093", "#b4ad86", "#c0a36e", "#7e9cd8", "#76946a", "#76946a", "#c34043", "#2a2a37", "#1f1f28", "#999375", "#2a2a37", "#1f1f28"}
+	case "noctalia":
+		return []string{"#f3edf7", "#d7d1dd", "#a9aefe", "#9bfece", "#fff59b", "#fff59b", "#fd4663", "#21215f", "#070722", "#b1adbb", "#21215f", "#070722"}
+	case "eldritch-abyss":
+		return []string{"#d8e6e6", "#c1cdcf", "#0396b3", "#8b75d9", "#2dcc82", "#2dcc82", "#cc5860", "#474852", "#171928", "#a2adb1", "#474852", "#171928"}
+	case "void":
+		return []string{"#ffffff", "#e0e0e0", "#ffffff", "#808080", "#ffffff", "#ffffff", "#999999", "#1a1a1a", "#000000", "#b8b8b8", "#1a1a1a", "#000000"}
+	case "red":
+		return []string{"#f1dedc", "#d7c5c4", "#f28b82", "#f28b82", "#f44336", "#f44336", "#f2b8b5", "#3d3231", "#1a1110", "#b5a5a3", "#3d3231", "#1a1110"}
+	case "cyan":
+		return []string{"#dee3e5", "#c5cacc", "#4dd0e1", "#4dd0e1", "#00bcd4", "#00bcd4", "#f2b8b5", "#303637", "#0e1416", "#a4a9ab", "#303637", "#0e1416"}
+	case "coral":
+		return []string{"#f1dedc", "#d7c5c4", "#f9dedc", "#ffb4ab", "#ffb4ab", "#ffb4ab", "#f2b8b5", "#3d3231", "#1a1110", "#b5a5a3", "#3d3231", "#1a1110"}
+	case "pink":
+		return []string{"#f0dee0", "#d6c5c7", "#f8bbd9", "#f8bbd9", "#e91e63", "#e91e63", "#f2b8b5", "#3c3233", "#191112", "#b4a5a6", "#3c3233", "#191112"}
 	case "ayu":
 		return []string{"#d1d1c7", "#b9bab2", "#aad94c", "#39bae6", "#e6b450", "#e6b450", "#d95757", "#1e222a", "#0b0e14", "#9a9a95", "#1e222a", "#0b0e14"}
 	case "amber":
@@ -474,6 +600,24 @@ func GetBurnPalette(themeName string) []string {
 // Returns: [base_muted, accent1_dark, accent2_mid, accent3_bright, accent4_brightest, ash1_dark, ash2_darker]
 func GetSkullPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#26233a", "#a8a6ba", "#ebbcba", "#9ccfd8", "#e0def4", "#191724", "#191724"}
+	case "kanagawa":
+		return []string{"#2a2a37", "#999375", "#76946a", "#c0a36e", "#c8c093", "#1f1f28", "#1f1f28"}
+	case "noctalia":
+		return []string{"#21215f", "#b1adbb", "#fff59b", "#a9aefe", "#f3edf7", "#070722", "#070722"}
+	case "eldritch-abyss":
+		return []string{"#474852", "#a2adb1", "#2dcc82", "#0396b3", "#d8e6e6", "#171928", "#171928"}
+	case "void":
+		return []string{"#1a1a1a", "#b8b8b8", "#ffffff", "#ffffff", "#ffffff", "#000000", "#000000"}
+	case "red":
+		return []string{"#3d3231", "#b5a5a3", "#f44336", "#f28b82", "#f1dedc", "#1a1110", "#1a1110"}
+	case "cyan":
+		return []string{"#303637", "#a4a9ab", "#00bcd4", "#4dd0e1", "#dee3e5", "#0e1416", "#0e1416"}
+	case "coral":
+		return []string{"#3d3231", "#b5a5a3", "#ffb4ab", "#f9dedc", "#f1dedc", "#1a1110", "#1a1110"}
+	case "pink":
+		return []string{"#3c3233", "#b4a5a6", "#e91e63", "#f8bbd9", "#f0dee0", "#191112", "#191112"}
 	case "ayu":
 		return []string{"#1e222a", "#9a9a95", "#e6b450", "#aad94c", "#d1d1c7", "#0b0e14", "#0b0e14"}
 	case "amber":
@@ -520,6 +664,24 @@ func GetSkullPalette(themeName string) []string {
 // 4=bar secondary, 5=wireframe, 6=deep background.
 func GetCracktroPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#26233a", "#a8a6ba", "#e0def4", "#ebbcba", "#9ccfd8", "#e0def4", "#191724"}
+	case "kanagawa":
+		return []string{"#2a2a37", "#999375", "#c8c093", "#76946a", "#c0a36e", "#c8c093", "#1f1f28"}
+	case "noctalia":
+		return []string{"#21215f", "#b1adbb", "#f3edf7", "#fff59b", "#a9aefe", "#f3edf7", "#070722"}
+	case "eldritch-abyss":
+		return []string{"#474852", "#a2adb1", "#d8e6e6", "#2dcc82", "#0396b3", "#d8e6e6", "#171928"}
+	case "void":
+		return []string{"#1a1a1a", "#b8b8b8", "#ffffff", "#ffffff", "#ffffff", "#ffffff", "#000000"}
+	case "red":
+		return []string{"#3d3231", "#b5a5a3", "#f1dedc", "#f44336", "#f28b82", "#f1dedc", "#1a1110"}
+	case "cyan":
+		return []string{"#303637", "#a4a9ab", "#dee3e5", "#00bcd4", "#4dd0e1", "#dee3e5", "#0e1416"}
+	case "coral":
+		return []string{"#3d3231", "#b5a5a3", "#f1dedc", "#ffb4ab", "#f9dedc", "#f1dedc", "#1a1110"}
+	case "pink":
+		return []string{"#3c3233", "#b4a5a6", "#f0dee0", "#e91e63", "#f8bbd9", "#f0dee0", "#191112"}
 	case "ayu":
 		return []string{"#1e222a", "#9a9a95", "#d1d1c7", "#e6b450", "#aad94c", "#d1d1c7", "#0b0e14"}
 	case "amber":
@@ -566,6 +728,24 @@ func GetCracktroPalette(themeName string) []string {
 // 6 background.
 func GetLogoPalette(themeName string) []string {
 	switch strings.ToLower(themeName) {
+	case "rose-pine":
+		return []string{"#191724", "#26233a", "#a8a6ba", "#ebbcba", "#e0def4", "#31748f", "#191724"}
+	case "kanagawa":
+		return []string{"#1f1f28", "#2a2a37", "#999375", "#76946a", "#c8c093", "#7e9cd8", "#1f1f28"}
+	case "noctalia":
+		return []string{"#070722", "#21215f", "#b1adbb", "#fff59b", "#f3edf7", "#9bfece", "#070722"}
+	case "eldritch-abyss":
+		return []string{"#171928", "#474852", "#a2adb1", "#2dcc82", "#d8e6e6", "#8b75d9", "#171928"}
+	case "void":
+		return []string{"#000000", "#1a1a1a", "#b8b8b8", "#ffffff", "#ffffff", "#808080", "#000000"}
+	case "red":
+		return []string{"#1a1110", "#3d3231", "#b5a5a3", "#f44336", "#f1dedc", "#f28b82", "#1a1110"}
+	case "cyan":
+		return []string{"#0e1416", "#303637", "#a4a9ab", "#00bcd4", "#dee3e5", "#4dd0e1", "#0e1416"}
+	case "coral":
+		return []string{"#1a1110", "#3d3231", "#b5a5a3", "#ffb4ab", "#f1dedc", "#ffb4ab", "#1a1110"}
+	case "pink":
+		return []string{"#191112", "#3c3233", "#b4a5a6", "#e91e63", "#f0dee0", "#f8bbd9", "#191112"}
 	case "ayu":
 		return []string{"#0b0e14", "#1e222a", "#9a9a95", "#e6b450", "#d1d1c7", "#39bae6", "#0b0e14"}
 	case "amber":

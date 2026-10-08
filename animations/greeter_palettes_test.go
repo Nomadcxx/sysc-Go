@@ -17,6 +17,15 @@ func TestGreeterThemePalettes(t *testing.T) {
 		name   string
 		colors [10]string
 	}{
+		{"rose-pine", [10]string{"#191724", "#26233a", "#ebbcba", "#9ccfd8", "#31748f", "#ebbcba", "#eb6f92", "#e0def4", "#c8c6db", "#a8a6ba"}},
+		{"kanagawa", [10]string{"#1f1f28", "#2a2a37", "#76946a", "#c0a36e", "#7e9cd8", "#76946a", "#c34043", "#c8c093", "#b4ad86", "#999375"}},
+		{"noctalia", [10]string{"#070722", "#21215f", "#fff59b", "#a9aefe", "#9bfece", "#fff59b", "#fd4663", "#f3edf7", "#d7d1dd", "#b1adbb"}},
+		{"eldritch-abyss", [10]string{"#171928", "#474852", "#2dcc82", "#0396b3", "#8b75d9", "#2dcc82", "#cc5860", "#d8e6e6", "#c1cdcf", "#a2adb1"}},
+		{"void", [10]string{"#000000", "#1a1a1a", "#ffffff", "#ffffff", "#808080", "#ffffff", "#999999", "#ffffff", "#e0e0e0", "#b8b8b8"}},
+		{"red", [10]string{"#1a1110", "#3d3231", "#f44336", "#f28b82", "#f28b82", "#f44336", "#f2b8b5", "#f1dedc", "#d7c5c4", "#b5a5a3"}},
+		{"cyan", [10]string{"#0e1416", "#303637", "#00bcd4", "#4dd0e1", "#4dd0e1", "#00bcd4", "#f2b8b5", "#dee3e5", "#c5cacc", "#a4a9ab"}},
+		{"coral", [10]string{"#1a1110", "#3d3231", "#ffb4ab", "#f9dedc", "#ffb4ab", "#ffb4ab", "#f2b8b5", "#f1dedc", "#d7c5c4", "#b5a5a3"}},
+		{"pink", [10]string{"#191112", "#3c3233", "#e91e63", "#f8bbd9", "#f8bbd9", "#e91e63", "#f2b8b5", "#f0dee0", "#d6c5c7", "#b4a5a6"}},
 		{"ayu", [10]string{"#0b0e14", "#1e222a", "#e6b450", "#aad94c", "#39bae6", "#e6b450", "#d95757", "#d1d1c7", "#b9bab2", "#9a9a95"}},
 		{"amber", [10]string{"#17130b", "#39342b", "#ffc107", "#ffd54f", "#ffd54f", "#ffc107", "#f2b8b5", "#ebe1d4", "#d2c8bc", "#b0a79c"}},
 		{"blue", [10]string{"#101418", "#32353a", "#42a5f5", "#8ab4f8", "#8ab4f8", "#f8d38a", "#f2b8b5", "#e0e2e8", "#c7c9cf", "#a6a8ae"}},
