@@ -755,11 +755,23 @@ func findModuleRoot(start string) (string, bool) {
 	}
 }
 
+// getProjectRoot resolves the module the installer belongs to. install.sh places
+// the installer binary in the repo root. `go run` and `go build -o cmd/installer/...`
+// use other depths, so the lookup walks until go.mod instead of assuming one.
+// The executable is consulted before the cwd; see projectRootFrom.
 func getProjectRoot() string {
-	// install.sh places the installer binary in the repo root. `go run` and
-	// `go build -o cmd/installer/...` use other depths. Walk until go.mod
-	// instead of assuming cmd/installer/<binary>.
-	if execPath, err := os.Executable(); err == nil {
+	execPath, err := os.Executable()
+	if err != nil {
+		return projectRootFrom("")
+	}
+	return projectRootFrom(execPath)
+}
+
+// projectRootFrom is getProjectRoot with the executable path supplied by the
+// caller, so the lookup order is exercisable without relocating the running
+// test binary. An empty execPath skips the executable and forces the cwd.
+func projectRootFrom(execPath string) string {
+	if execPath != "" {
 		if root, ok := findModuleRoot(filepath.Dir(execPath)); ok {
 			return root
 		}
