@@ -304,6 +304,15 @@ var ThemeRegistry = []ThemeMetadata{
 	{Name: "purple", Description: "sysc-shell purple dark palette", VersionAdded: "1.0.6"},
 	{Name: "green", Description: "sysc-shell green dark palette", VersionAdded: "1.0.6"},
 	{Name: "orange", Description: "sysc-shell orange dark palette", VersionAdded: "1.0.6"},
+	{Name: "rose-pine", Description: "sysc-shell rose-pine dark palette", VersionAdded: "1.0.6"},
+	{Name: "kanagawa", Description: "sysc-shell kanagawa dark palette", VersionAdded: "1.0.6"},
+	{Name: "noctalia", Description: "sysc-shell noctalia dark palette", VersionAdded: "1.0.6"},
+	{Name: "eldritch-abyss", Description: "sysc-shell eldritch-abyss dark palette", VersionAdded: "1.0.6"},
+	{Name: "void", Description: "sysc-shell void dark palette", VersionAdded: "1.0.6"},
+	{Name: "red", Description: "sysc-shell red dark palette", VersionAdded: "1.0.6"},
+	{Name: "cyan", Description: "sysc-shell cyan dark palette", VersionAdded: "1.0.6"},
+	{Name: "coral", Description: "sysc-shell coral dark palette", VersionAdded: "1.0.6"},
+	{Name: "pink", Description: "sysc-shell pink dark palette", VersionAdded: "1.0.6"},
 }
 
 // GetThemeNames returns all available theme names (including aliases)
