@@ -1,247 +1,357 @@
 package animations
 
 import (
-	"bytes"
-	"compress/gzip"
-	_ "embed"
-	"encoding/binary"
 	"fmt"
-	"io"
+	"math"
+	"sort"
 	"strings"
-	"sync"
+	"time"
 )
 
-const artworkRamp = " .:-=+*#%@"
-
-//go:embed artwork/great-wave.cells.gz
-var greatWaveBake []byte
-
-//go:embed artwork/cyberpunk-girl.cells.gz
-var cyberpunkGirlBake []byte
-
-//go:embed artwork/wasteland.cells.gz
-var wastelandBake []byte
-
-type artworkScene struct {
-	cols, rows, sourceWidth, sourceHeight int
-	delays                                []uint16
-	frames                                [][]byte
-}
-
-var (
-	greatWaveScene     = sync.OnceValues(func() (*artworkScene, error) { return decodeArtwork(greatWaveBake) })
-	cyberpunkGirlScene = sync.OnceValues(func() (*artworkScene, error) { return decodeArtwork(cyberpunkGirlBake) })
-	wastelandScene     = sync.OnceValues(func() (*artworkScene, error) { return decodeArtwork(wastelandBake) })
+const (
+	artBG = iota
+	artInk
+	artShade
+	artMid
+	artSkinShade
+	artSkin
+	artLight
+	artWhite
+	artBlue
+	artCyan
+	artViolet
+	artBlood
+	artBloodShade
+	artWarm
+	artWarmShade
+	artSun
 )
 
-func decodeArtwork(bake []byte) (*artworkScene, error) {
-	if len(bake) > 1<<20 {
-		return nil, fmt.Errorf("artwork: compressed size exceeds 1 MiB")
-	}
-	z, err := gzip.NewReader(bytes.NewReader(bake))
-	if err != nil {
-		return nil, fmt.Errorf("artwork: %w", err)
-	}
-	defer z.Close()
-	raw, err := io.ReadAll(io.LimitReader(z, (8<<20)+1))
-	if err != nil {
-		return nil, fmt.Errorf("artwork: %w", err)
-	}
-	if len(raw) > 8<<20 || len(raw) < 18 || string(raw[:8]) != "SYSCART1" {
-		return nil, fmt.Errorf("artwork: invalid header or inflated size")
-	}
-	u := func(i int) int { return int(binary.LittleEndian.Uint16(raw[i : i+2])) }
-	s := &artworkScene{cols: u(8), rows: u(10), sourceWidth: u(14), sourceHeight: u(16)}
-	n := u(12)
-	if s.cols < 1 || s.cols > 256 || s.rows < 1 || s.rows > 128 || n < 1 || n > 160 || s.sourceWidth < 1 || s.sourceHeight < 1 {
-		return nil, fmt.Errorf("artwork: invalid dimensions")
-	}
-	size := s.cols * s.rows * 2
-	if len(raw) != 18+n*(2+size) {
-		return nil, fmt.Errorf("artwork: invalid frame length")
-	}
-	for pos := 18; pos < len(raw); pos += 2 + size {
-		d := binary.LittleEndian.Uint16(raw[pos : pos+2])
-		if d < 50 || d > 1000 {
-			return nil, fmt.Errorf("artwork: invalid delay")
-		}
-		frame := raw[pos+2 : pos+2+size]
-		for i := 0; i < len(frame); i += 2 {
-			if !strings.ContainsRune(artworkRamp, rune(frame[i])) || frame[i+1] > 3 {
-				return nil, fmt.Errorf("artwork: invalid cell")
-			}
-		}
-		s.delays = append(s.delays, d)
-		s.frames = append(s.frames, frame)
-	}
-	return s, nil
-}
+type artPoint struct{ x, y float64 }
 
-// ArtworkAnimation plays immutable baked ASCII cells using the host's Update calls.
-// ponytail: nominal 50 ms ticks follow existing effects; blur slows playback.
-// A future elapsed-time host API can preserve real-time speed at every cadence.
+// ArtworkAnimation draws authored scene geometry into character cells.
+// The canvas owns no clock or goroutine; hosts supply active time in Update.
 type ArtworkAnimation struct {
-	scene                                *artworkScene
 	width, height, cellWidth, cellHeight int
-	frame, elapsed                       int
-	credit                               string
-	styles                               [4][10]string
-	background                           string
+	scene, credit                        string
+	elapsed, period                      time.Duration
+	pixels                               []uint8
+	dotW, dotH, dotsY                    int
+	sx, sy, ox, oy                       float64
+	colors                               [16][3]uint8
+	fg, bg                               [16]string
 	cached                               string
 }
 
-func NewGreatWaveEffect(width, height int, theme string) (*ArtworkAnimation, error) {
-	s, err := greatWaveScene()
-	return newArtwork(s, err, width, height, theme, "Hokusai / The Met")
+func NewGreatWaveEffect(w, h int, theme string) (*ArtworkAnimation, error) {
+	return newArtwork("great-wave", w, h, theme, "Hokusai / The Met", 8*time.Second), nil
 }
-func NewCyberpunkGirlEffect(width, height int, theme string) (*ArtworkAnimation, error) {
-	s, err := cyberpunkGirlScene()
-	return newArtwork(s, err, width, height, theme, "Valenberg.com")
+func NewCyberpunkGirlEffect(w, h int, theme string) (*ArtworkAnimation, error) {
+	return newArtwork("cyberpunk-girl", w, h, theme, "Valenberg.com", 12*time.Second), nil
 }
-func NewWastelandEffect(width, height int, theme string) (*ArtworkAnimation, error) {
-	s, err := wastelandScene()
-	return newArtwork(s, err, width, height, theme, "Valenberg.com")
+func NewWastelandEffect(w, h int, theme string) (*ArtworkAnimation, error) {
+	return newArtwork("wasteland", w, h, theme, "Valenberg.com", 16*time.Second), nil
 }
-
-func newArtwork(s *artworkScene, err error, width, height int, theme, credit string) (*ArtworkAnimation, error) {
-	if err != nil {
-		return nil, err
+func newArtwork(scene string, w, h int, theme, credit string, period time.Duration) *ArtworkAnimation {
+	a := &ArtworkAnimation{scene: scene, credit: credit, period: period, cellWidth: 1, cellHeight: 2, dotsY: 2}
+	if scene == "great-wave" {
+		a.dotsY = 4
 	}
-	a := &ArtworkAnimation{scene: s, credit: credit, cellWidth: 1, cellHeight: 2}
 	p := GetLogoPalette(theme)
-	particle := GetParticlePalette(theme)
-	// Existing palette roles: neutral highlight, cool rim, warm/primary accent,
-	// secondary particle accent. Density carries luminance independently of hue.
-	// Pick the nearest warm hue already present in the theme. In Kanagawa
-	// the primary accent is green, which would turn the sunset into grass.
-	warm := p[3]
-	best := 10.0
-	for _, c := range GetFireworksPalette(theme) {
-		r, g, b := hexToRGB(c)
-		peak := max(r, g, b)
-		if peak-min(r, min(g, b)) < 40 {
-			continue
+	convert := func(s string) [3]uint8 { r, g, b := hexToRGB(s); return [3]uint8{uint8(r), uint8(g), uint8(b)} }
+	background, white := convert(p[6]), convert(p[4])
+	// Use existing theme colours nearest the scene's semantic accents.
+	palette := append(GetFireworksPalette(theme), GetParticlePalette(theme)...)
+	palette = append(palette, p...)
+	palette = append(palette, GetFirePalette(theme)...)
+	nearest := func(target [3]float64) [3]uint8 {
+		best, out := math.Inf(1), white
+		for _, s := range palette {
+			c := convert(s)
+			peak := float64(max(c[0], max(c[1], c[2])))
+			if peak == 0 {
+				continue
+			}
+			d := 0.0
+			for i := range c {
+				v := float64(c[i])/peak - target[i]
+				d += v * v
+			}
+			if d < best {
+				best, out = d, c
+			}
 		}
-		red, green, blue := float64(r)/float64(peak), float64(g)/float64(peak), float64(b)/float64(peak)
-		d := (red-1)*(red-1) + (green-0.5)*(green-0.5) + (blue-0.25)*(blue-0.25)
-		if d < best {
-			best = d
-			warm = c
-		}
+		return out
 	}
-	colors := []string{p[4], p[5], warm, particle[0]}
-	r, g, b := hexToRGB(p[6])
-	a.background = fmt.Sprintf("\x1b[48;2;%d;%d;%dm", r, g, b)
-	for role, c := range colors {
-		r, g, b := hexToRGB(c)
-		for shade := 0; shade < len(artworkRamp); shade++ {
-			// Keep sparse glyphs visible on dark themes without lifting empty cells.
-			v := 0.55 + 0.45*float64(shade)/9
-			a.styles[role][shade] = fmt.Sprintf("\x1b[38;2;%d;%d;%dm", int(float64(r)*v), int(float64(g)*v), int(float64(b)*v))
-		}
+	blue := nearest([3]float64{.25, .5, 1})
+	cyan := nearest([3]float64{.3, 1, 1})
+	violet := nearest([3]float64{.7, .4, 1})
+	red := nearest([3]float64{1, .15, .2})
+	warm := nearest([3]float64{1, .4, .1})
+	sun := nearest([3]float64{1, .8, .4})
+	a.colors = [16][3]uint8{background, artMix(background, [3]uint8{}, .65), artMix(background, blue, .22), artMix(background, blue, .50), artMix(background, violet, .65), artMix(violet, white, .66), artMix(violet, white, .86), white, blue, cyan, violet, red, artMix(background, red, .65), warm, artMix(background, warm, .60), artMix(sun, white, .3)}
+	if scene == "wasteland" {
+		a.colors[artShade] = artMix(background, warm, .20)
+		a.colors[artMid] = artMix(background, warm, .36)
+		a.colors[artSkinShade] = artMix(background, warm, .72)
+		a.colors[artSkin] = artMix(warm, sun, .20)
+		a.colors[artLight] = artMix(warm, white, .28)
+		a.colors[artViolet] = artMix(background, warm, .84)
+		a.colors[artBloodShade] = artMix(background, warm, .46)
 	}
-	a.Resize(width, height)
-	return a, nil
+	for i, c := range a.colors {
+		a.fg[i] = fmt.Sprintf("\x1b[38;2;%d;%d;%dm", c[0], c[1], c[2])
+		a.bg[i] = fmt.Sprintf("\x1b[48;2;%d;%d;%dm", c[0], c[1], c[2])
+	}
+	a.Resize(w, h)
+	return a
 }
-
-func (a *ArtworkAnimation) Update() {
-	a.elapsed += 50
-	for a.elapsed >= int(a.scene.delays[a.frame]) {
-		a.elapsed -= int(a.scene.delays[a.frame])
-		a.frame = (a.frame + 1) % len(a.scene.frames)
-		a.cached = ""
+func artMix(a, b [3]uint8, t float64) (out [3]uint8) {
+	for i := range out {
+		out[i] = uint8(float64(a[i])*(1-t) + float64(b[i])*t + .5)
 	}
+	return
 }
-func (a *ArtworkAnimation) Reset() { a.frame = 0; a.elapsed = 0; a.cached = "" }
-func (a *ArtworkAnimation) Resize(width, height int) {
-	a.width = max(1, min(512, width))
-	a.height = max(1, min(256, height))
+func (a *ArtworkAnimation) Update() { a.UpdateElapsed(50 * time.Millisecond) }
+func (a *ArtworkAnimation) UpdateElapsed(dt time.Duration) {
+	if dt <= 0 {
+		return
+	}
+	// ponytail: cap dispatch gaps at 250 ms; resumed hosts reset their baseline.
+	if dt > 250*time.Millisecond {
+		dt = 250 * time.Millisecond
+	}
+	a.elapsed = (a.elapsed + dt) % a.period
 	a.cached = ""
 }
-
-// SetCellAspect fits the scene using measured font cells; invalid input keeps
-// the current ratio. Ordinary terminals default to one column per two pixels.
-func (a *ArtworkAnimation) SetCellAspect(width, height int) {
-	if width > 0 && width <= 1024 && height > 0 && height <= 1024 {
-		a.cellWidth = width
-		a.cellHeight = height
+func (a *ArtworkAnimation) Reset() { a.elapsed = 0; a.cached = "" }
+func (a *ArtworkAnimation) Resize(w, h int) {
+	a.width = max(1, min(512, w))
+	a.height = max(1, min(256, h))
+	a.dotW, a.dotH = a.width*2, a.height*a.dotsY
+	n := a.dotW * a.dotH
+	if cap(a.pixels) < n {
+		a.pixels = make([]uint8, n)
+	} else {
+		a.pixels = a.pixels[:n]
+	}
+	a.cached = ""
+}
+func (a *ArtworkAnimation) SetCellAspect(w, h int) {
+	if w > 0 && w <= 1024 && h > 0 && h <= 1024 {
+		a.cellWidth, a.cellHeight = w, h
 		a.cached = ""
 	}
 }
-
+func (a *ArtworkAnimation) view(w, h float64, preserve bool) {
+	a.sx, a.sy = float64(a.dotW)/w, float64(a.dotH)/h
+	a.ox, a.oy = 0, 0
+	if preserve {
+		aspect := float64(a.width) * float64(a.cellWidth) / (float64(a.height) * float64(a.cellHeight))
+		a.sx = float64(a.dotW) / (h * aspect)
+		a.ox = (float64(a.dotW) - w*a.sx) / 2
+	}
+}
 func (a *ArtworkAnimation) Render() string {
 	if a.cached != "" {
 		return a.cached
 	}
-	available := a.height
-	if a.height >= 3 {
-		available--
+	clear(a.pixels)
+	t := a.elapsed.Seconds()
+	switch a.scene {
+	case "great-wave":
+		a.drawWave(t)
+	case "cyberpunk-girl":
+		a.drawGirl(t)
+	case "wasteland":
+		a.drawWasteland(t)
 	}
-	w := a.width
-	aspect := float64(a.scene.sourceWidth) * float64(a.cellHeight) / (float64(a.scene.sourceHeight) * float64(a.cellWidth))
-	h := available
-	if float64(w)/aspect > float64(available) {
-		h = available
-		w = max(1, int(float64(h)*aspect))
-		w = min(w, a.width)
-	} else {
-		h = max(1, int(float64(w)/aspect))
-	}
-	x0, y0 := (a.width-w)/2, (available-h)/2
-	frame := a.scene.frames[a.frame]
+	a.cached = a.compose()
+	return a.cached
+}
+
+// Quadrant bits are UL, UR, LL, LR. Colour comes from both SGR planes.
+var artQuadrants = [16]rune{' ', '▘', '▝', '▀', '▖', '▌', '▞', '▛', '▗', '▚', '▐', '▜', '▄', '▙', '▟', '█'}
+
+func (a *ArtworkAnimation) compose() string {
 	var out strings.Builder
-	out.Grow(a.width * a.height * 4)
-	out.WriteString(a.background)
-	last := ""
+	out.Grow(a.width * a.height * 8)
+	lastFG, lastBG := -1, -1
 	for y := 0; y < a.height; y++ {
 		for x := 0; x < a.width; x++ {
-			glyph := byte(' ')
-			style := ""
-			if x >= x0 && x < x0+w && y >= y0 && y < y0+h {
-				// Area-average when shrinking; nearest cell when enlarging. This
-				// retains thin subjects without inventing a runtime image renderer.
-				sx, sy := (x-x0)*a.scene.cols/w, (y-y0)*a.scene.rows/h
-				ex, ey := max(sx+1, (x-x0+1)*a.scene.cols/w), max(sy+1, (y-y0+1)*a.scene.rows/h)
-				shade, n := 0, 0
-				var weights [4]int
-				for yy := sy; yy < ey; yy++ {
-					for xx := sx; xx < ex; xx++ {
-						i := 2 * (yy*a.scene.cols + xx)
-						v := strings.IndexByte(artworkRamp, frame[i])
-						shade += v
-						n++
-						weights[frame[i+1]] += v + 1
+			fg, bg := artBG, artBG
+			ch := ' '
+			if a.dotsY == 4 {
+				var bits uint8
+				var counts [16]uint8
+				for point, bit := range logoDotBits {
+					c := a.pixels[(y*4+point/2)*a.dotW+x*2+point%2]
+					if c != artBG {
+						bits |= bit
+						counts[c]++
 					}
 				}
-				shade = (shade + n/2) / n
-				role := 0
-				for r := 1; r < 4; r++ {
-					if weights[r] > weights[role] {
-						role = r
+				if bits != 0 {
+					for i := 1; i < len(counts); i++ {
+						if counts[i] > counts[fg] {
+							fg = i
+						}
+					}
+					ch = rune(0x2800) + rune(bits)
+				}
+			} else {
+				c := [4]uint8{a.pixels[y*2*a.dotW+x*2], a.pixels[y*2*a.dotW+x*2+1], a.pixels[(y*2+1)*a.dotW+x*2], a.pixels[(y*2+1)*a.dotW+x*2+1]}
+				bg, fg = int(c[0]), int(c[0])
+				best := -1
+				// Two colours per cell: retain the furthest pair and assign each quadrant
+				// to its nearest colour. The fixed palette bounds raster tile diversity.
+				for i := 0; i < 4; i++ {
+					for j := i + 1; j < 4; j++ {
+						d := artColorDistance(a.colors[c[i]], a.colors[c[j]])
+						if d > best {
+							best = d
+							bg, fg = int(c[i]), int(c[j])
+						}
 					}
 				}
-				glyph = artworkRamp[shade]
-				style = a.styles[role][shade]
-			} else if a.height >= 3 && y == a.height-1 && x >= a.width-min(a.width, len(a.credit)) {
-				glyph = a.credit[x-(a.width-min(a.width, len(a.credit)))]
-				style = a.styles[0][9]
+				bits := 0
+				for i, v := range c {
+					if artColorDistance(a.colors[v], a.colors[fg]) <= artColorDistance(a.colors[v], a.colors[bg]) {
+						bits |= 1 << i
+					}
+				}
+				ch = artQuadrants[bits]
+				if bg == fg {
+					ch = '█'
+					bg = artBG
+				}
+				if fg == artBG && bg == artBG {
+					ch = ' '
+				}
 			}
-			// Blank cells need a stable foreground too: otherwise the previous
-			// ink colour invalidates whole letterbox regions during a glitch.
-			if glyph == ' ' {
-				style = a.styles[0][0]
+			if y == a.height-1 && x >= a.width-len(a.credit) && a.width >= len(a.credit) {
+				ch = rune(a.credit[x-(a.width-len(a.credit))])
+				fg, bg = artLight, artBG
 			}
-			if style != last {
-				out.WriteString(style)
-				last = style
+			if ch == ' ' {
+				fg = artBG
 			}
-			out.WriteByte(glyph)
+			if bg != lastBG {
+				out.WriteString(a.bg[bg])
+				lastBG = bg
+			}
+			if fg != lastFG {
+				out.WriteString(a.fg[fg])
+				lastFG = fg
+			}
+			out.WriteRune(ch)
 		}
 		if y < a.height-1 {
 			out.WriteByte('\n')
 		}
 	}
 	out.WriteString("\x1b[0m")
-	a.cached = out.String()
-	return a.cached
+	return out.String()
 }
+func artColorDistance(a, b [3]uint8) int {
+	d := 0
+	for i := range a {
+		v := int(a[i]) - int(b[i])
+		d += v * v
+	}
+	return d
+}
+func (a *ArtworkAnimation) rect(x, y, w, h float64, c uint8) {
+	x0, x1 := max(0, int(math.Floor(a.ox+x*a.sx))), min(a.dotW, int(math.Ceil(a.ox+(x+w)*a.sx)))
+	y0, y1 := max(0, int(math.Floor(a.oy+y*a.sy))), min(a.dotH, int(math.Ceil(a.oy+(y+h)*a.sy)))
+	for yy := y0; yy < y1; yy++ {
+		for xx := x0; xx < x1; xx++ {
+			a.pixels[yy*a.dotW+xx] = c
+		}
+	}
+}
+func (a *ArtworkAnimation) poly(c uint8, p ...artPoint) {
+	if len(p) < 3 || len(p) > 128 {
+		return
+	}
+	minY, maxY := p[0].y, p[0].y
+	for _, v := range p {
+		minY = math.Min(minY, v.y)
+		maxY = math.Max(maxY, v.y)
+	}
+	y0, y1 := max(0, int(math.Floor(a.oy+minY*a.sy))), min(a.dotH, int(math.Ceil(a.oy+maxY*a.sy)))
+	var crossings [128]float64
+	for row := y0; row < y1; row++ {
+		y := (float64(row) + .5 - a.oy) / a.sy
+		n := 0
+		for i, v := range p {
+			q := p[(i+1)%len(p)]
+			if (v.y <= y && q.y > y) || (q.y <= y && v.y > y) {
+				crossings[n] = a.ox + (v.x+(y-v.y)*(q.x-v.x)/(q.y-v.y))*a.sx
+				n++
+			}
+		}
+		sort.Float64s(crossings[:n])
+		for i := 0; i+1 < n; i += 2 {
+			x0, x1 := max(0, int(math.Ceil(crossings[i]-.5))), min(a.dotW, int(math.Ceil(crossings[i+1]-.5)))
+			for x := x0; x < x1; x++ {
+				a.pixels[row*a.dotW+x] = c
+			}
+		}
+	}
+}
+func (a *ArtworkAnimation) ellipse(x, y, rx, ry float64, c uint8) {
+	if rx <= 0 || ry <= 0 {
+		return
+	}
+	y0, y1 := max(0, int(math.Floor(a.oy+(y-ry)*a.sy))), min(a.dotH, int(math.Ceil(a.oy+(y+ry)*a.sy)))
+	for row := y0; row < y1; row++ {
+		v := ((float64(row)+.5-a.oy)/a.sy - y) / ry
+		if math.Abs(v) > 1 {
+			continue
+		}
+		span := rx * math.Sqrt(1-v*v)
+		x0, x1 := max(0, int(math.Ceil(a.ox+(x-span)*a.sx-.5))), min(a.dotW, int(math.Ceil(a.ox+(x+span)*a.sx-.5)))
+		for col := x0; col < x1; col++ {
+			a.pixels[row*a.dotW+col] = c
+		}
+	}
+}
+func (a *ArtworkAnimation) line(p, q artPoint, w float64, c uint8) {
+	dx, dy := q.x-p.x, q.y-p.y
+	length := math.Hypot(dx, dy)
+	if length == 0 {
+		rx, ry := math.Max(w/2, .5/a.sx), math.Max(w/2, .5/a.sy)
+		a.rect(p.x-rx, p.y-ry, rx*2, ry*2, c)
+		return
+	}
+	nx, ny := -dy/length, dx/length
+	sampleRadius := .5
+	if a.dotsY == 4 {
+		// ponytail: one foreground per braille cell needs two-sample strokes;
+		// separate background/dot colours if finer water contours are required.
+		sampleRadius = 1
+	}
+	radius := math.Max(w/2, sampleRadius*math.Hypot(nx/a.sx, ny/a.sy))
+	capX, capY := dx/length*radius, dy/length*radius
+	p.x, p.y = p.x-capX, p.y-capY
+	q.x, q.y = q.x+capX, q.y+capY
+	// Clip in the bounded polygon scan, independent of off-screen line length.
+	a.poly(c, artPoint{p.x + nx*radius, p.y + ny*radius},
+		artPoint{q.x + nx*radius, q.y + ny*radius},
+		artPoint{q.x - nx*radius, q.y - ny*radius},
+		artPoint{p.x - nx*radius, p.y - ny*radius})
+}
+func artBezier(p [4]artPoint, t float64) artPoint {
+	u := 1 - t
+	return artPoint{u*u*u*p[0].x + 3*u*u*t*p[1].x + 3*u*t*t*p[2].x + t*t*t*p[3].x, u*u*u*p[0].y + 3*u*u*t*p[1].y + 3*u*t*t*p[2].y + t*t*t*p[3].y}
+}
+func (a *ArtworkAnimation) curve(p [4]artPoint, w float64, c uint8) {
+	previous := p[0]
+	for i := 1; i <= 48; i++ {
+		next := artBezier(p, float64(i)/48)
+		a.line(previous, next, w, c)
+		previous = next
+	}
+}
+func artPhase(t, period float64) float64 { return t/period - math.Floor(t/period) }
