@@ -81,6 +81,21 @@ func (m *Model) createAnimation() animations.Animation {
 
 	// Create animation based on type (only simple constructors for now)
 	switch animName {
+	case "great-wave", "cyberpunk-girl", "wasteland":
+		var scene *animations.ArtworkAnimation
+		var err error
+		switch animName {
+		case "great-wave":
+			scene, err = animations.NewGreatWaveEffect(width, height, themeName)
+		case "cyberpunk-girl":
+			scene, err = animations.NewCyberpunkGirlEffect(width, height, themeName)
+		case "wasteland":
+			scene, err = animations.NewWastelandEffect(width, height, themeName)
+		}
+		if err != nil {
+			return nil
+		}
+		return scene
 	case "fire":
 		palette := animations.GetFirePalette(themeName)
 		fire := animations.NewFireEffect(width, height, palette)

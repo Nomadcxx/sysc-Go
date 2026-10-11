@@ -140,6 +140,7 @@ func TestAnimationNeedsFile(t *testing.T) {
 		"fireworks": false, "aquarium": false, "sonar": false,
 		"sysc-logo": false, "cross-logo": false, "justice-cross": false,
 		"logo-morph": false, "": false,
+		"great-wave": false, "cyberpunk-girl": false, "wasteland": false,
 	}
 	for anim, expected := range want {
 		if got := animationNeedsFile(anim); got != expected {
@@ -152,6 +153,25 @@ func TestAnimationNeedsFile(t *testing.T) {
 	for _, a := range NewModel().animations {
 		if _, ok := want[a]; !ok {
 			t.Errorf("animation %q missing from the animationNeedsFile table", a)
+		}
+	}
+}
+
+func TestArtworkSelector(t *testing.T) {
+	for _, id := range []string{"great-wave", "cyberpunk-girl", "wasteland"} {
+		m := selectAnimation(t, newTestModel(t), id)
+		m.canvasHeight = 24
+		m = selectFile(t, m, "BIT Text Editor")
+		fx := m.createAnimation()
+		if fx == nil || m.bitEditorMode || m.editorMode {
+			t.Fatalf("%s did not construct without a file", id)
+		}
+		before := fx.Render()
+		for i := 0; i < 8; i++ {
+			fx.Update()
+		}
+		if fx.Render() == before {
+			t.Fatalf("%s has no motion", id)
 		}
 	}
 }

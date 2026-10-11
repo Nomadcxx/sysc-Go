@@ -19,6 +19,9 @@ type EffectMetadata struct {
 
 // EffectRegistry contains metadata for all available effects
 var EffectRegistry = []EffectMetadata{
+	{Name: "great-wave", Description: "Hokusai's Great Wave with moving ASCII foam and water", VersionAdded: "1.0.7", Category: "scene"},
+	{Name: "cyberpunk-girl", Description: "Animated ASCII cyberpunk portrait, after Valenberg", VersionAdded: "1.0.7", Category: "scene"},
+	{Name: "wasteland", Description: "Animated ASCII wasteland, after Valenberg", VersionAdded: "1.0.7", Category: "scene"},
 	{
 		Name:         "matrix",
 		RequiresText: false,
