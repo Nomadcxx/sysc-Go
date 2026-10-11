@@ -325,6 +325,7 @@ func showHelp() {
 	fmt.Println("Effects:")
 	fmt.Println("  fire, fire-text, matrix, matrix-art, rain, rain-art, fireworks")
 	fmt.Println("  pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro")
+	fmt.Println("  great-wave, cyberpunk-girl, wasteland")
 	fmt.Println()
 	fmt.Println("Themes:")
 	fmt.Println("  dracula, gruvbox, nord, tokyo-night, catppuccin, material")
@@ -376,6 +377,20 @@ func main() {
 	frames := framesForDuration(*duration)
 
 	switch *effect {
+	case "great-wave", "cyberpunk-girl", "wasteland":
+		create := animations.NewGreatWaveEffect
+		if *effect == "cyberpunk-girl" {
+			create = animations.NewCyberpunkGirlEffect
+		}
+		if *effect == "wasteland" {
+			create = animations.NewWastelandEffect
+		}
+		scene, err := create(width, height, *theme)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		runAnimation(scene, frames)
 	case "fire":
 		runFire(width, height, *theme, frames)
 	case "fire-text":
@@ -423,7 +438,7 @@ func main() {
 		runLogoSpin(width, height, *theme, "justice", frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: fire, fire-text, matrix, rain, rain-art, fireworks, pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro, sysc-logo, cross-logo, justice-cross, logo-morph")
+		fmt.Println("Available: " + strings.Join(animations.GetEffectNames(), ", "))
 		os.Exit(1)
 	}
 }
@@ -1468,6 +1483,10 @@ func runLogoSpin(width, height int, theme, shape string, frames int) {
 		Palette: palette,
 		Theme:   theme,
 	})
+	runAnimation(logo, frames)
+}
+
+func runAnimation(animation animations.Animation, frames int) {
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
@@ -1480,8 +1499,8 @@ func runLogoSpin(width, height int, theme, shape string, frames int) {
 		default:
 		}
 
-		logo.Update()
-		output := logo.Render()
+		animation.Update()
+		output := animation.Render()
 
 		fmt.Print("\033[H")
 		fmt.Print(output)

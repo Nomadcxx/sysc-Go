@@ -156,6 +156,9 @@ func NewModel() Model {
 			"cross-logo",
 			"justice-cross",
 			"logo-morph",
+			"great-wave",
+			"cyberpunk-girl",
+			"wasteland",
 		},
 		themes: []string{
 			"dracula",
