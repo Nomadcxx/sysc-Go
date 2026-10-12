@@ -313,6 +313,9 @@ func (m *Model) createAnimation() animations.Animation {
 			update: blackhole.Update,
 		}
 
+	case "ak-47":
+		rifle := animations.NewAK47Effect(width, height, themeName)
+		return &AnimationWrapper{render: rifle.Render, update: rifle.Update}
 	case "skull":
 		palette := animations.GetSkullPalette(themeName)
 		skull := animations.NewSkullEffect(width, height, palette, themeName)

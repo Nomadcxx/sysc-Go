@@ -15,6 +15,7 @@ Standalone effects that don't require text input.
 - **Fireworks** - Particle-based fireworks display
 - **Beams** - Full-screen light beam background animation
 - **Aquarium** - Underwater scene with fish, diver, boat, and sea life
+- **AK-47** - Lokeig's model in braille: two rotations, particle swirl and reconstruction
 
 ### Text Effects
 Effects that animate ASCII text and art (requires `-file` flag).
@@ -110,6 +111,9 @@ syscgo -effect beams -theme nord -duration 0
 
 # Aquarium effect (infinite)
 syscgo -effect aquarium -theme dracula -duration 0
+
+# AK-47: repeating 12-second cycle
+syscgo -effect ak-47 -theme kanagawa -duration 0
 ```
 
 **Text Effects** (require `-file` flag with text/ASCII art):
@@ -240,7 +244,9 @@ See [GUIDE.md](GUIDE.md) for detailed CLI usage.
 
 ## License
 
-MIT
+Code: MIT. The bundled AK-47 model data is by Lokeig and retains
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), including its
+noncommercial restriction. See [model credits and conversion](animations/models/README.md).
 
 ---
 

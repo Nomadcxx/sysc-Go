@@ -325,7 +325,7 @@ func showHelp() {
 	fmt.Println("Effects:")
 	fmt.Println("  fire, fire-text, matrix, matrix-art, rain, rain-art, fireworks")
 	fmt.Println("  pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro")
-	fmt.Println("  great-wave, cyberpunk-girl, wasteland")
+	fmt.Println("  great-wave, cyberpunk-girl, wasteland, ak-47")
 	fmt.Println()
 	fmt.Println("Themes:")
 	fmt.Println("  dracula, gruvbox, nord, tokyo-night, catppuccin, material")
@@ -377,6 +377,8 @@ func main() {
 	frames := framesForDuration(*duration)
 
 	switch *effect {
+	case "ak-47":
+		runAnimation(animations.NewAK47Effect(width, height, *theme), frames)
 	case "great-wave", "cyberpunk-girl", "wasteland":
 		create := animations.NewGreatWaveEffect
 		if *effect == "cyberpunk-girl" {

@@ -141,6 +141,7 @@ func TestAnimationNeedsFile(t *testing.T) {
 		"sysc-logo": false, "cross-logo": false, "justice-cross": false,
 		"logo-morph": false, "": false,
 		"great-wave": false, "cyberpunk-girl": false, "wasteland": false,
+		"ak-47": false,
 	}
 	for anim, expected := range want {
 		if got := animationNeedsFile(anim); got != expected {
@@ -158,7 +159,7 @@ func TestAnimationNeedsFile(t *testing.T) {
 }
 
 func TestArtworkSelector(t *testing.T) {
-	for _, id := range []string{"great-wave", "cyberpunk-girl", "wasteland"} {
+	for _, id := range []string{"great-wave", "cyberpunk-girl", "wasteland", "ak-47"} {
 		m := selectAnimation(t, newTestModel(t), id)
 		m.canvasHeight = 24
 		m = selectFile(t, m, "BIT Text Editor")

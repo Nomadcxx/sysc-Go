@@ -156,6 +156,7 @@ func NewModel() Model {
 			"cross-logo",
 			"justice-cross",
 			"logo-morph",
+			"ak-47",
 			"great-wave",
 			"cyberpunk-girl",
 			"wasteland",
