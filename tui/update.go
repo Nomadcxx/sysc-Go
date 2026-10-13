@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Nomadcxx/sysc-Go/animations"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -39,8 +40,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		//  Resize animation if running
 		if m.animationRunning && m.currentAnim != nil {
-			// Recreate animation with new dimensions
-			m.currentAnim = m.createAnimation()
+			if rifle, ok := m.currentAnim.(*animations.AK47Animation); ok {
+				rifle.Resize(m.width-10, m.canvasHeight)
+			} else {
+				m.currentAnim = m.createAnimation()
+			}
 		}
 		return m, nil
 

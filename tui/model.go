@@ -34,6 +34,7 @@ type Model struct {
 	focusedSelector int
 
 	// Animation preview state
+	animationError   string
 	animationRunning bool
 	currentAnim      animations.Animation
 	animFrames       int // Frame counter
@@ -154,11 +155,11 @@ func NewModel() Model {
 			"sonar",
 			"sysc-logo",
 			"cross-logo",
-			"justice-cross",
 			"logo-morph",
 			"ak-47",
+			"ak-47-rama",
+			"ak-47-text",
 			"great-wave",
-			"cyberpunk-girl",
 			"wasteland",
 		},
 		themes: []string{

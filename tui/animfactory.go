@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/Nomadcxx/sysc-Go/animations"
+	"github.com/Nomadcxx/sysc-Go/internal/artfile"
 )
 
 // AnimationWrapper wraps any animation type to provide a common interface
@@ -34,7 +35,7 @@ func (a *AnimationWrapper) Reset() {
 // the editors are File entries, so they are only reachable for these.
 func animationNeedsFile(animName string) bool {
 	switch animName {
-	case "fire-text", "matrix-art", "rain-art", "pour", "print", "beam-text", "ring-text", "blackhole-text":
+	case "ak-47-text", "fire-text", "matrix-art", "rain-art", "pour", "print", "beam-text", "ring-text", "blackhole-text":
 		return true
 	}
 	return false
@@ -43,6 +44,7 @@ func animationNeedsFile(animName string) bool {
 // createAnimation creates an animation instance based on the selected type and settings
 // Returns nil if the animation requires user interaction (editors) or isn't supported yet
 func (m *Model) createAnimation() animations.Animation {
+	m.animationError = ""
 	animName := m.animations[m.selectedAnimation]
 	themeName := m.themes[m.selectedTheme]
 	fileName := m.files[m.selectedFile]
@@ -81,14 +83,12 @@ func (m *Model) createAnimation() animations.Animation {
 
 	// Create animation based on type (only simple constructors for now)
 	switch animName {
-	case "great-wave", "cyberpunk-girl", "wasteland":
+	case "great-wave", "wasteland":
 		var scene *animations.ArtworkAnimation
 		var err error
 		switch animName {
 		case "great-wave":
 			scene, err = animations.NewGreatWaveEffect(width, height, themeName)
-		case "cyberpunk-girl":
-			scene, err = animations.NewCyberpunkGirlEffect(width, height, themeName)
 		case "wasteland":
 			scene, err = animations.NewWastelandEffect(width, height, themeName)
 		}
@@ -313,9 +313,25 @@ func (m *Model) createAnimation() animations.Animation {
 			update: blackhole.Update,
 		}
 
+	case "ak-47-rama", "ak-47-text":
+		var rifle *animations.AK47Animation
+		var err error
+		if animName == "ak-47-rama" {
+			rifle, err = animations.NewAK47RAMAEffect(width, height, themeName)
+		} else {
+			var text string
+			text, err = artfile.Read(getAssetPath(fileName))
+			if err == nil {
+				rifle, err = animations.NewAK47TextEffect(width, height, themeName, text)
+			}
+		}
+		if err != nil {
+			m.animationError = err.Error()
+			return nil
+		}
+		return rifle
 	case "ak-47":
-		rifle := animations.NewAK47Effect(width, height, themeName)
-		return &AnimationWrapper{render: rifle.Render, update: rifle.Update}
+		return animations.NewAK47Effect(width, height, themeName)
 	case "skull":
 		palette := animations.GetSkullPalette(themeName)
 		skull := animations.NewSkullEffect(width, height, palette, themeName)
@@ -341,13 +357,6 @@ func (m *Model) createAnimation() animations.Animation {
 
 	case "cross-logo":
 		logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{Width: width, Height: height, Shape: "cross", Palette: animations.GetLogoPalette(themeName), Theme: themeName})
-		return &AnimationWrapper{
-			render: logo.Render,
-			update: logo.Update,
-		}
-
-	case "justice-cross":
-		logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{Width: width, Height: height, Shape: "justice", Palette: animations.GetLogoPalette(themeName), Theme: themeName})
 		return &AnimationWrapper{
 			render: logo.Render,
 			update: logo.Update,

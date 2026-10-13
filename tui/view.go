@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 const (
@@ -87,6 +88,8 @@ func (m Model) renderCanvas() string {
 	if m.animationRunning && m.currentAnim != nil {
 		// Render actual animation frame (raw content)
 		content = m.currentAnim.Render()
+	} else if m.animationError != "" {
+		content = "Cannot start animation:\n" + ansi.Strip(m.animationError)
 	} else {
 		// Show welcome/instructions
 		content = m.renderWelcome()

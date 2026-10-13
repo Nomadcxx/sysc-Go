@@ -1,11 +1,47 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+func TestAK47ArtworkSelection(t *testing.T) {
+	m := selectAnimation(t, newTestModel(t), "ak-47-rama")
+	m.canvasHeight = m.height - mainViewChromeRows
+	m.currentAnim = m.createAnimation()
+	m.animationRunning = true
+	for i := 0; i < 210; i++ {
+		m.currentAnim.Update()
+	}
+	held := m.currentAnim.Render()
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: m.width + 10, Height: m.height + 5})
+	m2 := updated.(Model)
+	updated, _ = m2.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+	if updated.(Model).currentAnim.Render() != held {
+		t.Fatal("resize reset phase")
+	}
+	p := filepath.Join(t.TempDir(), "art.txt")
+	if err := os.WriteFile(p, []byte("\x1b[31mX"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m = selectAnimation(t, newTestModel(t), "ak-47-text")
+	m.files, m.selectedFile = []string{p}, 0
+	m, _ = m.startAnimation()
+	if m.animationError == "" || !strings.Contains(m.renderCanvas(), "control characters") {
+		t.Fatal("missing visible rejection")
+	}
+	if err := os.WriteFile(p, []byte("XX  XX\n XXXX"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m, _ = m.startAnimation()
+	if m.currentAnim == nil || m.animationError != "" {
+		t.Fatal("valid selected file rejected")
+	}
+}
 
 // selectAnimation points the model at an animation by name.
 func selectAnimation(t *testing.T, m Model, name string) Model {
@@ -141,7 +177,7 @@ func TestAnimationNeedsFile(t *testing.T) {
 		"sysc-logo": false, "cross-logo": false, "justice-cross": false,
 		"logo-morph": false, "": false,
 		"great-wave": false, "cyberpunk-girl": false, "wasteland": false,
-		"ak-47": false,
+		"ak-47": false, "ak-47-rama": false, "ak-47-text": true,
 	}
 	for anim, expected := range want {
 		if got := animationNeedsFile(anim); got != expected {
@@ -159,7 +195,7 @@ func TestAnimationNeedsFile(t *testing.T) {
 }
 
 func TestArtworkSelector(t *testing.T) {
-	for _, id := range []string{"great-wave", "cyberpunk-girl", "wasteland", "ak-47"} {
+	for _, id := range []string{"great-wave", "wasteland", "ak-47", "ak-47-rama"} {
 		m := selectAnimation(t, newTestModel(t), id)
 		m.canvasHeight = 24
 		m = selectFile(t, m, "BIT Text Editor")

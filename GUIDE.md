@@ -317,10 +317,10 @@ Effects that don't require text input.
 
 #### Logo Spin Family
 - **Constructors**: `NewLogoSpinEffect(config LogoSpinConfig) *LogoSpinAnimation`
-- **Shapes**: `"sysc"` (block SYSC wordmark), `"cross"` (Latin cross), `"justice"` (faceted justice-cross wireframe), `"sysc-cross"` / `"cross-sysc"` (morph between two while spinning)
+- **Shapes**: `"sysc"` (block SYSC wordmark), `"cross"` (Latin cross), `"sysc-cross"` / `"cross-sysc"` (morph between two while spinning)
 - **Styles**: `"edge"` (default: crisp 3D wireframe — front/back outline loops, vertex struts and facet creases, rigid under rotation), `"ring"` (contour bands; `"wire"` is its alias), `"solid"` (filled beveled plate)
 - **Palette Function**: `GetLogoPalette(theme string) []string`
-- **Registry IDs**: `sysc-logo`, `cross-logo`, `justice-cross`, `logo-morph`
+- **Registry IDs**: `sysc-logo`, `cross-logo`, `logo-morph`
 - **Methods**:
   - `Update()` - Advance one frame (one rotation every 144 frames)
   - `Render() string` - Current frame as truecolor braille
@@ -673,3 +673,16 @@ https://github.com/Nomadcxx/sysc-Go
 ## License
 
 MIT
+
+### AK-47 artwork morph
+
+`ak-47` retains the 12-second swirl loop. `ak-47-rama` embeds the RAMA artwork;
+`ak-47-text` accepts the selected file in the TUI or `-file` in the CLI.
+The artwork variants rotate twice over eight seconds, form the target over two
+seconds, hold it for two seconds and reconstruct the rifle over two seconds.
+They form the silhouette of occupied character cells from braille particles.
+
+Files must be regular UTF-8 text, at most 64 KiB, 1024 columns and 512 rows.
+Spaces, tabs and CRLF are supported; terminal control sequences are rejected.
+Empty artwork is rejected. Model credit stays fixed at the lower right.
+The model retains Lokeig's CC BY-NC 4.0 license; see `animations/models/README.md`.

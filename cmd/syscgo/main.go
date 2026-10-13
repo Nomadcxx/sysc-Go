@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Nomadcxx/sysc-Go/animations"
+	"github.com/Nomadcxx/sysc-Go/internal/artfile"
 	"golang.org/x/term"
 )
 
@@ -325,7 +326,7 @@ func showHelp() {
 	fmt.Println("Effects:")
 	fmt.Println("  fire, fire-text, matrix, matrix-art, rain, rain-art, fireworks")
 	fmt.Println("  pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro")
-	fmt.Println("  great-wave, cyberpunk-girl, wasteland, ak-47")
+	fmt.Println("  great-wave, wasteland, ak-47, ak-47-rama, ak-47-text")
 	fmt.Println()
 	fmt.Println("Themes:")
 	fmt.Println("  dracula, gruvbox, nord, tokyo-night, catppuccin, material")
@@ -377,13 +378,28 @@ func main() {
 	frames := framesForDuration(*duration)
 
 	switch *effect {
+	case "ak-47-rama", "ak-47-text":
+		var rifle *animations.AK47Animation
+		var err error
+		if *effect == "ak-47-rama" {
+			rifle, err = animations.NewAK47RAMAEffect(width, height, *theme)
+		} else {
+			var text string
+			text, err = readAK47Artwork(*file)
+			if err == nil {
+				rifle, err = animations.NewAK47TextEffect(width, height, *theme, text)
+			}
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			fmt.Print("\033[?25h")
+			os.Exit(1)
+		}
+		runAnimation(rifle, frames)
 	case "ak-47":
 		runAnimation(animations.NewAK47Effect(width, height, *theme), frames)
-	case "great-wave", "cyberpunk-girl", "wasteland":
+	case "great-wave", "wasteland":
 		create := animations.NewGreatWaveEffect
-		if *effect == "cyberpunk-girl" {
-			create = animations.NewCyberpunkGirlEffect
-		}
 		if *effect == "wasteland" {
 			create = animations.NewWastelandEffect
 		}
@@ -436,8 +452,6 @@ func main() {
 		runLogoSpin(width, height, *theme, "cross", frames)
 	case "logo-morph":
 		runLogoSpin(width, height, *theme, "sysc-cross", frames)
-	case "justice-cross":
-		runLogoSpin(width, height, *theme, "justice", frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
 		fmt.Println("Available: " + strings.Join(animations.GetEffectNames(), ", "))
@@ -1510,4 +1524,24 @@ func runAnimation(animation animations.Animation, frames int) {
 		time.Sleep(cliFrameInterval)
 		frame++
 	}
+}
+
+// readAK47Artwork keeps the existing asset search order, but bounds file reads
+// and reports an invalid selection instead of substituting different artwork.
+func readAK47Artwork(file string) (string, error) {
+	if file == "" {
+		file = "SYSC.txt"
+	}
+	text, err := artfile.Read(file)
+	if err == nil || !os.IsNotExist(err) || filepath.Base(file) != file {
+		return text, err
+	}
+	exe, _ := os.Executable()
+	for _, path := range assetSearchPaths(file, os.Getenv("HOME"), filepath.Dir(exe)) {
+		text, err = artfile.Read(path)
+		if err == nil || !os.IsNotExist(err) {
+			return text, err
+		}
+	}
+	return "", err
 }

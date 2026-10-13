@@ -28,3 +28,7 @@ timeout 90s env CGO_ENABLED=0 GOMAXPROCS=2 AK47_SOURCE=/tmp/AKM.fbx go test -cou
 Binary layout: 24,000 records, each containing six little-endian int16 values
 (position XYZ followed by normal XYZ), divided by 32767 when read. Total:
 288,000 bytes. The converter checks the source digest before conversion.
+
+`RAMA_SYSC.txt` is the owner-supplied RAMA block artwork, embedded as the
+built-in morph target. Custom artwork is sampled from occupied character cells.
+Both variants add a two-second artwork hold between formation and reconstruction.
