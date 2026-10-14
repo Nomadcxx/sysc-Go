@@ -3,32 +3,34 @@ name: CI
 on:
   push:
     branches: [master]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'LICENSE'
-      - '**/*.png'
-      - '**/*.jpg'
-      - '**/*.jpeg'
-      - '**/*.gif'
-      - '**/*.svg'
-      - '**/*.webp'
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
+      - '!LICENSE'
+      - '!**/*.png'
+      - '!**/*.jpg'
+      - '!**/*.jpeg'
+      - '!**/*.gif'
+      - '!**/*.svg'
+      - '!**/*.webp'
       # Go tests read text art and fixtures from assets/ and testdata/.
-      - '!assets/**'
-      - '!**/testdata/**'
+      - 'assets/**'
+      - '**/testdata/**'
   pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'LICENSE'
-      - '**/*.png'
-      - '**/*.jpg'
-      - '**/*.jpeg'
-      - '**/*.gif'
-      - '**/*.svg'
-      - '**/*.webp'
-      - '!assets/**'
-      - '!**/testdata/**'
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
+      - '!LICENSE'
+      - '!**/*.png'
+      - '!**/*.jpg'
+      - '!**/*.jpeg'
+      - '!**/*.gif'
+      - '!**/*.svg'
+      - '!**/*.webp'
+      - 'assets/**'
+      - '**/testdata/**'
 
 # Supersede in-flight runs for the same branch or PR so a burst of pushes does
 # not queue a full build each. Default-branch pushes are exempt: every merge to
