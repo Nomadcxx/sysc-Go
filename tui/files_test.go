@@ -207,3 +207,15 @@ func TestExportDirLabelNamesTheSaveDirectory(t *testing.T) {
 		})
 	}
 }
+
+func TestExportDirLabelDoesNotExpandPartialHomePrefix(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "alice")
+	dataHome := home + "-data"
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	want := filepath.Join(dataHome, "syscgo", "assets")
+	if got := exportDirLabel(0); got != want {
+		t.Fatalf("exportDirLabel(0) = %q, want %q", got, want)
+	}
+}

@@ -198,8 +198,13 @@ func exportDirLabel(target int) string {
 		return filepath.Join("~", ".local", "share", "syscgo", "walls")
 	}
 	dir := assetsSaveDir()
-	if home := os.Getenv("HOME"); home != "" && strings.HasPrefix(dir, home) {
-		return "~" + strings.TrimPrefix(dir, home)
+	if home := os.Getenv("HOME"); home != "" {
+		if rel, err := filepath.Rel(home, dir); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			if rel == "." {
+				return "~"
+			}
+			return filepath.Join("~", rel)
+		}
 	}
 	return dir
 }
