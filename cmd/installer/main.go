@@ -880,15 +880,44 @@ func main() {
 	os.Exit(runInstaller())
 }
 
+// installContext cancels the install on the signals that would otherwise kill
+// the process by their default action and skip the deferred cleanup: SIGINT,
+// SIGTERM, and SIGHUP (a closed terminal or a dropped SSH session). Builds run
+// with Setpgid (commandContext), so the compiler group never sees any of them;
+// without the context a --yes run would die, orphan `go build`, and leave the
+// staged temp dir behind while install.sh's EXIT trap deleted the tree it was
+// compiling from. SIGHUP is left unregistered when the parent already ignores
+// it, so an install started under `nohup` keeps running.
+func installContext() (context.Context, context.CancelFunc) {
+	signals := []os.Signal{os.Interrupt, syscall.SIGTERM}
+	if !signal.Ignored(syscall.SIGHUP) {
+		signals = append(signals, syscall.SIGHUP)
+	}
+	return signal.NotifyContext(context.Background(), signals...)
+}
+
+// installExitCode maps the non-interactive install outcome to a process exit
+// status. A cancelled context is checked first: the signal fails the in-flight
+// task, but the status should still say the run was cancelled, not that a task
+// failed.
+func installExitCode(ctx context.Context, err error) int {
+	switch {
+	case ctx.Err() != nil:
+		fmt.Fprintln(os.Stderr, "Error: install cancelled")
+		return 130
+	case err != nil:
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return 1
+	}
+	fmt.Println("Installation complete.")
+	return 0
+}
+
 func runInstaller() int {
 	// os.Exit skips defers in main, so cleanup lives in this function.
 	defer cleanupBuildOutput()
 
-	// Builds run with Setpgid (commandContext), so the compiler group never sees
-	// the terminal's SIGINT. Without this the --yes path would die by default
-	// SIGINT action, skip the deferred cleanup and orphan `go build` while
-	// install.sh's EXIT trap deleted the tree it was compiling from.
-	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stopSignals := installContext()
 	defer stopSignals()
 
 	// Check if go is installed (PATH, else the GOROOT this ran from under sudo)
@@ -900,17 +929,7 @@ func runInstaller() int {
 
 	if nonInteractiveRequested(os.Args[1:], os.Getenv("SYSCGO_INSTALL_NONINTERACTIVE")) {
 		m := newModel(ctx)
-		err := runConfiguredTasks(&m)
-		switch {
-		case ctx.Err() != nil:
-			fmt.Fprintln(os.Stderr, "Error: install cancelled")
-			return 130
-		case err != nil:
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			return 1
-		}
-		fmt.Println("Installation complete.")
-		return 0
+		return installExitCode(ctx, runConfiguredTasks(&m))
 	}
 
 	p := tea.NewProgram(newModel(ctx), tea.WithAltScreen())
