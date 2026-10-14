@@ -66,6 +66,10 @@ type DecryptConfig struct {
 func NewDecryptEffect(config DecryptConfig) *DecryptEffect {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	if config.TypingSpeed <= 0 {
+		config.TypingSpeed = 1
+	}
+
 	effect := &DecryptEffect{
 		width:                  config.Width,
 		height:                 config.Height,
@@ -351,7 +355,7 @@ func (d *DecryptEffect) createSimpleGradient(startColor, endColor string, steps 
 
 // Parse hex color string to RGB values
 func (d *DecryptEffect) parseHexColor(hex string) (int, int, int) {
-	if len(hex) < 8 || hex[0] != '#' {
+	if len(hex) != 7 || hex[0] != '#' {
 		// Default to white if invalid
 		return 255, 255, 255
 	}
@@ -568,6 +572,8 @@ func (d *DecryptEffect) Reset() {
 // SetText updates the displayed text and reinitializes the decrypt animation.
 func (d *DecryptEffect) SetText(text string) {
 	d.text = normalizeMultilineText(text)
+	d.chars = d.chars[:0]
 	d.init()
-	d.prepareAnimations()
+	d.phase = "typing"
+	d.frameCount = 0
 }

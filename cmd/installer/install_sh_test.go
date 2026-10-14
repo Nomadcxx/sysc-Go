@@ -111,11 +111,6 @@ fi
 }
 
 func TestInstallScriptPassesInvokingUsersMiseDataDir(t *testing.T) {
-	currentUser, err := user.Current()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "bin")
 	goDir := filepath.Join(dir, "mise-shims")
@@ -161,7 +156,7 @@ fi
 	cmd := exec.Command("bash", testScript)
 	cmd.Env = append(os.Environ(),
 		"PATH="+goDir+":"+bin+":"+os.Getenv("PATH"),
-		"SUDO_USER="+currentUser.Username,
+		"SUDO_USER=sysc-test-user",
 		"TEST_USER_PATH="+goDir+":"+bin,
 		"TEST_MISE_DATA_DIR="+miseDataDir,
 		"TEST_LOG="+logPath,

@@ -153,13 +153,16 @@ func TestSaveFileConfirmsBeforeReplacing(t *testing.T) {
 
 // The save prompt names the directory it will actually write to.
 func TestSavePromptNamesItsDestination(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	m := NewModel()
 	m.width = 80
 	m.showSavePrompt = true
 
 	m.exportTarget = 0
-	if out := m.renderSavePrompt(); !strings.Contains(out, "assets/") {
-		t.Errorf("syscgo prompt does not mention assets:\n%s", out)
+	if got, want := m.renderSavePrompt(), exportDirLabel(0); !strings.Contains(got, want) {
+		t.Errorf("syscgo prompt does not name %q:\n%s", want, got)
 	}
 	m.exportTarget = 1
 	if out := m.renderSavePrompt(); !strings.Contains(out, ".local/share/syscgo/walls") {

@@ -310,6 +310,32 @@ func TestSaveBitArtWritesInkWidthNotCanvas(t *testing.T) {
 	}
 }
 
+// TestRenderAlignmentControlMarksSelection: the control must mark the selected
+// alignment and differ between the three alignments.
+func TestRenderAlignmentControlMarksSelection(t *testing.T) {
+	labels := []string{"[L]", "[C]", "[R]"}
+	variants := map[string]bool{}
+	for align := 0; align < 3; align++ {
+		m := NewModel()
+		m.bitAlignment = align
+		out := stripANSI(m.renderAlignmentControl())
+
+		marked := ""
+		for _, label := range labels {
+			if strings.Contains(out, "‹"+label+"›") {
+				marked = label
+			}
+		}
+		if marked != labels[align] {
+			t.Fatalf("align=%d marked label %q, want %q:\n%s", align, marked, labels[align], out)
+		}
+		variants[out] = true
+	}
+	if len(variants) != 3 {
+		t.Fatalf("alignment control has %d distinct renderings, want 3", len(variants))
+	}
+}
+
 // TestExportBitArtTrimsTrailingPadding: ExportBitArt is also reached from the
 // generic export prompt, so it must trim on its own.
 func TestExportBitArtTrimsTrailingPadding(t *testing.T) {

@@ -341,11 +341,26 @@ func showHelp() {
 	fmt.Println("For more info: https://github.com/Nomadcxx/sysc-Go")
 }
 
+// cliEffects are the -effect names the switch in main accepts.  It is the
+// source for the "Available" list so the help never advertises a rejected name.
+var cliEffects = []string{
+	"ak-47", "ak-47-rama", "ak-47-text",
+	"great-wave", "wasteland",
+	"fire", "fire-text",
+	"matrix", "matrix-art",
+	"fireworks",
+	"rain", "rain-art",
+	"pour", "print",
+	"beams", "beam-text", "ring-text", "blackhole",
+	"aquarium", "skull", "sonar", "cracktro",
+	"sysc-logo", "cross-logo", "logo-morph",
+}
+
 func main() {
-	effect := flag.String("effect", "fire", "Animation effect (fire, matrix, rain, fireworks, decrypt)")
+	effect := flag.String("effect", "fire", "Animation effect (fire, matrix, rain, fireworks)")
 	theme := flag.String("theme", "dracula", "Color theme")
 	duration := flag.Int("duration", 10, "Duration in seconds (0 = infinite)")
-	file := flag.String("file", "", "Text file for text-based effects (decrypt, pour, print, beam-text)")
+	file := flag.String("file", "", "Text file for text-based effects (pour, print, beam-text)")
 	auto := flag.Bool("auto", false, "Auto-size canvas to fit text (beam-text only)")
 	display := flag.Bool("display", false, "Display mode: complete once and hold (beam-text only)")
 	help := flag.Bool("h", false, "Show help")
@@ -454,7 +469,7 @@ func main() {
 		runLogoSpin(width, height, *theme, "sysc-cross", frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: " + strings.Join(animations.GetEffectNames(), ", "))
+		fmt.Println("Available: " + strings.Join(cliEffects, ", "))
 		os.Exit(1)
 	}
 }

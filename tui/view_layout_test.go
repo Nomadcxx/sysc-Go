@@ -100,3 +100,23 @@ func containsLine(lines []string, needle string) bool {
 	}
 	return false
 }
+
+// TestBitGuidanceShowsRealFontCount: the BIT editor guidance must read the
+// loaded font list, not a hard-coded 130.
+func TestBitGuidanceShowsRealFontCount(t *testing.T) {
+	m := NewModel()
+	m.width, m.height = 120, 40
+	m.animations = []string{"beam-text"}
+	m.selectedAnimation = 0
+	m.files = []string{"BIT Text Editor", "Custom text"}
+	m.selectedFile = 0
+	m.bitFonts = []string{"a", "b", "c"}
+
+	view := m.View()
+	if !strings.Contains(view, "(3 fonts)") {
+		t.Fatalf("guidance does not show the real font count:\n%s", m.renderGuidance())
+	}
+	if strings.Contains(view, "130") {
+		t.Fatalf("guidance still hard-codes 130 fonts:\n%s", m.renderGuidance())
+	}
+}
