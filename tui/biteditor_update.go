@@ -282,6 +282,9 @@ func (m Model) handleBitSavePromptKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 	switch msg.String() {
 	case "esc":
 		m.showSavePrompt = false
+		m.overwrite = false
+		m.overwritePath = ""
+		m.confirmOverwrite = false
 		m.saveError = ""
 		m.filenameInput.SetValue("")
 		m.filenameInput.Blur()
@@ -502,8 +505,14 @@ func (m Model) saveBitArt() (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// An approval is spent by the write it was given for: claim it before the
+	// attempt so any failure, not just a decline, leaves it disarmed.
+	overwrite := m.overwrite
+	m.overwrite = false
+	m.overwritePath = ""
+
 	// Export using selected target
-	err := ExportBitArt(filename, m.bitExportLines(), m.exportTarget, m.overwrite)
+	err := ExportBitArt(filename, m.bitExportLines(), m.exportTarget, overwrite)
 
 	// Hold the prompt open on a collision instead of replacing the file.
 	var exists *ExistsError

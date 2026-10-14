@@ -322,6 +322,10 @@ func (m Model) handleEditorKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "esc":
 			// Cancel save prompt
 			m.showSavePrompt = false
+			m.overwrite = false
+			m.overwritePath = ""
+			m.confirmOverwrite = false
+			m.saveError = ""
 			m.filenameInput.SetValue("")
 			m.filenameInput.Blur()
 			return m, nil
@@ -388,13 +392,19 @@ func (m Model) saveFile() (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// An approval is spent by the write it was given for: claim it before the
+	// attempt so any failure, not just a decline, leaves it disarmed.
+	overwrite := m.overwrite
+	m.overwrite = false
+	m.overwritePath = ""
+
 	// Route on the export prompt selection. 0 is syscgo assets, 1 is sysc-walls.
 	var err error
 	switch m.exportTarget {
 	case 0:
-		err = saveToAssets(filename, m.textarea.Value(), m.overwrite)
+		err = saveToAssets(filename, m.textarea.Value(), overwrite)
 	case 1:
-		err = ExportToSyscWalls(filename, m.textarea.Value(), m.overwrite)
+		err = ExportToSyscWalls(filename, m.textarea.Value(), overwrite)
 	default:
 		m.saveError = fmt.Sprintf("unknown export target: %d", m.exportTarget)
 		return m, nil
