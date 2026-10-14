@@ -929,19 +929,27 @@ func runInstaller() int {
 }
 
 // report prints the install outcome after the alt screen closes and returns the
-// exit code. The step alone tells the outcome: stepInstalling means the run
-// ended before finishing (Q, Ctrl+C, or a signal), stepComplete means it ran to
-// the end, and only then can a task have failed.
+// exit code. The step alone tells the outcome: stepWelcome means the user quit
+// before anything ran, stepInstalling means the run ended before finishing (Q,
+// Ctrl+C, or a signal), stepComplete means it ran to the end, and only then can
+// a task have failed. uninstallMode only changes the wording, not the outcome.
 func (m model) report() int {
+	verb := "Installation"
+	if m.uninstallMode {
+		verb = "Uninstall"
+	}
 	switch {
+	case m.step == stepWelcome:
+		fmt.Fprintln(os.Stderr, "Cancelled. Nothing was changed.")
+		return 130
 	case m.step == stepInstalling:
-		fmt.Fprintln(os.Stderr, "Installation cancelled. Nothing further was installed.")
+		fmt.Fprintf(os.Stderr, "%s cancelled. Nothing further was changed.\n", verb)
 		return 130
 	case m.failed():
-		fmt.Fprintf(os.Stderr, "Installation failed: %s\n", strings.Join(m.errors, "; "))
+		fmt.Fprintf(os.Stderr, "%s failed: %s\n", verb, strings.Join(m.errors, "; "))
 		return 1
 	default:
-		fmt.Println("Installation complete.")
+		fmt.Printf("%s complete.\n", verb)
 		return 0
 	}
 }

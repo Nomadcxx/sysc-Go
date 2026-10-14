@@ -2,32 +2,86 @@ package main
 
 import (
 	"context"
+	"io"
+	"os"
 	"testing"
 )
 
-// The step alone decides the outcome: stepInstalling means the run ended before
-// finishing, stepComplete means it ran to the end. Only then can a task have
-// failed, and an optional skip is not a failure.
-func TestReportExitCode(t *testing.T) {
+// captureOutput runs fn with os.Stdout and os.Stderr redirected to pipes and
+// returns what each captured. report() writes only a few bytes, well under the
+// pipe buffer, so the reads after closing the write ends cannot block.
+func captureOutput(t *testing.T, fn func()) (stdout, stderr string) {
+	t.Helper()
+	origStdout, origStderr := os.Stdout, os.Stderr
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	errR, errW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout, os.Stderr = outW, errW
+	defer func() {
+		os.Stdout, os.Stderr = origStdout, origStderr
+	}()
+
+	fn()
+
+	outW.Close()
+	errW.Close()
+	out, _ := io.ReadAll(outR)
+	errOut, _ := io.ReadAll(errR)
+	outR.Close()
+	errR.Close()
+	return string(out), string(errOut)
+}
+
+// The step alone decides the outcome: stepWelcome means the user quit before
+// anything ran, stepInstalling means the run ended before finishing,
+// stepComplete means it ran to the end. Only then can a task have failed, and
+// an optional skip is not a failure. The uninstall flag picks the wording.
+func TestReport(t *testing.T) {
 	tests := []struct {
-		name  string
-		step  installStep
-		tasks []installTask
-		want  int
+		name      string
+		uninstall bool
+		step      installStep
+		tasks     []installTask
+		errors    []string
+		wantCode  int
+		wantOut   string
+		wantErr   string
 	}{
-		{"cancelled mid-run", stepInstalling, nil, 130},
-		{"required task failed", stepComplete, []installTask{{status: statusFailed}}, 1},
-		{"optional skip is not a failure", stepComplete, []installTask{{status: statusSkipped}}, 0},
-		{"every task complete", stepComplete, []installTask{{status: statusComplete}, {status: statusSkipped}}, 0},
-		{"quit before starting", stepWelcome, nil, 0},
+		{"welcome quit", false, stepWelcome, nil, nil, 130, "", "Cancelled. Nothing was changed.\n"},
+		{"install cancel", false, stepInstalling, nil, nil, 130, "", "Installation cancelled. Nothing further was changed.\n"},
+		{"install failure", false, stepComplete, []installTask{{status: statusFailed}}, []string{"boom"}, 1, "", "Installation failed: boom\n"},
+		{"install success", false, stepComplete, []installTask{{status: statusComplete}}, nil, 0, "Installation complete.\n", ""},
+		{"optional skip is not a failure", false, stepComplete, []installTask{{status: statusComplete}, {status: statusSkipped}}, nil, 0, "Installation complete.\n", ""},
+		{"uninstall cancel", true, stepInstalling, nil, nil, 130, "", "Uninstall cancelled. Nothing further was changed.\n"},
+		{"uninstall failure", true, stepComplete, []installTask{{status: statusFailed}}, []string{"boom"}, 1, "", "Uninstall failed: boom\n"},
+		{"uninstall success", true, stepComplete, []installTask{{status: statusComplete}}, nil, 0, "Uninstall complete.\n", ""},
 	}
 	for _, tt := range tests {
-		m := newModel()
-		m.step = tt.step
-		m.tasks = tt.tasks
-		if got := m.report(); got != tt.want {
-			t.Errorf("%s: report() = %d, want %d", tt.name, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			m := newModel()
+			m.uninstallMode = tt.uninstall
+			m.step = tt.step
+			m.tasks = tt.tasks
+			m.errors = tt.errors
+
+			var code int
+			out, errOut := captureOutput(t, func() { code = m.report() })
+
+			if code != tt.wantCode {
+				t.Errorf("report() = %d, want %d", code, tt.wantCode)
+			}
+			if out != tt.wantOut {
+				t.Errorf("stdout = %q, want %q", out, tt.wantOut)
+			}
+			if errOut != tt.wantErr {
+				t.Errorf("stderr = %q, want %q", errOut, tt.wantErr)
+			}
+		})
 	}
 }
 
