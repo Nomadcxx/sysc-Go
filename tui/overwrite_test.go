@@ -209,3 +209,164 @@ func TestBitPreviewIsClippedToFit(t *testing.T) {
 		t.Errorf("preview did not keep the banner tail after the notice: %q", frame[notice:])
 	}
 }
+
+// wallsTestHome points HOME at a throwaway dir and returns the sysc-walls
+// walls folder.  A regular file at ~/.config/sysc-walls makes the export fail
+// after it has written the art, which is the state that used to leave an
+// approved overwrite armed.
+func wallsTestHome(t *testing.T, names ...string) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	wallsDir := filepath.Join(home, ".local", "share", "syscgo", "walls")
+	if err := os.MkdirAll(wallsDir, 0o700); err != nil {
+		t.Fatalf("mkdir walls: %v", err)
+	}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(wallsDir, name), []byte("OLD-"+name), 0o600); err != nil {
+			t.Fatalf("seed %s: %v", name, err)
+		}
+	}
+	configBlocker := filepath.Join(home, ".config", "sysc-walls")
+	if err := os.MkdirAll(filepath.Dir(configBlocker), 0o700); err != nil {
+		t.Fatalf("mkdir .config: %v", err)
+	}
+	if err := os.WriteFile(configBlocker, []byte("x"), 0o600); err != nil {
+		t.Fatalf("seed config blocker: %v", err)
+	}
+	return wallsDir
+}
+
+// A confirmation buys exactly one write.  If that write fails, the next save
+// must ask again rather than silently replacing a different file.
+func TestOverwriteApprovalIsSingleUse(t *testing.T) {
+	wallsDir := wallsTestHome(t, "a.txt", "b.txt")
+
+	m := NewModel()
+	m.editorMode = true
+	m.showSavePrompt = true
+	m.exportTarget = 1
+	m.textarea.SetValue("NEW")
+	m.filenameInput.SetValue("a.txt")
+
+	asked, _ := m.saveFile()
+	if !asked.confirmOverwrite {
+		t.Fatal("collision did not raise a confirmation")
+	}
+
+	// Confirming writes a.txt and then fails to update the config; the
+	// approval must be spent either way.
+	confirmedAny, _ := asked.handleEditorKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	confirmed := confirmedAny.(Model)
+	if confirmed.saveError == "" {
+		t.Fatal("expected the config update to fail after the art was written")
+	}
+	if confirmed.overwrite || confirmed.overwritePath != "" {
+		t.Fatalf("approval survived the failed save: overwrite=%v path=%q", confirmed.overwrite, confirmed.overwritePath)
+	}
+
+	// Saving another existing file has to prompt again and leave it alone.
+	confirmed.filenameInput.SetValue("b.txt")
+	askedAgain, _ := confirmed.saveFile()
+	if !askedAgain.confirmOverwrite {
+		t.Fatal("second save did not ask before replacing b.txt")
+	}
+	if got, _ := os.ReadFile(filepath.Join(wallsDir, "b.txt")); string(got) != "OLD-b.txt" {
+		t.Fatalf("b.txt was replaced without approval: %q", got)
+	}
+}
+
+// TestBitOverwriteApprovalIsSingleUse mirrors the custom-editor case through
+// the BIT editor's own save path.
+func TestBitOverwriteApprovalIsSingleUse(t *testing.T) {
+	wallsDir := wallsTestHome(t, "a.txt", "b.txt")
+
+	m := NewModel()
+	m.bitEditorMode = true
+	m.showSavePrompt = true
+	m.exportTarget = 1
+	m.bitCurrentFont = bannerFont()
+	m.bitTextInput.SetValue("HI")
+	m.bitScale = 1
+	m = m.updateBitPreview()
+	m.filenameInput.SetValue("a.txt")
+
+	asked, _ := m.saveBitArt()
+	if !asked.confirmOverwrite {
+		t.Fatal("collision did not raise a confirmation")
+	}
+
+	confirmedAny, _ := asked.handleBitEditorKeyPress(bitKey('y'))
+	confirmed := confirmedAny.(Model)
+	if confirmed.saveError == "" {
+		t.Fatal("expected the config update to fail after the art was written")
+	}
+	if confirmed.overwrite || confirmed.overwritePath != "" {
+		t.Fatalf("approval survived the failed save: overwrite=%v path=%q", confirmed.overwrite, confirmed.overwritePath)
+	}
+
+	confirmed.filenameInput.SetValue("b.txt")
+	askedAgain, _ := confirmed.saveBitArt()
+	if !askedAgain.confirmOverwrite {
+		t.Fatal("second save did not ask before replacing b.txt")
+	}
+	if got, _ := os.ReadFile(filepath.Join(wallsDir, "b.txt")); string(got) != "OLD-b.txt" {
+		t.Fatalf("b.txt was replaced without approval: %q", got)
+	}
+}
+
+// Esc from the save prompt clears every trace of an armed overwrite, so the
+// next save cannot skip the collision check.
+func TestSavePromptEscDisarmsOverwrite(t *testing.T) {
+	wallsDir := wallsTestHome(t, "b.txt")
+	artPath := filepath.Join(wallsDir, "b.txt")
+
+	m := NewModel()
+	m.editorMode = true
+	m.showSavePrompt = true
+	m.exportTarget = 1
+	m.textarea.SetValue("NEW")
+	m.filenameInput.SetValue("b.txt")
+	m.overwrite = true
+	m.overwritePath = artPath
+	m.saveError = "boom"
+
+	escapedAny, _ := m.handleEditorKeyPress(tea.KeyMsg{Type: tea.KeyEsc})
+	escaped := escapedAny.(Model)
+	if escaped.overwrite || escaped.overwritePath != "" || escaped.confirmOverwrite || escaped.saveError != "" {
+		t.Fatalf("Esc left overwrite state armed: overwrite=%v path=%q confirm=%v err=%q",
+			escaped.overwrite, escaped.overwritePath, escaped.confirmOverwrite, escaped.saveError)
+	}
+
+	escaped.showSavePrompt = true
+	escaped.filenameInput.SetValue("b.txt")
+	asked, _ := escaped.saveFile()
+	if !asked.confirmOverwrite {
+		t.Fatal("save after Esc did not ask before replacing b.txt")
+	}
+	if got, _ := os.ReadFile(artPath); string(got) != "OLD-b.txt" {
+		t.Fatalf("b.txt was replaced after Esc: %q", got)
+	}
+}
+
+// TestBitSavePromptEscDisarmsOverwrite is the BIT editor's Esc branch.
+func TestBitSavePromptEscDisarmsOverwrite(t *testing.T) {
+	wallsDir := wallsTestHome(t, "b.txt")
+	artPath := filepath.Join(wallsDir, "b.txt")
+
+	m := NewModel()
+	m.bitEditorMode = true
+	m.showSavePrompt = true
+	m.exportTarget = 1
+	m.filenameInput.SetValue("b.txt")
+	m.overwrite = true
+	m.overwritePath = artPath
+	m.saveError = "boom"
+
+	escapedAny, _ := m.handleBitEditorKeyPress(tea.KeyMsg{Type: tea.KeyEsc})
+	escaped := escapedAny.(Model)
+	if escaped.overwrite || escaped.overwritePath != "" || escaped.confirmOverwrite || escaped.saveError != "" {
+		t.Fatalf("Esc left overwrite state armed: overwrite=%v path=%q confirm=%v err=%q",
+			escaped.overwrite, escaped.overwritePath, escaped.confirmOverwrite, escaped.saveError)
+	}
+}
