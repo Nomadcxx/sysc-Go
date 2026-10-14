@@ -19,9 +19,21 @@ func TestArtworkCLI(t *testing.T) {
 		main()
 		return
 	}
+	repoSYSC, err := os.ReadFile(filepath.Join("..", "..", "assets", "SYSC.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	home := t.TempDir()
+	seed := filepath.Join(home, "sysc-Go", "assets")
+	if err := os.MkdirAll(seed, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seed, "SYSC.txt"), repoSYSC, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	for _, id := range []string{"great-wave", "wasteland", "ak-47", "ak-47-rama", "ak-47-text"} {
 		cmd := exec.Command(os.Args[0], "-test.run=^TestArtworkCLI$")
-		cmd.Env = append(os.Environ(), "SYSC_ARTWORK_CLI_CHECK="+id)
+		cmd.Env = childEnv("SYSC_ARTWORK_CLI_CHECK="+id, "HOME="+home)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("%s: %v: %s", id, err, out)
@@ -36,9 +48,23 @@ func TestArtworkCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 		cmd := exec.Command(os.Args[0], "-test.run=^TestArtworkCLI$")
-		cmd.Env = append(os.Environ(), "SYSC_ARTWORK_CLI_CHECK="+id, "SYSC_ARTWORK_FILE="+p)
+		cmd.Env = childEnv("SYSC_ARTWORK_CLI_CHECK="+id, "SYSC_ARTWORK_FILE="+p)
 		if out, err := cmd.CombinedOutput(); err == nil {
 			t.Fatalf("accepted %s: %s", id, out)
 		}
 	}
+}
+
+// childEnv drops the artwork and home overrides inherited from the developer's
+// shell so the default asset search runs hermetically, exactly as on a clean
+// runner.
+func childEnv(extra ...string) []string {
+	env := make([]string, 0, len(os.Environ())+len(extra))
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "HOME=") || strings.HasPrefix(kv, "SYSC_ARTWORK_") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	return append(env, extra...)
 }
