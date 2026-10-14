@@ -572,6 +572,32 @@ func ensureDir(dir string) error {
 	return os.Chmod(dir, dirMode)
 }
 
+// ensureDirParent creates missing ancestors at dirMode without changing
+// permissions on directories that already belong to the system.
+func ensureDirParent(dir string) error {
+	parent := filepath.Dir(dir)
+	err := os.Mkdir(parent, dirMode)
+	if err == nil {
+		return os.Chmod(parent, dirMode)
+	}
+	if errors.Is(err, os.ErrExist) {
+		return nil
+	}
+	if !errors.Is(err, os.ErrNotExist) || filepath.Dir(parent) == parent {
+		return err
+	}
+	if err := ensureDirParent(parent); err != nil {
+		return err
+	}
+	if err := os.Mkdir(parent, dirMode); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return nil
+		}
+		return err
+	}
+	return os.Chmod(parent, dirMode)
+}
+
 func installAssets(m *model) error {
 	if err := errIfCancelled(m); err != nil {
 		return err
@@ -599,6 +625,12 @@ func installAssetFiles(ctx context.Context, srcAssets, shareRoot string) error {
 		return err
 	}
 
+	if err := ensureDirParent(shareRoot); err != nil {
+		return fmt.Errorf("failed to create parent directory: %v", err)
+	}
+	if err := ensureDir(shareRoot); err != nil {
+		return fmt.Errorf("failed to create directory: %v", err)
+	}
 	assetsDst := filepath.Join(shareRoot, "assets")
 	if err := ensureDir(assetsDst); err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)
