@@ -207,11 +207,13 @@ func TestInstallAssetFilesCreatesShareRootUnderUmask(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "SYSC.txt"), []byte("art"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	share := filepath.Join(t.TempDir(), "syscgo")
+	base := t.TempDir()
+	shareParent := filepath.Join(base, "share", "vendor")
+	share := filepath.Join(shareParent, "syscgo")
 	if err := installAssetFiles(context.Background(), src, share); err != nil {
 		t.Fatal(err)
 	}
-	for _, d := range []string{share, filepath.Join(share, "assets")} {
+	for _, d := range []string{filepath.Join(base, "share"), shareParent, share, filepath.Join(share, "assets")} {
 		info, err := os.Stat(d)
 		if err != nil {
 			t.Fatal(err)
@@ -219,6 +221,32 @@ func TestInstallAssetFilesCreatesShareRootUnderUmask(t *testing.T) {
 		if info.Mode().Perm() != dirMode {
 			t.Fatalf("%s mode = %v, want %v", d, info.Mode().Perm(), os.FileMode(dirMode))
 		}
+	}
+}
+
+func TestInstallAssetFilesLeavesExistingShareParentMode(t *testing.T) {
+	base := t.TempDir()
+	shareParent := filepath.Join(base, "share")
+	if err := os.Mkdir(shareParent, 0750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(shareParent, 0750); err != nil {
+		t.Fatal(err)
+	}
+	old := syscall.Umask(077)
+	defer syscall.Umask(old)
+
+	src := t.TempDir()
+	share := filepath.Join(shareParent, "syscgo")
+	if err := installAssetFiles(context.Background(), src, share); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(shareParent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0750 {
+		t.Fatalf("existing share parent mode = %v, want 0750", info.Mode().Perm())
 	}
 }
 
