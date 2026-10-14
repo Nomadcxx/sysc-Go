@@ -599,6 +599,9 @@ func installAssetFiles(ctx context.Context, srcAssets, shareRoot string) error {
 		return err
 	}
 
+	if err := ensureDir(shareRoot); err != nil {
+		return fmt.Errorf("failed to create directory: %v", err)
+	}
 	assetsDst := filepath.Join(shareRoot, "assets")
 	if err := ensureDir(assetsDst); err != nil {
 		return fmt.Errorf("failed to create directory: %v", err)

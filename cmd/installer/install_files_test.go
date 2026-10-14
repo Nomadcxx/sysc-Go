@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -164,6 +165,9 @@ func TestInstallAssetFilesSetsDirectoryModes(t *testing.T) {
 	}
 	share := t.TempDir()
 	// Pre-existing too-tight directories, as a stricter umask would leave them.
+	if err := os.Chmod(share, 0700); err != nil {
+		t.Fatal(err)
+	}
 	assetsDst := filepath.Join(share, "assets")
 	fontsDst := filepath.Join(share, "fonts")
 	for _, d := range []string{assetsDst, fontsDst} {
@@ -175,7 +179,7 @@ func TestInstallAssetFilesSetsDirectoryModes(t *testing.T) {
 	if err := installAssetFiles(context.Background(), src, share); err != nil {
 		t.Fatal(err)
 	}
-	for _, d := range []string{assetsDst, fontsDst} {
+	for _, d := range []string{share, assetsDst, fontsDst} {
 		info, err := os.Stat(d)
 		if err != nil {
 			t.Fatal(err)
@@ -191,6 +195,29 @@ func TestInstallAssetFilesSetsDirectoryModes(t *testing.T) {
 		}
 		if info.Mode().Perm() != assetMode {
 			t.Fatalf("%s mode = %v, want %v", f, info.Mode().Perm(), os.FileMode(assetMode))
+		}
+	}
+}
+
+func TestInstallAssetFilesCreatesShareRootUnderUmask(t *testing.T) {
+	old := syscall.Umask(077)
+	defer syscall.Umask(old)
+
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "SYSC.txt"), []byte("art"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	share := filepath.Join(t.TempDir(), "syscgo")
+	if err := installAssetFiles(context.Background(), src, share); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []string{share, filepath.Join(share, "assets")} {
+		info, err := os.Stat(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != dirMode {
+			t.Fatalf("%s mode = %v, want %v", d, info.Mode().Perm(), os.FileMode(dirMode))
 		}
 	}
 }
