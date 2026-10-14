@@ -201,7 +201,7 @@ func (m Model) renderAlignmentControl() string {
 	alignments := []string{"[L]", "[C]", "[R]"}
 	for i, text := range alignments {
 		if i == m.bitAlignment {
-			buttons = append(buttons, text)
+			buttons = append(buttons, "‹"+text+"›")
 		} else {
 			buttons = append(buttons, text)
 		}

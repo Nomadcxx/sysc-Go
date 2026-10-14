@@ -165,10 +165,7 @@ func saveToAssets(filename, content string, overwrite bool) error {
 	// directory.  A legacy ~/sysc-Go/assets keeps priority for users who
 	// already have one; the cwd is never written to, which would otherwise
 	// drop the file into whatever unrelated project the TUI was started in.
-	targetPath := userAssetsDir()
-	if legacy := legacyAssetsDir(); isDir(legacy) {
-		targetPath = legacy
-	}
+	targetPath := assetsSaveDir()
 	if err := os.MkdirAll(targetPath, 0o755); err != nil {
 		return fmt.Errorf("could not create assets directory: %w", err)
 	}
@@ -185,13 +182,31 @@ func saveToAssets(filename, content string, overwrite bool) error {
 	return nil
 }
 
+// assetsSaveDir is the directory saveToAssets writes into: the legacy
+// ~/sysc-Go/assets when it already exists, otherwise the per-user data dir.
+func assetsSaveDir() string {
+	if legacy := legacyAssetsDir(); isDir(legacy) {
+		return legacy
+	}
+	return userAssetsDir()
+}
+
 // exportDirLabel names where an export target actually writes, for the save
 // prompt.  0 lands in the assets folder, 1 under the sysc-walls data dir.
 func exportDirLabel(target int) string {
 	if target == 1 {
 		return filepath.Join("~", ".local", "share", "syscgo", "walls")
 	}
-	return "the assets/ folder"
+	dir := assetsSaveDir()
+	if home := os.Getenv("HOME"); home != "" {
+		if rel, err := filepath.Rel(home, dir); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			if rel == "." {
+				return "~"
+			}
+			return filepath.Join("~", rel)
+		}
+	}
+	return dir
 }
 
 // refuseExisting returns an *ExistsError when path is already there and the

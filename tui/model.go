@@ -38,6 +38,7 @@ type Model struct {
 	animationRunning bool
 	currentAnim      animations.Animation
 	animFrames       int // Frame counter
+	tickGen          int // Generation of the live tick loop
 
 	// Editor mode for custom text creation
 	editorMode       bool
@@ -285,12 +286,16 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// TickMsg is sent when animation should update
-type TickMsg time.Time
+// TickMsg is sent when animation should update.  gen identifies the tick loop
+// that armed it, so a tick left in flight by a stopped run is ignored.
+type TickMsg struct {
+	gen int
+	t   time.Time
+}
 
 // tickCmd returns a command that sends a tick message for animation updates
-func tickCmd() tea.Cmd {
+func tickCmd(gen int) tea.Cmd {
 	return tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
-		return TickMsg(t)
+		return TickMsg{gen: gen, t: t}
 	})
 }

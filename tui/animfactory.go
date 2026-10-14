@@ -51,6 +51,9 @@ func (m *Model) createAnimation() animations.Animation {
 
 	// Use full available width for viewport
 	width := m.width - 10 // Leave small margin for UI elements
+	if width < 1 {        // backstop for a width-0 window before the first size
+		width = 1
+	}
 	height := m.canvasHeight
 
 	// Handle editor modes. The editors are File entries, so they are only

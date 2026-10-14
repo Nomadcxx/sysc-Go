@@ -169,3 +169,53 @@ func containsString(haystack []string, want string) bool {
 	}
 	return false
 }
+
+// TestExportDirLabelNamesTheSaveDirectory: the save prompt must name the folder
+// saveToAssets actually writes to, in both the XDG and the legacy layout.
+func TestExportDirLabelNamesTheSaveDirectory(t *testing.T) {
+	cases := []struct {
+		name   string
+		legacy bool
+	}{
+		{"xdg", false},
+		{"legacy", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("XDG_DATA_HOME", "")
+			if tc.legacy {
+				if err := os.MkdirAll(filepath.Join(home, "sysc-Go", "assets"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			t.Chdir(t.TempDir())
+
+			if err := saveToAssets("probe.txt", "HI", false); err != nil {
+				t.Fatalf("saveToAssets error = %v", err)
+			}
+
+			label := exportDirLabel(0)
+			expanded := strings.Replace(label, "~", home, 1)
+			if expanded != assetsSaveDir() {
+				t.Fatalf("exportDirLabel(0) = %q expands to %q, save dir is %q", label, expanded, assetsSaveDir())
+			}
+			if _, err := os.Stat(filepath.Join(expanded, "probe.txt")); err != nil {
+				t.Fatalf("saved file is not under the labelled directory %q: %v", expanded, err)
+			}
+		})
+	}
+}
+
+func TestExportDirLabelDoesNotExpandPartialHomePrefix(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "alice")
+	dataHome := home + "-data"
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	want := filepath.Join(dataHome, "syscgo", "assets")
+	if got := exportDirLabel(0); got != want {
+		t.Fatalf("exportDirLabel(0) = %q, want %q", got, want)
+	}
+}

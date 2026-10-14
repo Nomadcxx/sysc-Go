@@ -258,7 +258,7 @@ func (m Model) renderGuidance() string {
 	// the box would advertise an editor the selector shows as (disabled).
 	if animationNeedsFile(animName) {
 		if fileName == "BIT Text Editor" {
-			guidance += " • BIT Editor (130 fonts)"
+			guidance += fmt.Sprintf(" • BIT Editor (%d fonts)", len(m.bitFonts))
 		} else if fileName == "Custom text" {
 			guidance += " • Custom text editor"
 		} else if fileName != "(disabled)" && fileName != "" {

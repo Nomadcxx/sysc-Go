@@ -49,6 +49,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case TickMsg:
+		// A tick from a superseded run must not re-arm the loop.
+		if msg.gen != m.tickGen {
+			return m, nil
+		}
 		// Handle animation tick
 		if m.animationRunning && m.currentAnim != nil {
 			m.currentAnim.Update()
@@ -81,7 +85,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Continue ticking
-			return m, tickCmd()
+			return m, tickCmd(m.tickGen)
 		}
 		return m, nil
 	}
@@ -244,6 +248,12 @@ func (m Model) navigateRight() Model {
 
 // startAnimation creates and starts the animation in viewport
 func (m Model) startAnimation() (Model, tea.Cmd) {
+	// Enter still reaches here while the too-small warning is on screen, where
+	// the canvas width would be non-positive and the engine constructors panic.
+	if m.terminalTooSmall() {
+		return m, nil
+	}
+
 	// Create animation instance (this may set editor mode instead)
 	anim := m.createAnimation()
 
@@ -257,7 +267,8 @@ func (m Model) startAnimation() (Model, tea.Cmd) {
 		m.currentAnim = anim
 		m.animationRunning = true
 		m.animFrames = 0
-		return m, tickCmd() // Start the tick loop
+		m.tickGen++
+		return m, tickCmd(m.tickGen) // Start the tick loop
 	}
 
 	// No animation created (shouldn't happen)
