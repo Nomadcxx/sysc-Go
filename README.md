@@ -28,7 +28,7 @@ Standalone effects that do not require text input.
 - **Wasteland** (`wasteland`): animated ASCII scene after Valenberg
 
 ### Text Effects
-Effects that animate ASCII text and art. These require the `-file` flag.
+Text effects animate ASCII input. The CLI uses `SYSC.txt` by default; pass `-file` to choose another file. Blackhole can also run in particle mode without text.
 
 - **Fire Text** (`fire-text`): ASCII art consumed by rising flames
 - **Matrix Art** (`matrix-art`): ASCII art revealed by Matrix-style streams
