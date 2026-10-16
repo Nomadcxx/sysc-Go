@@ -113,7 +113,7 @@ debug = false
 
 [animation]
 # Available effects: fire, matrix, rain, beam-text, ring-text, pour, print,
-# matrix-art, rain-art, blackhole-text
+# matrix-art, rain-art, blackhole
 # Available themes: dracula, gruvbox, nord, tokyo-night, catppuccin, material,
 # solarized, monochrome, transishardjob, rama, eldritch, dark
 effect = %EFFECT%

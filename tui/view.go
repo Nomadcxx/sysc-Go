@@ -246,8 +246,12 @@ func (m Model) renderGuidance() string {
 		guidance = "Light beams"
 	case "ring-text":
 		guidance = "3D ring text"
-	case "blackhole-text":
+	case "blackhole":
 		guidance = "Blackhole vortex"
+	case "decrypt":
+		guidance = "Text decryption"
+	case "cracktro":
+		guidance = "Demoscene cracktro"
 	case "aquarium":
 		guidance = "Aquarium"
 	default:

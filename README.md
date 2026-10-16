@@ -115,9 +115,6 @@ syscgo -effect aquarium -theme dracula -duration 0
 # AK-47: repeating 12-second cycle
 syscgo -effect ak-47 -theme kanagawa -duration 0
 
-# AK-47 to RAMA: two turns, artwork hold, reconstruction (14 seconds)
-syscgo -effect ak-47-rama -theme kanagawa -duration 0
-
 # Use selected artwork as the braille-particle target
 syscgo -effect ak-47-text -file /path/to/art.txt -theme kanagawa -duration 0
 ```

@@ -30,15 +30,10 @@ func (a *AnimationWrapper) Reset() {
 	// Not implemented for most animations
 }
 
-// animationNeedsFile reports whether animName reads an ASCII art file, and
-// therefore whether the File selector is live for it. Single source of truth:
-// the editors are File entries, so they are only reachable for these.
+// animationNeedsFile uses sysc-Go metadata to keep the picker in sync with the
+// library's text-effect catalog.
 func animationNeedsFile(animName string) bool {
-	switch animName {
-	case "ak-47-text", "fire-text", "matrix-art", "rain-art", "pour", "print", "beam-text", "ring-text", "blackhole-text":
-		return true
-	}
-	return false
+	return animations.IsTextBasedEffect(animName)
 }
 
 // createAnimation creates an animation instance based on the selected type and settings
@@ -205,6 +200,15 @@ func (m *Model) createAnimation() animations.Animation {
 			update: print.Update,
 		}
 
+	case "decrypt":
+		palette := getBeamColors(themeName)
+		decrypt := animations.NewDecryptEffect(animations.DecryptConfig{
+			Width: width, Height: height, Text: m.loadTextFile(fileName),
+			Palette: palette, CiphertextColors: palette,
+			FinalGradientStops: palette, FinalGradientDirection: "horizontal", TypingSpeed: 1,
+		})
+		return &AnimationWrapper{render: decrypt.Render, update: decrypt.Update}
+
 	case "beams":
 		colors := getBeamColors(themeName)
 		config := animations.BeamsConfig{
@@ -283,7 +287,7 @@ func (m *Model) createAnimation() animations.Animation {
 			update: ringText.Update,
 		}
 
-	case "blackhole-text":
+	case "blackhole":
 		text := m.loadTextFile(fileName)
 		colors := getBeamColors(themeName)
 		var blackholeColor string
@@ -316,18 +320,13 @@ func (m *Model) createAnimation() animations.Animation {
 			update: blackhole.Update,
 		}
 
-	case "ak-47-rama", "ak-47-text":
-		var rifle *animations.AK47Animation
-		var err error
-		if animName == "ak-47-rama" {
-			rifle, err = animations.NewAK47RAMAEffect(width, height, themeName)
-		} else {
-			var text string
-			text, err = artfile.Read(getAssetPath(fileName))
-			if err == nil {
-				rifle, err = animations.NewAK47TextEffect(width, height, themeName, text)
-			}
+	case "ak-47-text":
+		text, err := artfile.Read(getAssetPath(fileName))
+		if err != nil {
+			m.animationError = err.Error()
+			return nil
 		}
+		rifle, err := animations.NewAK47TextEffect(width, height, themeName, text)
 		if err != nil {
 			m.animationError = err.Error()
 			return nil
@@ -350,6 +349,11 @@ func (m *Model) createAnimation() animations.Animation {
 			render: sonar.Render,
 			update: sonar.Update,
 		}
+
+	case "cracktro":
+		palette := animations.GetCracktroPalette(themeName)
+		cracktro := animations.NewCracktroEffect(width, height, palette, themeName)
+		return &AnimationWrapper{render: cracktro.Render, update: cracktro.Update}
 
 	case "sysc-logo":
 		logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{Width: width, Height: height, Shape: "sysc", Palette: animations.GetLogoPalette(themeName), Theme: themeName})

@@ -25,6 +25,13 @@ func TestCLIAvailableEffectsAreAccepted(t *testing.T) {
 	if len(names) == 0 {
 		t.Fatalf("no Available list in output:\n%s", out)
 	}
+	for _, hidden := range []string{"ak-47-rama", "justice-cross"} {
+		for _, name := range names {
+			if name == hidden {
+				t.Errorf("unfinished effect %q is advertised", hidden)
+			}
+		}
+	}
 
 	for _, name := range names {
 		cmd := exec.Command(os.Args[0], "-test.run=^TestCLIAvailableEffectsAreAccepted$")
