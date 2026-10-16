@@ -1,8 +1,8 @@
-# VHS tape file for generating rain.gif
+# VHS tape file for generating rain.mp4
 # Install vhs: go install github.com/charmbracelet/vhs@latest
 # Generate: vhs demos/rain.tape
 
-Output assets/rain.gif
+Output assets/rain.mp4
 
 Set FontSize 14
 Set Width 1200

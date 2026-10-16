@@ -8,16 +8,16 @@ From the repository root, build the CLI and start an effect:
 
 ```bash
 go build -o syscgo ./cmd/syscgo/
-./syscgo -effect great-wave -theme nord -duration 0
+./syscgo -effect great-wave -theme nord -duration 8
 ```
 
 For effects that use ASCII input, pass an art file:
 
 ```bash
-./syscgo -effect decrypt -file assets/SYSC.txt -theme nord -duration 0
+./syscgo -effect decrypt -file assets/SYSC.txt -theme nord -duration 14
 ```
 
-Press `Ctrl+C` to stop the effect.
+A duration of 0 runs until interrupted. Use a finite duration when you want the preview to end on its own.
 
 ## Record and encode
 
@@ -25,22 +25,9 @@ Record the live terminal window with a screen recorder such as GPU Screen Record
 
 ```bash
 ffmpeg -i capture.mkv \
-  -vf "fps=15" -an \
+  -vf "fps=20" -an \
   -c:v libwebp_anim -lossless 0 -preset text -quality 85 -loop 0 \
   assets/<effect-id>.webp
 ```
 
 Keep each WebP at or below 5 MiB when the animation remains readable. Shorten the clip or reduce the frame rate before lowering the capture resolution. Review the result in a browser to confirm that it loops and that the terminal text stays legible.
-
-## Convert existing showcase GIFs
-
-Re-encode existing showcase GIFs so the README can use the smaller WebP files:
-
-```bash
-ffmpeg -i assets/<source>.gif \
-  -vf "fps=15" -an \
-  -c:v libwebp_anim -lossless 0 -preset text -quality 85 -loop 0 \
-  assets/<effect-id>.webp
-```
-
-Review each output in a browser before changing README links. Remove a GIF only after all references to it have moved to the verified WebP.

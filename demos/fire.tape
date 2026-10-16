@@ -1,8 +1,8 @@
-# VHS tape file for generating fire.gif
+# VHS tape file for generating fire.mp4
 # Install vhs: go install github.com/charmbracelet/vhs@latest
 # Generate: vhs demos/fire.tape
 
-Output assets/fire.gif
+Output assets/fire.mp4
 
 Set FontSize 14
 Set Width 1200
