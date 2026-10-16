@@ -2,7 +2,7 @@
 
 Terminal animation library for Go. Pure Go animations ready to use in your TUI applications.
 
-![Matrix Rain Showcase](assets/matrix.gif)
+![Matrix Rain Showcase](assets/matrix.webp)
 
 ## Effects
 
@@ -89,7 +89,7 @@ The easiest way to browse and select animations is through the interactive TUI:
 syscgo-tui
 ```
 
-![TUI Showcase](assets/showcase_tui.gif)
+![TUI Showcase](assets/showcase_tui.webp)
 
 **Features:**
 - Visual selector for all animations, themes, and durations
@@ -103,6 +103,8 @@ syscgo-tui
 ### Command Line
 
 Run any animation directly from command line:
+
+The default duration is 10 seconds. Set `-duration 0` to run until interrupted.
 
 **Animations** (no text input required):
 ```bash
@@ -204,42 +206,81 @@ The images below show selected effects. Use the effects list above for the full 
 ### Animations
 
 #### Fire
-![Fire Effect](assets/fire.gif)
+![Fire Effect](assets/fire.webp)
 
 #### Matrix Rain
-![Matrix Rain](assets/matrix.gif)
+![Matrix Rain](assets/matrix.webp)
 
 #### Rain
-![ASCII Rain](assets/rain.gif)
+![ASCII Rain](assets/rain.webp)
 
 #### Fireworks
-![Fireworks](assets/fireworks.gif)
+![Fireworks](assets/fireworks.webp)
 
 #### Beams
-![Beams Effect](assets/beams.gif)
+![Beams Effect](assets/beams.webp)
 
 #### Aquarium
-![Aquarium Effect](assets/aquarium.gif)
+![Aquarium Effect](assets/aquarium.webp)
+
+#### Skull
+![Skull Effect](assets/skull.webp)
+
+#### Sonar
+![Sonar Effect](assets/sonar.webp)
+
+#### Cracktro
+![Cracktro Effect](assets/cracktro.webp)
+
+#### SYSC Logo
+![SYSC Logo Effect](assets/sysc-logo.webp)
+
+#### Cross Logo
+![Cross Logo Effect](assets/cross-logo.webp)
+
+#### Logo Morph
+![Logo Morph Effect](assets/logo-morph.webp)
+
+#### AK-47
+![AK-47 Effect](assets/ak-47.webp)
+
+#### Great Wave
+![Great Wave Effect](assets/great-wave.webp)
+
+#### Wasteland
+![Wasteland Effect](assets/wasteland.webp)
 
 ### Text Effects
 
 #### Fire Text
-![Fire Text Effect](assets/fire-text.gif)
+![Fire Text Effect](assets/fire-text.webp)
 
 #### Matrix Art
-![Matrix Art Effect](assets/matrix-text.gif)
+![Matrix Art Effect](assets/matrix-art.webp)
 
 #### Rain Art
-![Rain Art Effect](assets/rain-text.gif)
+![Rain Art Effect](assets/rain-art.webp)
 
 #### Beam Text
-![Beam Text Effect](assets/beam-text.gif)
+![Beam Text Effect](assets/beam-text.webp)
 
 #### Ring Text
-![Ring Text Effect](assets/ring-text.gif)
+![Ring Text Effect](assets/ring-text.webp)
 
 #### Blackhole
-![Blackhole Effect](assets/blackhole.gif)
+![Blackhole Effect](assets/blackhole.webp)
+
+#### Pour
+![Pour Effect](assets/pour.webp)
+
+#### Print
+![Print Effect](assets/print.webp)
+
+#### Decrypt
+![Decrypt Effect](assets/decrypt.webp)
+
+#### AK-47 Text
+![AK-47 Text Effect](assets/ak-47-text.webp)
 
 ## Live Preview
 

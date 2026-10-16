@@ -1,8 +1,8 @@
-# VHS tape file for generating fireworks.gif
+# VHS tape file for generating fireworks.mp4
 # Install vhs: go install github.com/charmbracelet/vhs@latest
 # Generate: vhs demos/fireworks.tape
 
-Output assets/fireworks.gif
+Output assets/fireworks.mp4
 
 Set FontSize 14
 Set Width 1200

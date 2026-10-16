@@ -1,8 +1,8 @@
-# VHS tape file for generating matrix.gif
+# VHS tape file for generating matrix.mp4
 # Install vhs: go install github.com/charmbracelet/vhs@latest
 # Generate: vhs demos/matrix.tape
 
-Output assets/matrix.gif
+Output assets/matrix.mp4
 
 Set FontSize 14
 Set Width 1200
