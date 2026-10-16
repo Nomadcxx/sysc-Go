@@ -676,11 +676,11 @@ MIT
 
 ### AK-47 artwork morph
 
-`ak-47` retains the 12-second swirl loop. `ak-47-rama` embeds the RAMA artwork;
-`ak-47-text` accepts the selected file in the TUI or `-file` in the CLI.
-The artwork variants rotate twice over eight seconds, form the target over two
-seconds, hold it for two seconds and reconstruct the rifle over two seconds.
-They form the silhouette of occupied character cells from braille particles.
+`ak-47` retains the 12-second swirl loop. `ak-47-text` accepts the selected
+file in the TUI or `-file` in the CLI. It rotates twice over eight seconds,
+forms the artwork over two seconds, holds it for two seconds and reconstructs
+the rifle over two seconds. It forms the silhouette of occupied character
+cells from braille particles.
 
 Files must be regular UTF-8 text, at most 64 KiB, 1024 columns and 512 rows.
 Spaces, tabs and CRLF are supported; terminal control sequences are rejected.

@@ -6,11 +6,12 @@ import (
 	"strings"
 	"testing"
 
+	syscGoAnimations "github.com/Nomadcxx/sysc-Go/animations"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestAK47ArtworkSelection(t *testing.T) {
-	m := selectAnimation(t, newTestModel(t), "ak-47-rama")
+	m := selectAnimation(t, newTestModel(t), "ak-47")
 	m.canvasHeight = m.height - mainViewChromeRows
 	m.currentAnim = m.createAnimation()
 	m.animationRunning = true
@@ -119,7 +120,7 @@ func TestCtrlBStillOpensEditorFromNonFileAnimation(t *testing.T) {
 // TestTextAnimationsStillOpenEditors guards the other direction: the gate must not
 // break the editors for the animations that actually read a file.
 func TestTextAnimationsStillOpenEditors(t *testing.T) {
-	for _, anim := range []string{"fire-text", "matrix-art", "rain-art", "pour", "print", "beam-text", "ring-text", "blackhole-text"} {
+	for _, anim := range []string{"fire-text", "matrix-art", "rain-art", "pour", "print", "beam-text", "ring-text", "blackhole"} {
 		for _, fileName := range []string{"BIT Text Editor", "Custom text"} {
 			t.Run(anim+"/"+fileName, func(t *testing.T) {
 				m := newTestModel(t)
@@ -164,38 +165,75 @@ func TestGuidanceKeepsFileInfoForTextAnimations(t *testing.T) {
 	}
 }
 
-// TestAnimationNeedsFile pins the single source of truth. fireworks must NOT be
-// here: animfactory.go builds it with no file, and passing -file to the CLI
-// silenced the effect.
-func TestAnimationNeedsFile(t *testing.T) {
-	want := map[string]bool{
-		"fire-text": true, "matrix-art": true, "rain-art": true,
-		"pour": true, "print": true, "beam-text": true,
-		"ring-text": true, "blackhole-text": true,
-		"fire": false, "matrix": false, "rain": false, "beams": false,
-		"fireworks": false, "aquarium": false, "sonar": false,
-		"sysc-logo": false, "cross-logo": false, "justice-cross": false,
-		"logo-morph": false, "": false,
-		"great-wave": false, "cyberpunk-girl": false, "wasteland": false,
-		"ak-47": false, "ak-47-rama": false, "ak-47-text": true,
-	}
-	for anim, expected := range want {
-		if got := animationNeedsFile(anim); got != expected {
-			t.Errorf("animationNeedsFile(%q) = %v, want %v", anim, got, expected)
+func TestAnimationNeedsFileMatchesLibraryMetadata(t *testing.T) {
+	for _, id := range syscGoAnimations.GetEffectNames() {
+		if got, want := animationNeedsFile(id), syscGoAnimations.IsTextBasedEffect(id); got != want {
+			t.Errorf("animationNeedsFile(%q) = %v, library metadata says %v", id, got, want)
 		}
 	}
-
-	// Every animation in the selector must be covered by the table, so a new
-	// effect cannot silently land on the wrong side of the gate.
-	for _, a := range NewModel().animations {
-		if _, ok := want[a]; !ok {
-			t.Errorf("animation %q missing from the animationNeedsFile table", a)
+	for _, id := range []string{"", "blackhole-text", "justice-cross", "ak-47-rama"} {
+		if animationNeedsFile(id) {
+			t.Errorf("unknown or unfinished effect %q requires artwork", id)
 		}
 	}
 }
 
+func TestAnimationsMatchLibraryRegistry(t *testing.T) {
+	want := map[string]bool{}
+	for _, id := range syscGoAnimations.GetEffectNames() {
+		want[id] = true
+	}
+	model := NewModel()
+	got := map[string]bool{}
+	for _, id := range model.animations {
+		got[id] = true
+	}
+	if len(got) != len(model.animations) {
+		t.Fatal("picker contains duplicate effects")
+	}
+	if len(got) != len(want) {
+		t.Fatalf("picker has %d effects, sysc-Go registry has %d", len(got), len(want))
+	}
+	for id := range want {
+		if !got[id] {
+			t.Errorf("picker is missing sysc-Go effect %q", id)
+		}
+	}
+	for id := range got {
+		if !want[id] {
+			t.Errorf("picker exposes non-registry effect %q", id)
+		}
+	}
+	for _, id := range []string{"ak-47-rama", "justice-cross"} {
+		if got[id] {
+			t.Errorf("picker exposes unfinished effect %q", id)
+		}
+	}
+	if selected := model.animations[model.selectedAnimation]; selected != "fire" {
+		t.Errorf("default picker effect = %q, want fire", selected)
+	}
+}
+
+func TestEveryLibraryEffectConstructsInPicker(t *testing.T) {
+	art := filepath.Join(t.TempDir(), "SYSC.txt")
+	if err := os.WriteFile(art, []byte("SYSC\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range syscGoAnimations.GetEffectNames() {
+		t.Run(id, func(t *testing.T) {
+			m := selectAnimation(t, newTestModel(t), id)
+			m.canvasHeight = 24
+			m.files, m.selectedFile = []string{art}, 0
+			if got := m.createAnimation(); got == nil {
+				t.Fatalf("registry effect has no TUI constructor (error: %s)", m.animationError)
+			}
+		})
+	}
+}
+
 func TestArtworkSelector(t *testing.T) {
-	for _, id := range []string{"great-wave", "wasteland", "ak-47", "ak-47-rama"} {
+	for _, id := range []string{"great-wave", "wasteland", "ak-47"} {
 		m := selectAnimation(t, newTestModel(t), id)
 		m.canvasHeight = 24
 		m = selectFile(t, m, "BIT Text Editor")

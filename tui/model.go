@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"time"
 
 	"github.com/Nomadcxx/sysc-Go/animations"
@@ -136,33 +137,10 @@ func NewModel() Model {
 	if len(bitFonts) > 0 {
 		defaultFont, _ = loadBitFontByName(bitFonts[0])
 	}
+	effectNames := animations.GetEffectNames()
 
 	return Model{
-		animations: []string{
-			"fire",
-			"fire-text",
-			"matrix",
-			"matrix-art",
-			"rain",
-			"rain-art",
-			"fireworks",
-			"pour",
-			"print",
-			"beams",
-			"beam-text",
-			"ring-text",
-			"blackhole-text",
-			"aquarium",
-			"sonar",
-			"sysc-logo",
-			"cross-logo",
-			"logo-morph",
-			"ak-47",
-			"ak-47-rama",
-			"ak-47-text",
-			"great-wave",
-			"wasteland",
-		},
+		animations: effectNames,
 		themes: []string{
 			"dracula",
 			"gruvbox",
@@ -186,7 +164,7 @@ func NewModel() Model {
 			"60s",
 			"infinite",
 		},
-		selectedAnimation: 0,
+		selectedAnimation: slices.Index(effectNames, "fire"),
 		selectedTheme:     0,
 		selectedFile:      2, // Default to first .txt file after both editors
 		selectedDuration:  4, // infinite by default

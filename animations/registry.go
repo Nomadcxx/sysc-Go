@@ -19,7 +19,6 @@ type EffectMetadata struct {
 
 // EffectRegistry contains metadata for all available effects
 var EffectRegistry = []EffectMetadata{
-	{Name: "ak-47-rama", Description: "Two AK-47 rotations, RAMA particle artwork and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "scene"},
 	{Name: "ak-47-text", RequiresText: true, Description: "Two AK-47 rotations, selected particle artwork and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "text"},
 	{Name: "ak-47", Description: "Lokeig's AK-47 in braille: two turns, particle swirl and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "scene"},
 	{Name: "great-wave", Description: "Hokusai's Great Wave with moving ASCII foam and water", VersionAdded: "1.0.7", Category: "scene"},

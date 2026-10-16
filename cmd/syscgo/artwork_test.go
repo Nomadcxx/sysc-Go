@@ -31,7 +31,7 @@ func TestArtworkCLI(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(seed, "SYSC.txt"), repoSYSC, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"great-wave", "wasteland", "ak-47", "ak-47-rama", "ak-47-text"} {
+	for _, id := range []string{"great-wave", "wasteland", "ak-47", "ak-47-text"} {
 		cmd := exec.Command(os.Args[0], "-test.run=^TestArtworkCLI$")
 		cmd.Env = childEnv("SYSC_ARTWORK_CLI_CHECK="+id, "HOME="+home)
 		out, err := cmd.CombinedOutput()
@@ -42,7 +42,7 @@ func TestArtworkCLI(t *testing.T) {
 			t.Fatalf("%s did not render", id)
 		}
 	}
-	for _, id := range []string{"justice-cross", "cyberpunk-girl", "ak-47-text"} {
+	for _, id := range []string{"ak-47-rama", "justice-cross", "cyberpunk-girl", "ak-47-text"} {
 		p := filepath.Join(t.TempDir(), "invalid.txt")
 		if err := os.WriteFile(p, []byte("\x1b[31mX"), 0600); err != nil {
 			t.Fatal(err)

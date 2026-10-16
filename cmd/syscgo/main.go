@@ -324,9 +324,7 @@ func showHelp() {
 	fmt.Println("  -display           Hold at final state (beam-text only)")
 	fmt.Println()
 	fmt.Println("Effects:")
-	fmt.Println("  fire, fire-text, matrix, matrix-art, rain, rain-art, fireworks")
-	fmt.Println("  pour, print, beams, beam-text, ring-text, blackhole, aquarium, sonar, cracktro")
-	fmt.Println("  great-wave, wasteland, ak-47, ak-47-rama, ak-47-text")
+	fmt.Println("  " + strings.Join(animations.GetEffectNames(), ", "))
 	fmt.Println()
 	fmt.Println("Themes:")
 	fmt.Println("  dracula, gruvbox, nord, tokyo-night, catppuccin, material")
@@ -341,26 +339,11 @@ func showHelp() {
 	fmt.Println("For more info: https://github.com/Nomadcxx/sysc-Go")
 }
 
-// cliEffects are the -effect names the switch in main accepts.  It is the
-// source for the "Available" list so the help never advertises a rejected name.
-var cliEffects = []string{
-	"ak-47", "ak-47-rama", "ak-47-text",
-	"great-wave", "wasteland",
-	"fire", "fire-text",
-	"matrix", "matrix-art",
-	"fireworks",
-	"rain", "rain-art",
-	"pour", "print",
-	"beams", "beam-text", "ring-text", "blackhole",
-	"aquarium", "skull", "sonar", "cracktro",
-	"sysc-logo", "cross-logo", "logo-morph",
-}
-
 func main() {
 	effect := flag.String("effect", "fire", "Animation effect (fire, matrix, rain, fireworks)")
 	theme := flag.String("theme", "dracula", "Color theme")
 	duration := flag.Int("duration", 10, "Duration in seconds (0 = infinite)")
-	file := flag.String("file", "", "Text file for text-based effects (pour, print, beam-text)")
+	file := flag.String("file", "", "Text file for text-based effects")
 	auto := flag.Bool("auto", false, "Auto-size canvas to fit text (beam-text only)")
 	display := flag.Bool("display", false, "Display mode: complete once and hold (beam-text only)")
 	help := flag.Bool("h", false, "Show help")
@@ -393,17 +376,11 @@ func main() {
 	frames := framesForDuration(*duration)
 
 	switch *effect {
-	case "ak-47-rama", "ak-47-text":
+	case "ak-47-text":
 		var rifle *animations.AK47Animation
-		var err error
-		if *effect == "ak-47-rama" {
-			rifle, err = animations.NewAK47RAMAEffect(width, height, *theme)
-		} else {
-			var text string
-			text, err = readAK47Artwork(*file)
-			if err == nil {
-				rifle, err = animations.NewAK47TextEffect(width, height, *theme, text)
-			}
+		text, err := readAK47Artwork(*file)
+		if err == nil {
+			rifle, err = animations.NewAK47TextEffect(width, height, *theme, text)
 		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -442,6 +419,8 @@ func main() {
 		runPour(width, height, *theme, *file, frames)
 	case "print":
 		runPrint(width, height, *theme, *file, frames)
+	case "decrypt":
+		runDecrypt(width, height, *theme, *file, frames)
 	case "beams":
 		runBeams(width, height, *theme, frames)
 	case "beam-text":
@@ -469,7 +448,7 @@ func main() {
 		runLogoSpin(width, height, *theme, "sysc-cross", frames)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
-		fmt.Println("Available: " + strings.Join(cliEffects, ", "))
+		fmt.Println("Available: " + strings.Join(animations.GetEffectNames(), ", "))
 		os.Exit(1)
 	}
 }
@@ -776,6 +755,17 @@ func runPour(width, height int, theme string, file string, frames int) {
 		time.Sleep(cliFrameInterval)
 		frame++
 	}
+}
+
+func runDecrypt(width, height int, theme, file string, frames int) {
+	palette := animations.GetFirePalette(theme)
+	text := readTextFile(file)
+	effect := animations.NewDecryptEffect(animations.DecryptConfig{
+		Width: width, Height: height, Text: text,
+		Palette: palette, CiphertextColors: palette,
+		FinalGradientStops: palette, FinalGradientDirection: "horizontal", TypingSpeed: 1,
+	})
+	runAnimation(effect, frames)
 }
 
 func runPrint(width, height int, theme string, file string, frames int) {

@@ -140,13 +140,13 @@ func TestAK47ArtworkCycle(t *testing.T) {
 	if c.Render() != first {
 		t.Fatal("reset did not restore rifle")
 	}
-	for _, id := range []string{"ak-47-rama", "ak-47-text"} {
+	for _, id := range []string{"ak-47-text"} {
 		m := GetEffectMetadata(id)
 		if m == nil || m.RequiresText != (id == "ak-47-text") {
 			t.Fatalf("wrong metadata for %s", id)
 		}
 	}
-	for _, id := range []string{"justice-cross", "cyberpunk-girl"} {
+	for _, id := range []string{"ak-47-rama", "justice-cross", "cyberpunk-girl"} {
 		if GetEffectMetadata(id) != nil {
 			t.Fatalf("unfinished effect %s is released", id)
 		}
