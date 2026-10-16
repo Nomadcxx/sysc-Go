@@ -1,14 +1,7 @@
 # Assets
 
-Showcase GIFs for README.md
+Images and animation assets used by the README and tools.
 
-## Generate GIFs
+## Showcase captures
 
-See `../demos/README.md` for instructions on generating showcase GIFs using VHS.
-
-## Files
-
-- `fire.gif` - Fire effect showcase
-- `matrix.gif` - Matrix rain showcase
-- `fireworks.gif` - Fireworks effect showcase
-- `rain.gif` - ASCII rain showcase
+New effect previews use animated WebP captured from a live terminal. See [`../demos/README.md`](../demos/README.md) for the recording and encoding steps.

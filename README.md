@@ -6,28 +6,40 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 
 ## Effects
 
-### Animations
-Standalone effects that don't require text input.
+Effect names and text requirements match the registry in [`animations/registry.go`](animations/registry.go).
 
-- **Fire** - DOOM PSX-style fire animation
-- **Matrix Rain** - Classic Matrix digital rain
-- **Rain** - ASCII character rain effect
-- **Fireworks** - Particle-based fireworks display
-- **Beams** - Full-screen light beam background animation
-- **Aquarium** - Underwater scene with fish, diver, boat, and sea life
-- **AK-47** - Lokeig's model in braille: two rotations, particle swirl and reconstruction
+### Animations
+Standalone effects that do not require text input.
+
+- **Fire** (`fire`): DOOM PSX-style fire
+- **Matrix Rain** (`matrix`): classic digital rain
+- **Rain** (`rain`): falling ASCII characters
+- **Fireworks** (`fireworks`): particle-based fireworks
+- **Beams** (`beams`): full-screen light beams
+- **Aquarium** (`aquarium`): underwater scene with fish and sea life
+- **Skull** (`skull`): skull with a Tron grid, sonar pulses, and scanline sweep
+- **Sonar** (`sonar`): pulses radiating from the centre to the screen edges
+- **Cracktro** (`cracktro`): demoscene animation with stars, raster bars, and wireframe
+- **SYSC Logo** (`sysc-logo`): spinning 3D braille wordmark
+- **Cross Logo** (`cross-logo`): spinning 3D braille Latin cross
+- **Logo Morph** (`logo-morph`): rotating SYSC wordmark and cross morph
+- **AK-47** (`ak-47`): Lokeig's braille model with a particle swirl and reconstruction
+- **Great Wave** (`great-wave`): Hokusai's wave with animated ASCII foam and water
+- **Wasteland** (`wasteland`): animated ASCII scene after Valenberg
 
 ### Text Effects
-Effects that animate ASCII text and art (requires `-file` flag).
+Text effects animate ASCII input. The CLI uses `SYSC.txt` by default; pass `-file` to choose another file. Blackhole can also run in particle mode without text.
 
-- **Fire Text** - ASCII text consumed by rising flames
-- **Matrix Art** - ASCII art with Matrix-style digital streams
-- **Rain Art** - ASCII art with crystallizing rain effect
-- **Pour** - Characters pour into position from different directions
-- **Print** - Typewriter-style text rendering
-- **Beam Text** - Text display with animated light beams and auto-sizing
-- **Ring Text** - Text rotates and converges in spectacular ring animation
-- **Blackhole** - Text gets consumed by a swirling blackhole and explodes
+- **Fire Text** (`fire-text`): ASCII art consumed by rising flames
+- **Matrix Art** (`matrix-art`): ASCII art revealed by Matrix-style streams
+- **Rain Art** (`rain-art`): ASCII art revealed by falling rain
+- **Beam Text** (`beam-text`): text with animated light beams
+- **Ring Text** (`ring-text`): rotating coloured rings around ASCII art
+- **Blackhole** (`blackhole`): text pulled into a swirling blackhole
+- **Pour** (`pour`): characters fall into position from different directions
+- **Print** (`print`): typewriter-style text rendering
+- **Decrypt** (`decrypt`): scrambled text resolves into the supplied text
+- **AK-47 Text** (`ak-47-text`): the braille model forms the selected ASCII art
 
 ## Installation
 
@@ -187,6 +199,8 @@ For sysc-walls integration, art exports to `~/.config/sysc-walls/ascii/` instead
 
 ## Effect Showcase
 
+The images below show selected effects. Use the effects list above for the full catalog.
+
 ### Animations
 
 #### Fire
@@ -213,7 +227,7 @@ For sysc-walls integration, art exports to `~/.config/sysc-walls/ascii/` instead
 ![Fire Text Effect](assets/fire-text.gif)
 
 #### Matrix Art
-![Matrix Art Effect](assets/matrix.gif)
+![Matrix Art Effect](assets/matrix-text.gif)
 
 #### Rain Art
 ![Rain Art Effect](assets/rain-text.gif)
@@ -227,13 +241,13 @@ For sysc-walls integration, art exports to `~/.config/sysc-walls/ascii/` instead
 #### Blackhole
 ![Blackhole Effect](assets/blackhole.gif)
 
-## Demo
+## Live Preview
 
-Run the interactive demo to see all animations:
+Run an effect in a terminal. Press `Ctrl+C` to stop it.
 
 ```bash
-cd examples/demo
-go run .
+syscgo -effect great-wave -theme nord -duration 0
+syscgo -effect decrypt -file assets/SYSC.txt -theme nord -duration 0
 ```
 
 ## Documentation

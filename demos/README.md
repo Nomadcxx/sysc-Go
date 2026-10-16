@@ -1,40 +1,46 @@
-# Demo GIF Generation
+# Screen-Captured Effect Demos
 
-VHS tape files for generating effect showcase GIFs.
+Showcase captures must record `syscgo` running in a real terminal. Do not use VHS for new captures.
 
-## Install VHS
+## Run an effect
 
-```bash
-go install github.com/charmbracelet/vhs@latest
-```
-
-## Generate All GIFs
+From the repository root, build the CLI and start an effect:
 
 ```bash
-# Make sure syscgo binary is in project root
-cd ..
 go build -o syscgo ./cmd/syscgo/
-
-# Generate all showcase GIFs
-vhs demos/fire.tape
-vhs demos/matrix.tape
-vhs demos/fireworks.tape
-vhs demos/rain.tape
+./syscgo -effect great-wave -theme nord -duration 0
 ```
 
-GIFs will be created in `assets/` directory.
-
-## Individual Generation
+For effects that use ASCII input, pass an art file:
 
 ```bash
-vhs demos/fire.tape       # Generate fire.gif
-vhs demos/matrix.tape     # Generate matrix.gif
-vhs demos/fireworks.tape  # Generate fireworks.gif
-vhs demos/rain.tape       # Generate rain.gif
+./syscgo -effect decrypt -file assets/SYSC.txt -theme nord -duration 0
 ```
 
-## Requirements
+Press `Ctrl+C` to stop the effect.
 
-- VHS installed
-- syscgo binary built in project root
-- ffmpeg (VHS dependency)
+## Record and encode
+
+Record the live terminal window with a screen recorder such as GPU Screen Recorder or OBS at 1920×1080 or the monitor's native resolution when it is higher. Keep the terminal readable and capture a full effect cycle. Encode the recording as an animated WebP:
+
+```bash
+ffmpeg -i capture.mkv \
+  -vf "fps=15" -an \
+  -c:v libwebp_anim -lossless 0 -preset text -quality 85 -loop 0 \
+  assets/<effect-id>.webp
+```
+
+Keep each WebP at or below 5 MiB when the animation remains readable. Shorten the clip or reduce the frame rate before lowering the capture resolution. Review the result in a browser to confirm that it loops and that the terminal text stays legible.
+
+## Convert existing showcase GIFs
+
+Re-encode existing showcase GIFs so the README can use the smaller WebP files:
+
+```bash
+ffmpeg -i assets/<source>.gif \
+  -vf "fps=15" -an \
+  -c:v libwebp_anim -lossless 0 -preset text -quality 85 -loop 0 \
+  assets/<effect-id>.webp
+```
+
+Review each output in a browser before changing README links. Remove a GIF only after all references to it have moved to the verified WebP.
