@@ -203,6 +203,9 @@ For sysc-walls integration, art exports to `~/.config/sysc-walls/ascii/` instead
 
 The AK-47 and AK-47 Text previews lead the gallery. The remaining effects appear newest to oldest.
 
+<details>
+<summary>Show the effect gallery</summary>
+
 #### Great Wave
 ![Great Wave Effect](assets/great-wave.webp)
 
@@ -268,6 +271,8 @@ The AK-47 and AK-47 Text previews lead the gallery. The remaining effects appear
 
 #### Matrix Rain
 ![Matrix Rain Effect](assets/matrix.webp)
+
+</details>
 
 ### TUI Preview
 
