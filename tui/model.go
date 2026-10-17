@@ -266,16 +266,15 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// TickMsg is sent when animation should update.  gen identifies the tick loop
+// TickMsg is sent when animation should update. gen identifies the tick loop
 // that armed it, so a tick left in flight by a stopped run is ignored.
 type TickMsg struct {
 	gen int
-	t   time.Time
 }
 
 // tickCmd returns a command that sends a tick message for animation updates
 func tickCmd(gen int) tea.Cmd {
-	return tea.Tick(tuiPreviewFrameInterval, func(t time.Time) tea.Msg {
-		return TickMsg{gen: gen, t: t}
+	return tea.Tick(tuiPreviewFrameInterval, func(time.Time) tea.Msg {
+		return TickMsg{gen: gen}
 	})
 }

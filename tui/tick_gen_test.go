@@ -58,11 +58,12 @@ func TestTickUsesElapsedTimeSincePreviousUpdate(t *testing.T) {
 	started, _ := m.startAnimation()
 	probe := &elapsedProbeAnimation{}
 	started.currentAnim = probe
-	tickAt := time.Now().Add(100 * time.Millisecond)
-	started.Update(TickMsg{gen: started.tickGen, t: tickAt})
+	lastUpdate := time.Now().Add(-100 * time.Millisecond)
+	started.animLastTick = lastUpdate
+	started.Update(TickMsg{gen: started.tickGen})
 
-	if probe.lastElapsed < 90*time.Millisecond || probe.lastElapsed > 110*time.Millisecond {
-		t.Fatalf("UpdateElapsed received %s; want about 100ms from the tick timestamp", probe.lastElapsed)
+	if probe.lastElapsed < 90*time.Millisecond {
+		t.Fatalf("UpdateElapsed received %s; want elapsed wall time after a delayed tick", probe.lastElapsed)
 	}
 }
 
@@ -75,7 +76,7 @@ func TestTickStopsAnimationAtWallClockDuration(t *testing.T) {
 	m.selectedDuration = 0
 
 	started, _ := m.startAnimation()
-	updated, cmd := started.Update(TickMsg{gen: started.tickGen, t: time.Now()})
+	updated, cmd := started.Update(TickMsg{gen: started.tickGen})
 	got := updated.(Model)
 	if got.animationRunning || got.currentAnim != nil || cmd != nil {
 		t.Fatal("animation continued after its wall-clock duration expired")

@@ -56,7 +56,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Handle animation tick
 		if m.animationRunning && m.currentAnim != nil {
-			if !m.animDeadline.IsZero() && !time.Now().Before(m.animDeadline) {
+			now := time.Now()
+			if !m.animDeadline.IsZero() && !now.Before(m.animDeadline) {
 				m.animationRunning = false
 				m.currentAnim = nil
 				m.animDeadline = time.Time{}
@@ -65,9 +66,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			var elapsedTime time.Duration
-			if msg.t.After(m.animLastTick) {
-				elapsedTime = msg.t.Sub(m.animLastTick)
-				m.animLastTick = msg.t
+			if !m.animLastTick.IsZero() && now.After(m.animLastTick) {
+				elapsedTime = now.Sub(m.animLastTick)
+				m.animLastTick = now
 			}
 			if elapsed, ok := m.currentAnim.(interface{ UpdateElapsed(time.Duration) }); ok {
 				elapsed.UpdateElapsed(elapsedTime)
