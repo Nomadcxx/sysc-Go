@@ -56,37 +56,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Handle animation tick
 		if m.animationRunning && m.currentAnim != nil {
+			if !m.animDeadline.IsZero() && !time.Now().Before(m.animDeadline) {
+				m.animationRunning = false
+				m.currentAnim = nil
+				m.animDeadline = time.Time{}
+				m.animLastTick = time.Time{}
+				return m, nil
+			}
+
+			var elapsedTime time.Duration
+			if msg.t.After(m.animLastTick) {
+				elapsedTime = msg.t.Sub(m.animLastTick)
+				m.animLastTick = msg.t
+			}
 			if elapsed, ok := m.currentAnim.(interface{ UpdateElapsed(time.Duration) }); ok {
-				elapsed.UpdateElapsed(tuiPreviewFrameInterval)
+				elapsed.UpdateElapsed(elapsedTime)
 			} else {
 				m.currentAnim.Update()
-			}
-			m.animFrames++
-
-			// Check duration limit
-			duration := m.durations[m.selectedDuration]
-			if duration != "infinite" {
-				// Parse duration and check if we should stop
-				// For now, simplified: stop after reasonable frame count
-				// TODO: Parse actual duration string and calculate frames
-				maxFrames := 300 // ~10 seconds at 30 fps
-				switch duration {
-				case "5s":
-					maxFrames = 150
-				case "10s":
-					maxFrames = 300
-				case "30s":
-					maxFrames = 900
-				case "60s":
-					maxFrames = 1800
-				}
-
-				if m.animFrames >= maxFrames {
-					m.animationRunning = false
-					m.currentAnim = nil
-					m.animFrames = 0
-					return m, nil
-				}
 			}
 
 			// Continue ticking
@@ -131,7 +117,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if msg.String() == "esc" {
 			m.animationRunning = false
 			m.currentAnim = nil
-			m.animFrames = 0
+			m.animDeadline = time.Time{}
+			m.animLastTick = time.Time{}
 			return m, nil
 		}
 		// Ignore other keys while animation is running
@@ -271,7 +258,11 @@ func (m Model) startAnimation() (Model, tea.Cmd) {
 	if anim != nil {
 		m.currentAnim = anim
 		m.animationRunning = true
-		m.animFrames = 0
+		m.animLastTick = time.Now()
+		m.animDeadline = time.Time{}
+		if duration, err := time.ParseDuration(m.durations[m.selectedDuration]); err == nil {
+			m.animDeadline = m.animLastTick.Add(duration)
+		}
 		m.tickGen++
 		return m, tickCmd(m.tickGen) // Start the tick loop
 	}

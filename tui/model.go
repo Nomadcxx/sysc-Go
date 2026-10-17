@@ -40,8 +40,9 @@ type Model struct {
 	animationError   string
 	animationRunning bool
 	currentAnim      animations.Animation
-	animFrames       int // Frame counter
 	tickGen          int // Generation of the live tick loop
+	animLastTick     time.Time
+	animDeadline     time.Time
 
 	// Editor mode for custom text creation
 	editorMode       bool
@@ -173,7 +174,6 @@ func NewModel() Model {
 		focusedSelector:   0,
 		animationRunning:  false,
 		currentAnim:       nil,
-		animFrames:        0,
 		editorMode:        false,
 		textarea:          ta,
 		filenameInput:     fi,

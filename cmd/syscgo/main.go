@@ -371,10 +371,10 @@ func main() {
 	fmt.Print("\033[?25l")       // Hide cursor
 	defer fmt.Print("\033[?25h") // Show cursor on exit
 
-	// Calculate frame count (0 = infinite); ticks keep this budget in wall time.
-	frames := framesForDuration(*duration)
-	cliFrameTicker = time.NewTicker(cliFrameInterval)
-	defer cliFrameTicker.Stop()
+	// Use a wall-clock duration while retaining a nominal frame budget for
+	// staged effects that need to finish their reveal within the selected time.
+	clock := newCLIFrameClock(*duration)
+	defer clock.stop()
 
 	switch *effect {
 	case "ak-47-text":
@@ -388,9 +388,9 @@ func main() {
 			fmt.Print("\033[?25h")
 			os.Exit(1)
 		}
-		runAnimation(rifle, frames)
+		runAnimation(rifle, clock)
 	case "ak-47":
-		runAnimation(animations.NewAK47Effect(width, height, *theme), frames)
+		runAnimation(animations.NewAK47Effect(width, height, *theme), clock)
 	case "great-wave", "wasteland":
 		create := animations.NewGreatWaveEffect
 		if *effect == "wasteland" {
@@ -401,52 +401,52 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		runAnimation(scene, frames)
+		runAnimation(scene, clock)
 	case "fire":
-		runFire(width, height, *theme, frames)
+		runFire(width, height, *theme, clock)
 	case "fire-text":
-		runFireText(width, height, *theme, *file, frames)
+		runFireText(width, height, *theme, *file, clock)
 	case "matrix":
-		runMatrix(width, height, *theme, frames)
+		runMatrix(width, height, *theme, clock)
 	case "matrix-art":
-		runMatrixArt(width, height, *theme, *file, frames)
+		runMatrixArt(width, height, *theme, *file, clock)
 	case "fireworks":
-		runFireworks(width, height, *theme, frames)
+		runFireworks(width, height, *theme, clock)
 	case "rain":
-		runRain(width, height, *theme, frames)
+		runRain(width, height, *theme, clock)
 	case "rain-art":
-		runRainArt(width, height, *theme, *file, frames)
+		runRainArt(width, height, *theme, *file, clock)
 	case "pour":
-		runPour(width, height, *theme, *file, frames)
+		runPour(width, height, *theme, *file, clock)
 	case "print":
-		runPrint(width, height, *theme, *file, frames)
+		runPrint(width, height, *theme, *file, clock)
 	case "decrypt":
-		runDecrypt(width, height, *theme, *file, frames)
+		runDecrypt(width, height, *theme, *file, clock)
 	case "beams":
-		runBeams(width, height, *theme, frames)
+		runBeams(width, height, *theme, clock)
 	case "beam-text":
-		runBeamText(width, height, *theme, *file, *auto, *display, frames)
+		runBeamText(width, height, *theme, *file, *auto, *display, clock)
 	case "ring-text":
-		runRingText(width, height, *theme, *file, frames)
+		runRingText(width, height, *theme, *file, clock)
 	case "blackhole":
-		runBlackhole(width, height, *theme, *file, frames)
+		runBlackhole(width, height, *theme, *file, clock)
 	// WIP: blackhole-particles is currently broken (terminal scrolling issue)
 	// case "blackhole-particles":
-	// 	runBlackhole(width, height, *theme, "", frames)
+	// 	runBlackhole(width, height, *theme, "", clock)
 	case "aquarium":
-		runAquarium(width, height, *theme, frames)
+		runAquarium(width, height, *theme, clock)
 	case "skull":
-		runSkull(width, height, *theme, frames)
+		runSkull(width, height, *theme, clock)
 	case "sonar":
-		runSonar(width, height, *theme, frames)
+		runSonar(width, height, *theme, clock)
 	case "cracktro":
-		runCracktro(width, height, *theme, frames)
+		runCracktro(width, height, *theme, clock)
 	case "sysc-logo":
-		runLogoSpin(width, height, *theme, "sysc", frames)
+		runLogoSpin(width, height, *theme, "sysc", clock)
 	case "cross-logo":
-		runLogoSpin(width, height, *theme, "cross", frames)
+		runLogoSpin(width, height, *theme, "cross", clock)
 	case "logo-morph":
-		runLogoSpin(width, height, *theme, "sysc-cross", frames)
+		runLogoSpin(width, height, *theme, "sysc-cross", clock)
 	default:
 		fmt.Printf("Unknown effect: %s\n", *effect)
 		fmt.Println("Available: " + strings.Join(animations.GetEffectNames(), ", "))
@@ -454,15 +454,14 @@ func main() {
 	}
 }
 
-func runFire(width, height int, theme string, frames int) {
+func runFire(width, height int, theme string, clock *cliFrameClock) {
 	palette := animations.GetFirePalette(theme)
 	fire := animations.NewFireEffect(width, height, palette)
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -476,12 +475,11 @@ func runFire(width, height int, theme string, frames int) {
 		fmt.Print("\033[H") // Move cursor to top
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runFireText(width, height int, theme string, file string, frames int) {
+func runFireText(width, height int, theme string, file string, clock *cliFrameClock) {
 	// Get theme palette for fire
 	palette := animations.GetFirePalette(theme)
 
@@ -494,8 +492,7 @@ func runFireText(width, height int, theme string, file string, frames int) {
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -509,20 +506,18 @@ func runFireText(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H") // Move cursor to top
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runMatrix(width, height int, theme string, frames int) {
+func runMatrix(width, height int, theme string, clock *cliFrameClock) {
 	palette := animations.GetMatrixPalette(theme)
 	matrix := animations.NewMatrixEffect(width, height, palette)
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -536,12 +531,11 @@ func runMatrix(width, height int, theme string, frames int) {
 		fmt.Print("\033[H") // Move cursor to top
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runMatrixArt(width, height int, theme string, file string, frames int) {
+func runMatrixArt(width, height int, theme string, file string, clock *cliFrameClock) {
 	// Get theme palette for matrix
 	palette := animations.GetMatrixPalette(theme)
 
@@ -551,15 +545,14 @@ func runMatrixArt(width, height int, theme string, file string, frames int) {
 	// Create matrix-art effect
 	matrixArt := animations.NewMatrixArtEffect(width, height, palette, text)
 	updatesPerFrame := 1
-	if frames > 0 {
-		updatesPerFrame = animationUpdatesPerFrame(matrixArt.CompletionFrames(), frames)
+	if clock.nominalFrames() > 0 {
+		updatesPerFrame = animationUpdatesPerFrame(matrixArt.CompletionFrames(), clock.nominalFrames())
 	}
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -582,20 +575,18 @@ func runMatrixArt(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runFireworks(width, height int, theme string, frames int) {
+func runFireworks(width, height int, theme string, clock *cliFrameClock) {
 	palette := animations.GetFireworksPalette(theme)
 	fireworks := animations.NewFireworksEffect(width, height, palette)
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -609,20 +600,18 @@ func runFireworks(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runRain(width, height int, theme string, frames int) {
+func runRain(width, height int, theme string, clock *cliFrameClock) {
 	palette := animations.GetRainPalette(theme)
 	rain := animations.NewRainEffect(width, height, palette)
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -636,12 +625,11 @@ func runRain(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runRainArt(width, height int, theme string, file string, frames int) {
+func runRainArt(width, height int, theme string, file string, clock *cliFrameClock) {
 	// Get theme palette for rain
 	palette := animations.GetRainPalette(theme)
 
@@ -654,8 +642,7 @@ func runRainArt(width, height int, theme string, file string, frames int) {
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -669,12 +656,11 @@ func runRainArt(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runPour(width, height int, theme string, file string, frames int) {
+func runPour(width, height int, theme string, file string, clock *cliFrameClock) {
 	// Get theme colors for pour effect
 	var gradientStops []string
 
@@ -738,8 +724,7 @@ func runPour(width, height int, theme string, file string, frames int) {
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -753,12 +738,11 @@ func runPour(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runDecrypt(width, height int, theme, file string, frames int) {
+func runDecrypt(width, height int, theme, file string, clock *cliFrameClock) {
 	palette := animations.GetFirePalette(theme)
 	text := readTextFile(file)
 	effect := animations.NewDecryptEffect(animations.DecryptConfig{
@@ -766,10 +750,10 @@ func runDecrypt(width, height int, theme, file string, frames int) {
 		Palette: palette, CiphertextColors: palette,
 		FinalGradientStops: palette, FinalGradientDirection: "horizontal", TypingSpeed: 1,
 	})
-	runAnimation(effect, frames)
+	runAnimation(effect, clock)
 }
 
-func runPrint(width, height int, theme string, file string, frames int) {
+func runPrint(width, height int, theme string, file string, clock *cliFrameClock) {
 	// Get theme colors for print effect
 	var gradientStops []string
 
@@ -828,8 +812,7 @@ func runPrint(width, height int, theme string, file string, frames int) {
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -843,12 +826,11 @@ func runPrint(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runBeams(width, height int, theme string, frames int) {
+func runBeams(width, height int, theme string, clock *cliFrameClock) {
 	// Get theme colors for beams background effect
 	var beamGradientStops []string
 	var finalGradientStops []string
@@ -918,8 +900,7 @@ func runBeams(width, height int, theme string, frames int) {
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -933,12 +914,11 @@ func runBeams(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runBeamText(width, height int, theme string, file string, auto bool, display bool, frames int) {
+func runBeamText(width, height int, theme string, file string, auto bool, display bool, clock *cliFrameClock) {
 	// Get theme colors for beam text effect
 	var beamGradientStops []string
 	var finalGradientStops []string
@@ -1022,12 +1002,11 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 	defer stopInterrupt()
 
 	updatesPerFrame := 1
-	if display && frames > 0 {
-		updatesPerFrame = animationUpdatesPerFrame(beamText.CompletionFrames(), frames)
+	if display && clock.nominalFrames() > 0 {
+		updatesPerFrame = animationUpdatesPerFrame(beamText.CompletionFrames(), clock.nominalFrames())
 	}
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -1044,8 +1023,7 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
@@ -1061,7 +1039,7 @@ func animationUpdatesPerFrame(completionFrames, runFrames int) int {
 	return 1 + (completionFrames-1)/revealFrames
 }
 
-func runRingText(width, height int, theme string, file string, frames int) {
+func runRingText(width, height int, theme string, file string, clock *cliFrameClock) {
 	// Get theme colors for ring text effect
 	var ringColors []string
 	var finalGradientStops []string
@@ -1135,8 +1113,7 @@ func runRingText(width, height int, theme string, file string, frames int) {
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -1150,12 +1127,11 @@ func runRingText(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runBlackhole(width, height int, theme string, file string, frames int) {
+func runBlackhole(width, height int, theme string, file string, clock *cliFrameClock) {
 	// Get theme colors for blackhole effect
 	var starColors []string
 	var blackholeColor string
@@ -1230,8 +1206,7 @@ func runBlackhole(width, height int, theme string, file string, frames int) {
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -1245,12 +1220,11 @@ func runBlackhole(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runAquarium(width, height int, theme string, frames int) {
+func runAquarium(width, height int, theme string, clock *cliFrameClock) {
 	// Theme-specific colors for aquarium
 	var fishColors []string
 	var waterColors []string
@@ -1399,8 +1373,7 @@ func runAquarium(width, height int, theme string, frames int) {
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		// Check for user exit
 		select {
 		case <-quit:
@@ -1413,20 +1386,18 @@ func runAquarium(width, height int, theme string, frames int) {
 
 		fmt.Print("[H")
 		fmt.Print(output)
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runSonar(width, height int, theme string, frames int) {
+func runSonar(width, height int, theme string, clock *cliFrameClock) {
 	palette := animations.GetSkullPalette(theme)
 	sonar := animations.NewSonarEffect(width, height, palette, theme)
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		select {
 		case <-quit:
 			return
@@ -1439,20 +1410,18 @@ func runSonar(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync()
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runCracktro(width, height int, theme string, frames int) {
+func runCracktro(width, height int, theme string, clock *cliFrameClock) {
 	palette := animations.GetCracktroPalette(theme)
 	cracktro := animations.NewCracktroEffect(width, height, palette, theme)
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		select {
 		case <-quit:
 			return
@@ -1465,20 +1434,18 @@ func runCracktro(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync()
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runSkull(width, height int, theme string, frames int) {
+func runSkull(width, height int, theme string, clock *cliFrameClock) {
 	palette := animations.GetSkullPalette(theme)
 	skull := animations.NewSkullEffect(width, height, palette, theme)
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		select {
 		case <-quit:
 			return
@@ -1491,12 +1458,11 @@ func runSkull(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync()
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
-func runLogoSpin(width, height int, theme, shape string, frames int) {
+func runLogoSpin(width, height int, theme, shape string, clock *cliFrameClock) {
 	palette := animations.GetLogoPalette(theme)
 	logo := animations.NewLogoSpinEffect(animations.LogoSpinConfig{
 		Width:   width,
@@ -1505,16 +1471,15 @@ func runLogoSpin(width, height int, theme, shape string, frames int) {
 		Palette: palette,
 		Theme:   theme,
 	})
-	runAnimation(logo, frames)
+	runAnimation(logo, clock)
 }
 
-func runAnimation(animation animations.Animation, frames int) {
+func runAnimation(animation animations.Animation, clock *cliFrameClock) {
 
 	quit, stopInterrupt := setupKeyboardInterrupt()
 	defer stopInterrupt()
 
-	frame := 0
-	for frames == 0 || frame < frames {
+	for clock.running() {
 		select {
 		case <-quit:
 			return
@@ -1522,7 +1487,7 @@ func runAnimation(animation animations.Animation, frames int) {
 		}
 
 		if elapsed, ok := animation.(interface{ UpdateElapsed(time.Duration) }); ok {
-			elapsed.UpdateElapsed(cliFrameInterval)
+			elapsed.UpdateElapsed(clock.elapsed())
 		} else {
 			animation.Update()
 		}
@@ -1531,8 +1496,7 @@ func runAnimation(animation animations.Animation, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync()
-		waitForNextCLIFrame()
-		frame++
+		clock.wait()
 	}
 }
 
