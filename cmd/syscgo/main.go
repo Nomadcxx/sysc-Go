@@ -371,9 +371,10 @@ func main() {
 	fmt.Print("\033[?25l")       // Hide cursor
 	defer fmt.Print("\033[?25h") // Show cursor on exit
 
-	// Calculate frame count (0 = infinite). Each frame sleeps cliFrameInterval,
-	// so this budget is wall-clock seconds at cliFramesPerSecond.
+	// Calculate frame count (0 = infinite); ticks keep this budget in wall time.
 	frames := framesForDuration(*duration)
+	cliFrameTicker = time.NewTicker(cliFrameInterval)
+	defer cliFrameTicker.Stop()
 
 	switch *effect {
 	case "ak-47-text":
@@ -475,7 +476,7 @@ func runFire(width, height int, theme string, frames int) {
 		fmt.Print("\033[H") // Move cursor to top
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -508,7 +509,7 @@ func runFireText(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H") // Move cursor to top
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -535,7 +536,7 @@ func runMatrix(width, height int, theme string, frames int) {
 		fmt.Print("\033[H") // Move cursor to top
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -581,7 +582,7 @@ func runMatrixArt(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -608,7 +609,7 @@ func runFireworks(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -635,7 +636,7 @@ func runRain(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -668,7 +669,7 @@ func runRainArt(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -752,7 +753,7 @@ func runPour(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -842,7 +843,7 @@ func runPrint(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -932,7 +933,7 @@ func runBeams(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -1043,7 +1044,7 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -1149,7 +1150,7 @@ func runRingText(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -1244,7 +1245,7 @@ func runBlackhole(width, height int, theme string, file string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync() // Flush output buffer immediately
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -1412,7 +1413,7 @@ func runAquarium(width, height int, theme string, frames int) {
 
 		fmt.Print("[H")
 		fmt.Print(output)
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -1438,7 +1439,7 @@ func runSonar(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync()
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -1464,7 +1465,7 @@ func runCracktro(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync()
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -1490,7 +1491,7 @@ func runSkull(width, height int, theme string, frames int) {
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync()
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }
@@ -1520,13 +1521,17 @@ func runAnimation(animation animations.Animation, frames int) {
 		default:
 		}
 
-		animation.Update()
+		if elapsed, ok := animation.(interface{ UpdateElapsed(time.Duration) }); ok {
+			elapsed.UpdateElapsed(cliFrameInterval)
+		} else {
+			animation.Update()
+		}
 		output := animation.Render()
 
 		fmt.Print("\033[H")
 		fmt.Print(output)
 		os.Stdout.Sync()
-		time.Sleep(cliFrameInterval)
+		waitForNextCLIFrame()
 		frame++
 	}
 }

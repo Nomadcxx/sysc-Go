@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Nomadcxx/sysc-Go/animations"
 	tea "github.com/charmbracelet/bubbletea"
@@ -55,7 +56,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Handle animation tick
 		if m.animationRunning && m.currentAnim != nil {
-			m.currentAnim.Update()
+			if elapsed, ok := m.currentAnim.(interface{ UpdateElapsed(time.Duration) }); ok {
+				elapsed.UpdateElapsed(tuiPreviewFrameInterval)
+			} else {
+				m.currentAnim.Update()
+			}
 			m.animFrames++
 
 			// Check duration limit
@@ -64,16 +69,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Parse duration and check if we should stop
 				// For now, simplified: stop after reasonable frame count
 				// TODO: Parse actual duration string and calculate frames
-				maxFrames := 200 // ~10 seconds at 50ms per frame
+				maxFrames := 300 // ~10 seconds at 30 fps
 				switch duration {
 				case "5s":
-					maxFrames = 100
+					maxFrames = 150
 				case "10s":
-					maxFrames = 200
+					maxFrames = 300
 				case "30s":
-					maxFrames = 600
+					maxFrames = 900
 				case "60s":
-					maxFrames = 1200
+					maxFrames = 1800
 				}
 
 				if m.animFrames >= maxFrames {

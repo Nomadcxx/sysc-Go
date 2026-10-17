@@ -3,12 +3,17 @@ package main
 import "time"
 
 // cliFramesPerSecond is the rate used to turn -duration seconds into frames.
-const cliFramesPerSecond = 20
+const cliFramesPerSecond = 30
 
-// cliFrameInterval is the sleep between animation frames.
+// cliFrameInterval is the time between animation frame ticks.
 // It has to agree with cliFramesPerSecond so -duration is wall-clock seconds.
-// 20 frames × 50ms = 1s. runPrint previously slept 30ms and exited early.
-const cliFrameInterval = 50 * time.Millisecond
+const cliFrameInterval = time.Second / cliFramesPerSecond
+
+// ponytail: the CLI runs one effect at a time; a single ticker drops missed
+// ticks instead of building a delayed frame backlog.
+var cliFrameTicker *time.Ticker
+
+func waitForNextCLIFrame() { <-cliFrameTicker.C }
 
 // framesForDuration converts a -duration flag value into a frame budget.
 // Zero or negative means run until interrupted.

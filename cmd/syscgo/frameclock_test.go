@@ -7,15 +7,14 @@ import (
 	"time"
 )
 
-// TestPrintFrameIntervalMatchesDuration fails on the old print clock:
-// frames were counted at 20fps while runPrint slept 30ms, so -duration 10
-// exited after 6s.
+// TestPrintFrameIntervalMatchesDuration keeps the print frame budget aligned
+// with the CLI ticker so -duration stays wall-clock time.
 func TestPrintFrameIntervalMatchesDuration(t *testing.T) {
 	const seconds = 10
 	frames := framesForDuration(seconds)
 	elapsed := time.Duration(frames) * cliFrameInterval
 	want := time.Duration(seconds) * time.Second
-	if elapsed != want {
+	if delta := want - elapsed; delta < 0 || delta >= time.Duration(frames) {
 		t.Fatalf("print -duration %d schedules %s (%d frames × %s); want %s",
 			seconds, elapsed, frames, cliFrameInterval, want)
 	}
@@ -25,11 +24,8 @@ func TestPrintFrameIntervalMatchesDuration(t *testing.T) {
 	}
 
 	body := funcSource(t, "main.go", "func runPrint(")
-	if strings.Contains(body, "30 * time.Millisecond") {
-		t.Fatal("runPrint still sleeps 30ms while -duration is counted at 20fps")
-	}
-	if !strings.Contains(body, "time.Sleep(cliFrameInterval)") {
-		t.Fatal("runPrint must sleep cliFrameInterval so -duration matches wall time")
+	if !strings.Contains(body, "waitForNextCLIFrame()") {
+		t.Fatal("runPrint must wait for the CLI frame ticker")
 	}
 
 	mainBody := funcSource(t, "main.go", "func main(")

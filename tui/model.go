@@ -11,6 +11,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const tuiPreviewFrameInterval = time.Second / 30
+
 // Model represents the TUI state
 type Model struct {
 	width  int
@@ -273,7 +275,7 @@ type TickMsg struct {
 
 // tickCmd returns a command that sends a tick message for animation updates
 func tickCmd(gen int) tea.Cmd {
-	return tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
+	return tea.Tick(tuiPreviewFrameInterval, func(t time.Time) tea.Msg {
 		return TickMsg{gen: gen, t: t}
 	})
 }
