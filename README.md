@@ -2,7 +2,7 @@
 
 Terminal animation library for Go. Pure Go animations ready to use in your TUI applications.
 
-![Matrix Rain Showcase](assets/matrix.webp)
+![AK-47 Effect](assets/ak-47.webp)
 
 ![AK-47 Text Effect](assets/ak-47-text.webp)
 
@@ -201,10 +201,7 @@ For sysc-walls integration, art exports to `~/.config/sysc-walls/ascii/` instead
 
 ## Effect Showcase
 
-The Matrix hero and AK-47 Text preview lead the gallery. The remaining effects appear newest to oldest.
-
-#### AK-47
-![AK-47 Effect](assets/ak-47.webp)
+The AK-47 and AK-47 Text previews lead the gallery. The remaining effects appear newest to oldest.
 
 #### Great Wave
 ![Great Wave Effect](assets/great-wave.webp)
@@ -268,6 +265,9 @@ The Matrix hero and AK-47 Text preview lead the gallery. The remaining effects a
 
 #### Fire
 ![Fire Effect](assets/fire.webp)
+
+#### Matrix Rain
+![Matrix Rain Effect](assets/matrix.webp)
 
 ### TUI Preview
 
