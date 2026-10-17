@@ -2,8 +2,6 @@
 
 Terminal animation library for Go. Pure Go animations ready to use in your TUI applications.
 
-![AK-47 Effect](assets/ak-47.webp)
-
 ![AK-47 Text Effect](assets/ak-47-text.webp)
 
 ## Effects
@@ -201,7 +199,7 @@ For sysc-walls integration, art exports to `~/.config/sysc-walls/ascii/` instead
 
 ## Effect Showcase
 
-The AK-47 and AK-47 Text previews lead the gallery. The remaining effects appear newest to oldest.
+The AK-47 Text preview leads the gallery. The remaining effects appear newest to oldest.
 
 <details>
 <summary>Show the effect gallery</summary>
