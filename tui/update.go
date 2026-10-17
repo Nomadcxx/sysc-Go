@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Nomadcxx/sysc-Go/animations"
 	tea "github.com/charmbracelet/bubbletea"
@@ -55,33 +56,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Handle animation tick
 		if m.animationRunning && m.currentAnim != nil {
-			m.currentAnim.Update()
-			m.animFrames++
+			now := time.Now()
+			if !m.animDeadline.IsZero() && !now.Before(m.animDeadline) {
+				m.animationRunning = false
+				m.currentAnim = nil
+				m.animDeadline = time.Time{}
+				m.animLastTick = time.Time{}
+				return m, nil
+			}
 
-			// Check duration limit
-			duration := m.durations[m.selectedDuration]
-			if duration != "infinite" {
-				// Parse duration and check if we should stop
-				// For now, simplified: stop after reasonable frame count
-				// TODO: Parse actual duration string and calculate frames
-				maxFrames := 200 // ~10 seconds at 50ms per frame
-				switch duration {
-				case "5s":
-					maxFrames = 100
-				case "10s":
-					maxFrames = 200
-				case "30s":
-					maxFrames = 600
-				case "60s":
-					maxFrames = 1200
-				}
-
-				if m.animFrames >= maxFrames {
-					m.animationRunning = false
-					m.currentAnim = nil
-					m.animFrames = 0
-					return m, nil
-				}
+			var elapsedTime time.Duration
+			if !m.animLastTick.IsZero() && now.After(m.animLastTick) {
+				elapsedTime = now.Sub(m.animLastTick)
+				m.animLastTick = now
+			}
+			if elapsed, ok := m.currentAnim.(interface{ UpdateElapsed(time.Duration) }); ok {
+				elapsed.UpdateElapsed(elapsedTime)
+			} else {
+				m.currentAnim.Update()
 			}
 
 			// Continue ticking
@@ -126,7 +118,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if msg.String() == "esc" {
 			m.animationRunning = false
 			m.currentAnim = nil
-			m.animFrames = 0
+			m.animDeadline = time.Time{}
+			m.animLastTick = time.Time{}
 			return m, nil
 		}
 		// Ignore other keys while animation is running
@@ -266,7 +259,11 @@ func (m Model) startAnimation() (Model, tea.Cmd) {
 	if anim != nil {
 		m.currentAnim = anim
 		m.animationRunning = true
-		m.animFrames = 0
+		m.animLastTick = time.Now()
+		m.animDeadline = time.Time{}
+		if duration, err := time.ParseDuration(m.durations[m.selectedDuration]); err == nil {
+			m.animDeadline = m.animLastTick.Add(duration)
+		}
 		m.tickGen++
 		return m, tickCmd(m.tickGen) // Start the tick loop
 	}

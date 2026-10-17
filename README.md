@@ -4,6 +4,8 @@ Terminal animation library for Go. Pure Go animations ready to use in your TUI a
 
 ![Matrix Rain Showcase](assets/matrix.webp)
 
+![AK-47 Text Effect](assets/ak-47-text.webp)
+
 ## Effects
 
 Effect names and text requirements match the registry in [`animations/registry.go`](animations/registry.go).
@@ -88,8 +90,6 @@ The easiest way to browse and select animations is through the interactive TUI:
 ```bash
 syscgo-tui
 ```
-
-![TUI Showcase](assets/showcase_tui.webp)
 
 **Features:**
 - Visual selector for all animations, themes, and durations
@@ -201,45 +201,7 @@ For sysc-walls integration, art exports to `~/.config/sysc-walls/ascii/` instead
 
 ## Effect Showcase
 
-The images below show selected effects. Use the effects list above for the full catalog.
-
-### Animations
-
-#### Fire
-![Fire Effect](assets/fire.webp)
-
-#### Matrix Rain
-![Matrix Rain](assets/matrix.webp)
-
-#### Rain
-![ASCII Rain](assets/rain.webp)
-
-#### Fireworks
-![Fireworks](assets/fireworks.webp)
-
-#### Beams
-![Beams Effect](assets/beams.webp)
-
-#### Aquarium
-![Aquarium Effect](assets/aquarium.webp)
-
-#### Skull
-![Skull Effect](assets/skull.webp)
-
-#### Sonar
-![Sonar Effect](assets/sonar.webp)
-
-#### Cracktro
-![Cracktro Effect](assets/cracktro.webp)
-
-#### SYSC Logo
-![SYSC Logo Effect](assets/sysc-logo.webp)
-
-#### Cross Logo
-![Cross Logo Effect](assets/cross-logo.webp)
-
-#### Logo Morph
-![Logo Morph Effect](assets/logo-morph.webp)
+The Matrix hero and AK-47 Text preview lead the gallery. The remaining effects appear newest to oldest.
 
 #### AK-47
 ![AK-47 Effect](assets/ak-47.webp)
@@ -250,25 +212,47 @@ The images below show selected effects. Use the effects list above for the full 
 #### Wasteland
 ![Wasteland Effect](assets/wasteland.webp)
 
-### Text Effects
+#### Logo Morph
+![Logo Morph Effect](assets/logo-morph.webp)
+
+#### Cross Logo
+![Cross Logo Effect](assets/cross-logo.webp)
+
+#### SYSC Logo
+![SYSC Logo Effect](assets/sysc-logo.webp)
+
+#### Cracktro
+![Cracktro Effect](assets/cracktro.webp)
+
+#### Sonar
+![Sonar Effect](assets/sonar.webp)
+
+#### Skull
+![Skull Effect](assets/skull.webp)
 
 #### Fire Text
 ![Fire Text Effect](assets/fire-text.webp)
 
-#### Matrix Art
-![Matrix Art Effect](assets/matrix-art.webp)
-
-#### Rain Art
-![Rain Art Effect](assets/rain-art.webp)
-
-#### Beam Text
-![Beam Text Effect](assets/beam-text.webp)
+#### Blackhole
+![Blackhole Effect](assets/blackhole.webp)
 
 #### Ring Text
 ![Ring Text Effect](assets/ring-text.webp)
 
-#### Blackhole
-![Blackhole Effect](assets/blackhole.webp)
+#### Rain Art
+![Rain Art Effect](assets/rain-art.webp)
+
+#### Matrix Art
+![Matrix Art Effect](assets/matrix-art.webp)
+
+#### Aquarium
+![Aquarium Effect](assets/aquarium.webp)
+
+#### Beams
+![Beams Effect](assets/beams.webp)
+
+#### Beam Text
+![Beam Text Effect](assets/beam-text.webp)
 
 #### Pour
 ![Pour Effect](assets/pour.webp)
@@ -276,11 +260,18 @@ The images below show selected effects. Use the effects list above for the full 
 #### Print
 ![Print Effect](assets/print.webp)
 
-#### Decrypt
-![Decrypt Effect](assets/decrypt.webp)
+#### Fireworks
+![Fireworks](assets/fireworks.webp)
 
-#### AK-47 Text
-![AK-47 Text Effect](assets/ak-47-text.webp)
+#### Rain
+![ASCII Rain](assets/rain.webp)
+
+#### Fire
+![Fire Effect](assets/fire.webp)
+
+### TUI Preview
+
+![TUI Showcase](assets/showcase_tui.webp)
 
 ## Live Preview
 
@@ -288,7 +279,6 @@ Run an effect in a terminal. Press `Ctrl+C` to stop it.
 
 ```bash
 syscgo -effect great-wave -theme nord -duration 0
-syscgo -effect decrypt -file assets/SYSC.txt -theme nord -duration 0
 ```
 
 ## Documentation

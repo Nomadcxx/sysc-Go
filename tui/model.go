@@ -11,6 +11,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const tuiPreviewFrameInterval = time.Second / 30
+
 // Model represents the TUI state
 type Model struct {
 	width  int
@@ -38,8 +40,9 @@ type Model struct {
 	animationError   string
 	animationRunning bool
 	currentAnim      animations.Animation
-	animFrames       int // Frame counter
 	tickGen          int // Generation of the live tick loop
+	animLastTick     time.Time
+	animDeadline     time.Time
 
 	// Editor mode for custom text creation
 	editorMode       bool
@@ -171,7 +174,6 @@ func NewModel() Model {
 		focusedSelector:   0,
 		animationRunning:  false,
 		currentAnim:       nil,
-		animFrames:        0,
 		editorMode:        false,
 		textarea:          ta,
 		filenameInput:     fi,
@@ -264,16 +266,15 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// TickMsg is sent when animation should update.  gen identifies the tick loop
+// TickMsg is sent when animation should update. gen identifies the tick loop
 // that armed it, so a tick left in flight by a stopped run is ignored.
 type TickMsg struct {
 	gen int
-	t   time.Time
 }
 
 // tickCmd returns a command that sends a tick message for animation updates
 func tickCmd(gen int) tea.Cmd {
-	return tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
-		return TickMsg{gen: gen, t: t}
+	return tea.Tick(tuiPreviewFrameInterval, func(time.Time) tea.Msg {
+		return TickMsg{gen: gen}
 	})
 }
