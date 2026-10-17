@@ -1,8 +1,8 @@
-![sysc-Go](assets/sysc-go.png)
+<img src="assets/header.webp" alt="sysc-Go">
 
 Terminal animation library for Go. Pure Go animations ready to use in your TUI applications.
 
-![AK-47 Text Effect](assets/ak-47-text.webp)
+<img src="assets/ak-47-text.webp" alt="AK-47 Text Effect" loading="lazy">
 
 ## Effects
 
@@ -205,76 +205,78 @@ The AK-47 Text preview leads the gallery. The remaining effects appear newest to
 <summary>Show the effect gallery</summary>
 
 #### Great Wave
-![Great Wave Effect](assets/great-wave.webp)
+<img src="assets/great-wave.webp" alt="Great Wave Effect" loading="lazy">
 
 #### Wasteland
-![Wasteland Effect](assets/wasteland.webp)
+<img src="assets/wasteland.webp" alt="Wasteland Effect" loading="lazy">
 
 #### Logo Morph
-![Logo Morph Effect](assets/logo-morph.webp)
+<img src="assets/logo-morph.webp" alt="Logo Morph Effect" loading="lazy">
 
 #### Cross Logo
-![Cross Logo Effect](assets/cross-logo.webp)
+<img src="assets/cross-logo.webp" alt="Cross Logo Effect" loading="lazy">
 
 #### SYSC Logo
-![SYSC Logo Effect](assets/sysc-logo.webp)
+<img src="assets/sysc-logo.webp" alt="SYSC Logo Effect" loading="lazy">
 
 #### Cracktro
-![Cracktro Effect](assets/cracktro.webp)
+<img src="assets/cracktro.webp" alt="Cracktro Effect" loading="lazy">
 
 #### Sonar
-![Sonar Effect](assets/sonar.webp)
+<img src="assets/sonar.webp" alt="Sonar Effect" loading="lazy">
 
 #### Skull
-![Skull Effect](assets/skull.webp)
+<img src="assets/skull.webp" alt="Skull Effect" loading="lazy">
 
 #### Fire Text
-![Fire Text Effect](assets/fire-text.webp)
+<img src="assets/fire-text.webp" alt="Fire Text Effect" loading="lazy">
 
 #### Blackhole
-![Blackhole Effect](assets/blackhole.webp)
+<img src="assets/blackhole.webp" alt="Blackhole Effect" loading="lazy">
 
 #### Ring Text
-![Ring Text Effect](assets/ring-text.webp)
+<img src="assets/ring-text.webp" alt="Ring Text Effect" loading="lazy">
 
 #### Rain Art
-![Rain Art Effect](assets/rain-art.webp)
+<img src="assets/rain-art.webp" alt="Rain Art Effect" loading="lazy">
 
 #### Matrix Art
-![Matrix Art Effect](assets/matrix-art.webp)
+<img src="assets/matrix-art.webp" alt="Matrix Art Effect" loading="lazy">
 
 #### Aquarium
-![Aquarium Effect](assets/aquarium.webp)
+<img src="assets/aquarium.webp" alt="Aquarium Effect" loading="lazy">
 
 #### Beams
-![Beams Effect](assets/beams.webp)
+<img src="assets/beams.webp" alt="Beams Effect" loading="lazy">
 
 #### Beam Text
-![Beam Text Effect](assets/beam-text.webp)
+<img src="assets/beam-text.webp" alt="Beam Text Effect" loading="lazy">
 
 #### Pour
-![Pour Effect](assets/pour.webp)
+<img src="assets/pour.webp" alt="Pour Effect" loading="lazy">
 
 #### Print
-![Print Effect](assets/print.webp)
+<img src="assets/print.webp" alt="Print Effect" loading="lazy">
 
 #### Fireworks
-![Fireworks](assets/fireworks.webp)
+<img src="assets/fireworks.webp" alt="Fireworks" loading="lazy">
 
 #### Rain
-![ASCII Rain](assets/rain.webp)
+<img src="assets/rain.webp" alt="ASCII Rain" loading="lazy">
 
 #### Fire
-![Fire Effect](assets/fire.webp)
+<img src="assets/fire.webp" alt="Fire Effect" loading="lazy">
 
 #### Matrix Rain
-![Matrix Rain Effect](assets/matrix.webp)
+<img src="assets/matrix.webp" alt="Matrix Rain Effect" loading="lazy">
 
 </details>
 
-### TUI Preview
+<details>
+<summary>Show the TUI preview</summary>
 
-![TUI Showcase](assets/showcase_tui.webp)
+<img src="assets/showcase_tui.webp" alt="TUI Showcase" loading="lazy">
+</details>
 
 ## Live Preview
 
