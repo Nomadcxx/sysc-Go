@@ -279,3 +279,22 @@ func TestWindowResizeDoesNotOpenEditor(t *testing.T) {
 		}
 	}
 }
+
+func TestANSILoveSelector(t *testing.T) {
+	m := selectAnimation(t, newTestModel(t), "ansi-love")
+	fx := m.createAnimation()
+	if fx == nil {
+		t.Fatal("ANSI Love did not construct without artwork input")
+	}
+	frame := fx.Render()
+	if !strings.Contains(frame, "Drawn by Warpus, December 2019") {
+		t.Fatal("ANSI Love lost its visible credit")
+	}
+	before := frame
+	for i := 0; i < 180; i++ {
+		fx.Update()
+	}
+	if fx.Render() == before {
+		t.Fatal("ANSI Love tour did not advance")
+	}
+}
