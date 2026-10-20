@@ -184,7 +184,8 @@ func normalizeANSILove(c ANSILoveConfig) (ANSILoveConfig, error) {
 }
 
 func NewANSILoveEffect(w, h int, theme string) *ANSILoveAnimation {
-	a, err := NewANSILoveEffectConfig(ANSILoveConfig{Width: w, Height: h, Theme: theme, Motion: ANSILoveMotionSubtle})
+	// ponytail: 256-color output keeps default full-frame strings within the approved size gate.
+	a, err := NewANSILoveEffectConfig(ANSILoveConfig{Width: w, Height: h, Theme: theme, Depth: ANSILove256, Motion: ANSILoveMotionSubtle})
 	if err != nil {
 		panic(err)
 	} // Embedded assets are verified by the reproducible bake tests.
@@ -416,16 +417,18 @@ func ansiLovePalette(c ANSILoveConfig, override *[16][3]uint8) (lut [112]ansiart
 			p := GetLogoPalette(c.Theme)
 			f := GetFirePalette(c.Theme)
 			parse := parseANSILoveHex
-			danger := f[4]
+			danger, accent, warning, secondary := f[4], p[5], f[len(f)-2], p[3]
+			fgSecondary, fgMuted, primary, fgPrimary := p[2], p[1], p[3], p[4]
 			switch strings.ToLower(c.Theme) {
 			case "dracula":
-				danger = "#ff5555"
+				danger, accent, warning, secondary = f[8], f[4], f[5], f[3]
+				fgSecondary, fgMuted = f[2], f[1]
 			case "tokyo-night", "tokyonight":
 				danger = "#f7768e"
 			case "gruvbox":
 				danger = "#fb4934"
 			}
-			slots := [16]string{p[0], danger, p[5], f[len(f)-2], p[3], p[5], p[3], p[2], p[1], danger, p[5], f[len(f)-2], p[3], p[5], p[3], p[4]}
+			slots := [16]string{p[0], danger, accent, warning, secondary, accent, secondary, fgSecondary, fgMuted, danger, accent, warning, primary, accent, primary, fgPrimary}
 			for i, s := range slots {
 				colors[i] = parse(s)
 			}
@@ -645,6 +648,19 @@ func (s *ansiLoveSheet) fitCell(c ANSILoveConfig, x, y int, lut []ansiart.LinRGB
 
 func ansiLoveSGR(out []byte, rgb [3]uint8, index uint8, depth ANSILoveColorDepth, bg bool) []byte {
 	out = append(out, '\x1b', '[')
+	out = ansiLoveSGRParams(out, rgb, index, depth, bg)
+	return append(out, 'm')
+}
+
+func ansiLoveSGRPair(out []byte, bgRGB [3]uint8, bgIndex uint8, fgRGB [3]uint8, fgIndex uint8, depth ANSILoveColorDepth) []byte {
+	out = append(out, '\x1b', '[')
+	out = ansiLoveSGRParams(out, bgRGB, bgIndex, depth, true)
+	out = append(out, ';')
+	out = ansiLoveSGRParams(out, fgRGB, fgIndex, depth, false)
+	return append(out, 'm')
+}
+
+func ansiLoveSGRParams(out []byte, rgb [3]uint8, index uint8, depth ANSILoveColorDepth, bg bool) []byte {
 	if depth == ANSILove16 {
 		code := 30 + int(index&7)
 		if index >= 8 {
@@ -671,7 +687,7 @@ func ansiLoveSGR(out []byte, rgb [3]uint8, index uint8, depth ANSILoveColorDepth
 			}
 		}
 	}
-	return append(out, 'm')
+	return out
 }
 func (s *ansiLoveSheet) appendRow(out []byte, c ANSILoveConfig, row int, credit bool, lut []ansiart.LinRGB, glint, glintOpacity float64) []byte {
 	var last ansiLoveCell
@@ -697,10 +713,13 @@ func (s *ansiLoveSheet) appendRow(out []byte, c ANSILoveConfig, row int, credit 
 				cell.bi = 16
 			}
 		}
-		if !valid || cell.bg != last.bg {
+		bgChanged := !valid || cell.bg != last.bg
+		fgChanged := !valid || cell.fg != last.fg
+		if bgChanged && fgChanged {
+			out = ansiLoveSGRPair(out, cell.bg, cell.bi, cell.fg, cell.fi, c.Depth)
+		} else if bgChanged {
 			out = ansiLoveSGR(out, cell.bg, cell.bi, c.Depth, true)
-		}
-		if !valid || cell.fg != last.fg {
+		} else if fgChanged {
 			out = ansiLoveSGR(out, cell.fg, cell.fi, c.Depth, false)
 		}
 		out = utf8.AppendRune(out, cell.ch)

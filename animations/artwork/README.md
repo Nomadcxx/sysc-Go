@@ -10,10 +10,13 @@ colours, with no source image playback.
 | great-wave | Katsushika Hokusai, *Under the Wave off Kanagawa*, ca. 1830–32; [The Met, JP1847](https://www.metmuseum.org/art/collection/search/45434), public domain | `cbb9988f2f18b9180a1cc0cf5dbb0e3bbf8f2e85d17930cf6ca9ab36fac36303` |
 | cyberpunk-girl | Owner-supplied `dystopian_cyberpunk_girl.gif`; visible credit: Valenberg.com | `743d4092e31acaf4d0751eaeb6b36b569249504cefd3db7fecb9adb09fe0209d` |
 | wasteland | Owner-supplied `wasteland.gif`; visible credit: Valenberg.com | `23cd9100f9c57e149a5dd23060d4b04779815fd622b0e5723f2b4f8052f42d69` |
+| ansi-love | Warpus (Legacy Krew), “ansi love”, December 2019; [original ANSI](https://www.ansilove.org/assets/examples/wa-ansilove.ans); visible credit: Drawn by Warpus, December 2019 | `5c5d75b205680a1098517ef36432ce36161415c2dd2f9552b9ede7cdc2330ce3` |
 
 The Met marks its reference as public domain. The supplied GIFs retain their
 creator's credit; this adaptation makes no public-domain claim for them.
-The original files remain local. Each effect prints its source credit.
+The ANSI source and baked raster are embedded for runtime rendering. No artwork
+licence is claimed; obtain the artist's permission before public release. Each
+effect prints its source credit.
 
 Girl: a full-height close-up with head sway, breathing, moving lips and cheek
 light, blood accumulating and dripping from the nose, and scanning visor

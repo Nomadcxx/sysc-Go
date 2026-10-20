@@ -141,33 +141,53 @@ func parseANSILoveFrame(t *testing.T, frame string) ([]ansiLovePreviewCell, int,
 				p = append(p, v)
 			}
 			frame = frame[end+1:]
-			switch {
-			case len(p) == 1 && p[0] == 0:
-				fg, bg = ansiart.VGA[7], ansiart.VGA[0]
-			case len(p) == 1 && p[0] >= 30 && p[0] <= 37:
-				fg = ansiart.VGA[p[0]-30]
-			case len(p) == 1 && p[0] >= 40 && p[0] <= 47:
-				bg = ansiart.VGA[p[0]-40]
-			case len(p) == 1 && p[0] >= 90 && p[0] <= 97:
-				fg = ansiart.VGA[p[0]-90+8]
-			case len(p) == 1 && p[0] >= 100 && p[0] <= 107:
-				bg = ansiart.VGA[p[0]-100+8]
-			case len(p) == 5 && (p[0] == 38 || p[0] == 48) && p[1] == 2:
-				c := [3]uint8{uint8(p[2]), uint8(p[3]), uint8(p[4])}
-				if p[0] == 38 {
-					fg = c
-				} else {
-					bg = c
+			for i := 0; i < len(p); {
+				code := p[i]
+				switch {
+				case code == 0:
+					fg, bg = ansiart.VGA[7], ansiart.VGA[0]
+					i++
+				case code >= 30 && code <= 37:
+					fg = ansiart.VGA[code-30]
+					i++
+				case code >= 40 && code <= 47:
+					bg = ansiart.VGA[code-40]
+					i++
+				case code >= 90 && code <= 97:
+					fg = ansiart.VGA[code-90+8]
+					i++
+				case code >= 100 && code <= 107:
+					bg = ansiart.VGA[code-100+8]
+					i++
+				case code == 38 || code == 48:
+					if i+1 >= len(p) {
+						t.Fatalf("incomplete color SGR %v", p)
+					}
+					var c [3]uint8
+					switch p[i+1] {
+					case 2:
+						if i+4 >= len(p) {
+							t.Fatalf("incomplete truecolor SGR %v", p)
+						}
+						c = [3]uint8{uint8(p[i+2]), uint8(p[i+3]), uint8(p[i+4])}
+						i += 5
+					case 5:
+						if i+2 >= len(p) {
+							t.Fatalf("incomplete 256-color SGR %v", p)
+						}
+						c = ansiLoveXtermColor(p[i+2])
+						i += 3
+					default:
+						t.Fatalf("unexpected color SGR %v", p)
+					}
+					if code == 38 {
+						fg = c
+					} else {
+						bg = c
+					}
+				default:
+					t.Fatalf("unexpected SGR %v", p)
 				}
-			case len(p) == 3 && (p[0] == 38 || p[0] == 48) && p[1] == 5:
-				c := ansiLoveXtermColor(p[2])
-				if p[0] == 38 {
-					fg = c
-				} else {
-					bg = c
-				}
-			default:
-				t.Fatalf("unexpected SGR %v", p)
 			}
 			continue
 		}

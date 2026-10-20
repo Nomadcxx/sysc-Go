@@ -2,6 +2,7 @@ package animations
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 )
@@ -32,7 +33,7 @@ func TestANSILovePerformanceBudgets(t *testing.T) {
 			t.Run(fmt.Sprintf("%s/%dx%d", backend.name, size.width, size.height), func(t *testing.T) {
 				start := time.Now()
 				a, err := NewANSILoveEffectConfig(ANSILoveConfig{
-					Width: size.width, Height: size.height, Backend: backend.backend, Motion: ANSILoveMotionSubtle,
+					Width: size.width, Height: size.height, Backend: backend.backend, Depth: ANSILove256, Motion: ANSILoveMotionSubtle,
 				})
 				if err != nil {
 					t.Fatal(err)
@@ -41,13 +42,15 @@ func TestANSILovePerformanceBudgets(t *testing.T) {
 					t.Fatalf("bake took %s, budget is %s", elapsed, 2*size.bake)
 				}
 
-				// Warm the scene through the logo glint so frame timing includes it.
-				for i := 0; i < 180; i++ {
-					a.UpdateElapsed(50 * time.Millisecond)
-					a.Render()
+				prepareANSILoveVisibleGlint(t, a)
+				a.cached = ""
+				start = time.Now()
+				glintFrame := a.Render()
+				if elapsed := time.Since(start); elapsed > 2*size.frame {
+					t.Errorf("visible glint frame took %s, budget is %s", elapsed, 2*size.frame)
 				}
 				var maxFrame, maxPan time.Duration
-				maxBytes := 0
+				maxBytes := len(glintFrame)
 				for i := 0; i < 60; i++ {
 					start = time.Now()
 					a.UpdateElapsed(50 * time.Millisecond)
@@ -90,4 +93,48 @@ func TestANSILovePerformanceBudgets(t *testing.T) {
 			})
 		}
 	}
+}
+
+func prepareANSILoveVisibleGlint(t *testing.T, a *ANSILoveAnimation) {
+	t.Helper()
+	l := a.sheet.layout
+	holds := []struct {
+		stage    int
+		fraction float64
+	}{{0, 0}, {2, .5}, {4, 1}, {6, .5}}
+	for _, hold := range holds {
+		cameraRow := int(math.Round(hold.fraction * float64(a.travel())))
+		for y := range a.sheet.rowFlags {
+			if y < cameraRow || y >= cameraRow+a.cfg.Height {
+				continue
+			}
+			for x := 0; x < l.Width; x++ {
+				if a.sheet.flags[y*l.Width+x]&2 == 0 {
+					continue
+				}
+				diagonal := l.OX + float64(l.Left+x)*l.CellW/l.Scale + float64(y)*l.CellH/l.Scale
+				tick := int(math.Round((diagonal - 1600) * 29 / 1120))
+				if tick < 10 || tick > 18 {
+					continue
+				}
+				phase := time.Duration(tick)*50*time.Millisecond + 25*time.Millisecond
+				glint := 1600 + float64(tick)/29*1120
+				if math.Abs(diagonal-glint) > 32 {
+					continue
+				}
+				a.stage, a.stageTime, a.elapsed = hold.stage, phase.Seconds(), phase
+				a.cameraRow = cameraRow
+				a.cached = ""
+				withGlint := a.Render()
+				baseline := *a
+				baseline.stage = hold.stage + 1
+				baseline.cached = ""
+				baseline.scratch = nil
+				if withGlint != baseline.Render() {
+					return
+				}
+			}
+		}
+	}
+	t.Fatal("no visible logo glint found in the hold window")
 }

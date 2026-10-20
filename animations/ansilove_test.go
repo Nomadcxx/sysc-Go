@@ -11,6 +11,16 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+func TestANSILoveConvenienceConstructorUses256ColorOutput(t *testing.T) {
+	rendered := NewANSILoveEffect(80, 24, "nord").Render()
+	if strings.Contains(rendered, "\x1b[38;2;") || strings.Contains(rendered, "\x1b[48;2;") {
+		t.Fatal("default ANSI Love output contains truecolor SGR")
+	}
+	if !strings.Contains(rendered, "\x1b[38;5;") && !strings.Contains(rendered, "\x1b[48;5;") {
+		t.Fatal("default ANSI Love output contains no 256-color SGR")
+	}
+}
+
 func TestANSILoveGeometry(t *testing.T) {
 	for _, backend := range []ANSILoveBackend{ANSILoveExact, ANSILoveHalf, ANSILoveQuad, ANSILoveSextant, ANSILoveOctant, ANSILoveBrailleFG, ANSILoveBrailleTwoColor} {
 		for _, size := range [][2]int{{1, 1}, {21, 24}, {40, 12}, {80, 24}, {80, 157}, {120, 36}, {160, 314}, {200, 55}, {320, 90}, {344, 72}, {480, 135}, {600, 300}} {
@@ -121,6 +131,31 @@ func TestANSILoveResizePreservesEmittedCameraFraction(t *testing.T) {
 }
 
 func TestANSILoveThemePaletteUsesSemanticRoles(t *testing.T) {
+	dracula := [16][3]uint8{
+		{40, 42, 54},    // BgBase
+		{255, 85, 85},   // Danger
+		{80, 250, 123},  // Accent
+		{241, 250, 140}, // Warning
+		{139, 233, 253}, // Secondary
+		{80, 250, 123},  // Accent
+		{139, 233, 253}, // Secondary
+		{98, 114, 164},  // FgSecondary
+		{68, 71, 90},    // FgMuted
+		{255, 85, 85},   // Danger
+		{80, 250, 123},  // Accent
+		{241, 250, 140}, // Warning
+		{189, 147, 249}, // Primary
+		{80, 250, 123},  // Accent
+		{189, 147, 249}, // Primary
+		{248, 248, 242}, // FgPrimary
+	}
+	lut := ansiLovePalette(ANSILoveConfig{Theme: "dracula", Palette: "theme"}, nil)
+	for slot, want := range dracula {
+		if got := lut[slot]; got != ansiart.ToLinear(want) {
+			t.Errorf("Dracula slot %d=%v, want %v", slot, got, ansiart.ToLinear(want))
+		}
+	}
+
 	for _, test := range []struct {
 		theme string
 		slot  int
@@ -133,6 +168,18 @@ func TestANSILoveThemePaletteUsesSemanticRoles(t *testing.T) {
 		if got, want := lut[test.slot], ansiart.ToLinear(test.want); got != want {
 			t.Errorf("theme %s slot %d=%v, want %v", test.theme, test.slot, got, want)
 		}
+	}
+}
+
+func TestANSILoveCombinesChangedForegroundAndBackgroundSGR(t *testing.T) {
+	sheet := &ansiLoveSheet{
+		layout: ansiart.Layout{Width: 1, SheetRows: 1},
+		cells:  []ansiLoveCell{{ch: 'X', fg: [3]uint8{1, 2, 3}, bg: [3]uint8{4, 5, 6}}},
+	}
+	got := string(sheet.appendRow(nil, ANSILoveConfig{Width: 1, Depth: ANSILoveTrueColor}, 0, false, nil, -1, 0))
+	want := "\x1b[48;2;4;5;6;38;2;1;2;3mX\x1b[0m"
+	if got != want {
+		t.Fatalf("combined SGR=%q, want %q", got, want)
 	}
 }
 
@@ -157,6 +204,14 @@ func TestANSILoveGlintFadesIntoAndOutOfAVisibleHold(t *testing.T) {
 	a.elapsed, a.cached = 0, ""
 	if withGlint := a.Render(); withGlint != withoutGlint {
 		t.Fatal("glint jumped to full strength at the start of its window")
+	}
+	phase := .75
+	tick := int(phase / .05)
+	a.sheet.layout.OX = 1600 + float64(tick)/29*(640+352+128)
+	a.elapsed, a.stageTime, a.cached = 750*time.Millisecond, phase, ""
+	withGlint := a.Render()
+	if withGlint == withoutGlint {
+		t.Fatal("visible glint did not change the logo")
 	}
 	a.sheet.layout.OX = 2720
 	a.elapsed, a.cached = 1450*time.Millisecond, ""
