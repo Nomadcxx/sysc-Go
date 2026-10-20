@@ -112,6 +112,8 @@ type ansiLovePreviewCell struct {
 func parseANSILoveFrame(t *testing.T, frame string) ([]ansiLovePreviewCell, int, int) {
 	t.Helper()
 	fg, bg := ansiart.VGA[7], ansiart.VGA[0]
+	reverse := false
+	lastRune := rune(0)
 	cells := []ansiLovePreviewCell{}
 	width, lineWidth, height := 0, 0, 1
 	for len(frame) > 0 {
@@ -128,24 +130,64 @@ func parseANSILoveFrame(t *testing.T, frame string) ([]ansiLovePreviewCell, int,
 			continue
 		}
 		if strings.HasPrefix(frame, "\x1b[") {
-			end := strings.IndexByte(frame, 'm')
-			if end < 0 {
-				t.Fatal("unterminated SGR")
+			end := 2
+			for end < len(frame) && !(frame[end] >= 0x40 && frame[end] <= 0x7e) {
+				end++
+			}
+			if end == len(frame) {
+				t.Fatal("unterminated CSI")
+			}
+			command, params := frame[end], frame[2:end]
+			frame = frame[end+1:]
+			if command == 'b' {
+				count := 1
+				if params != "" {
+					var err error
+					count, err = strconv.Atoi(params)
+					if err != nil || count < 1 || count > 512-lineWidth {
+						t.Fatalf("invalid REP count %q", params)
+					}
+				}
+				if lastRune == 0 {
+					t.Fatal("REP has no previous character")
+				}
+				visibleFG, visibleBG := fg, bg
+				if reverse {
+					visibleFG, visibleBG = bg, fg
+				}
+				for range count {
+					cells = append(cells, ansiLovePreviewCell{lastRune, visibleFG, visibleBG})
+					lineWidth++
+				}
+				continue
+			}
+			if command != 'm' {
+				t.Fatalf("unsupported CSI %q", command)
 			}
 			var p []int
-			for _, s := range strings.Split(frame[2:end], ";") {
-				v, err := strconv.Atoi(s)
-				if err != nil {
-					t.Fatal(err)
+			if params == "" {
+				p = append(p, 0)
+			} else {
+				for _, s := range strings.Split(params, ";") {
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						t.Fatal(err)
+					}
+					p = append(p, v)
 				}
-				p = append(p, v)
 			}
-			frame = frame[end+1:]
 			for i := 0; i < len(p); {
 				code := p[i]
 				switch {
 				case code == 0:
 					fg, bg = ansiart.VGA[7], ansiart.VGA[0]
+					reverse = false
+					i++
+				case code == 7:
+					reverse = true
+					i++
+				case code == 27:
+					reverse = false
 					i++
 				case code >= 30 && code <= 37:
 					fg = ansiart.VGA[code-30]
@@ -196,7 +238,12 @@ func parseANSILoveFrame(t *testing.T, frame string) ([]ansiLovePreviewCell, int,
 			t.Fatalf("invalid rendered rune %U", r)
 		}
 		frame = frame[n:]
-		cells = append(cells, ansiLovePreviewCell{r, fg, bg})
+		lastRune = r
+		visibleFG, visibleBG := fg, bg
+		if reverse {
+			visibleFG, visibleBG = bg, fg
+		}
+		cells = append(cells, ansiLovePreviewCell{r, visibleFG, visibleBG})
 		lineWidth++
 	}
 	if width == 0 {
