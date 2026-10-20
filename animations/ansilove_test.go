@@ -11,13 +11,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func TestANSILoveConvenienceConstructorUses256ColorOutput(t *testing.T) {
+func TestANSILoveConvenienceConstructorUsesTrueColorOutput(t *testing.T) {
 	rendered := NewANSILoveEffect(80, 24, "nord").Render()
-	if strings.Contains(rendered, "\x1b[38;2;") || strings.Contains(rendered, "\x1b[48;2;") {
-		t.Fatal("default ANSI Love output contains truecolor SGR")
-	}
-	if !strings.Contains(rendered, "\x1b[38;5;") && !strings.Contains(rendered, "\x1b[48;5;") {
-		t.Fatal("default ANSI Love output contains no 256-color SGR")
+	if !strings.Contains(rendered, "\x1b[38;2;") && !strings.Contains(rendered, "\x1b[48;2;") {
+		t.Fatal("default ANSI Love output contains no truecolor SGR")
 	}
 }
 
@@ -28,14 +25,19 @@ func TestANSILoveGeometry(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			lines := strings.Split(a.Render(), "\n")
+			frame := a.Render()
+			lines := strings.Split(frame, "\n")
 			if len(lines) != min(256, size[1]) {
 				t.Fatalf("backend %d size %v: %d rows", backend, size, len(lines))
 			}
 			for y, line := range lines {
-				if ansi.StringWidth(line) != min(512, size[0]) || !strings.HasSuffix(line, "\x1b[0m") {
+				if !strings.HasSuffix(line, "\x1b[m") {
 					t.Fatalf("backend %d size %v row %d: wrong width/reset", backend, size, y)
 				}
+			}
+			_, width, height := parseANSILoveFrame(t, frame)
+			if width != min(512, size[0]) || height != min(256, size[1]) {
+				t.Fatalf("backend %d size %v: parsed frame is %dx%d", backend, size, width, height)
 			}
 			if size[0] >= 30 && !strings.HasSuffix(ansi.Strip(lines[len(lines)-1]), "Drawn by Warpus, December 2019") {
 				t.Fatal("missing credit")
@@ -177,9 +179,51 @@ func TestANSILoveCombinesChangedForegroundAndBackgroundSGR(t *testing.T) {
 		cells:  []ansiLoveCell{{ch: 'X', fg: [3]uint8{1, 2, 3}, bg: [3]uint8{4, 5, 6}}},
 	}
 	got := string(sheet.appendRow(nil, ANSILoveConfig{Width: 1, Depth: ANSILoveTrueColor}, 0, false, nil, -1, 0))
-	want := "\x1b[48;2;4;5;6;38;2;1;2;3mX\x1b[0m"
+	want := "\x1b[48;2;4;5;6;38;2;1;2;3mX\x1b[m"
 	if got != want {
 		t.Fatalf("combined SGR=%q, want %q", got, want)
+	}
+}
+
+func TestANSILoveUsesReverseVideoForSwappedColorPairs(t *testing.T) {
+	red, blue := [3]uint8{255, 0, 0}, [3]uint8{0, 0, 255}
+	sheet := &ansiLoveSheet{
+		layout: ansiart.Layout{Width: 3, SheetRows: 1},
+		cells: []ansiLoveCell{
+			{ch: 'A', fg: red, bg: blue},
+			{ch: 'B', fg: blue, bg: red},
+			{ch: 'C', fg: blue, bg: red},
+		},
+	}
+	frame := string(sheet.appendRow(nil, ANSILoveConfig{Width: 3, Backend: ANSILoveExact, Depth: ANSILoveTrueColor}, 0, false, nil, -1, 0))
+	if !strings.Contains(frame, "\x1b[7m") {
+		t.Fatal("swapped color pair did not use reverse video")
+	}
+	cells, width, height := parseANSILoveFrame(t, frame)
+	if width != 3 || height != 1 || cells[0].fg != red || cells[0].bg != blue || cells[1].fg != blue || cells[1].bg != red || cells[2].fg != blue || cells[2].bg != red {
+		t.Fatalf("reverse-video colors are not visually equivalent: %+v", cells)
+	}
+}
+
+func TestANSILoveCompressesLongBlankRunsWithREP(t *testing.T) {
+	black := [3]uint8{}
+	cells := make([]ansiLoveCell, 32)
+	for i := range cells {
+		cells[i] = ansiLoveCell{ch: ' ', fg: black, bg: black}
+	}
+	sheet := &ansiLoveSheet{layout: ansiart.Layout{Width: len(cells), SheetRows: 1}, cells: cells}
+	frame := string(sheet.appendRow(nil, ANSILoveConfig{Width: len(cells), Backend: ANSILoveExact, Depth: ANSILoveTrueColor}, 0, false, nil, -1, 0))
+	if !strings.Contains(frame, "\x1b[31b") {
+		t.Fatalf("32 blank cells were not compressed with REP: %q", frame)
+	}
+	parsed, width, height := parseANSILoveFrame(t, frame)
+	if width != len(cells) || height != 1 || len(parsed) != len(cells) {
+		t.Fatalf("REP expanded to %dx%d (%d cells), want %d blank cells", width, height, len(parsed), len(cells))
+	}
+	for i, cell := range parsed {
+		if cell.ch != ' ' || cell.fg != black || cell.bg != black {
+			t.Fatalf("cell %d after REP = %+v, want black space", i, cell)
+		}
 	}
 }
 

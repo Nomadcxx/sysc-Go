@@ -184,8 +184,7 @@ func normalizeANSILove(c ANSILoveConfig) (ANSILoveConfig, error) {
 }
 
 func NewANSILoveEffect(w, h int, theme string) *ANSILoveAnimation {
-	// ponytail: 256-color output keeps default full-frame strings within the approved size gate.
-	a, err := NewANSILoveEffectConfig(ANSILoveConfig{Width: w, Height: h, Theme: theme, Depth: ANSILove256, Motion: ANSILoveMotionSubtle})
+	a, err := NewANSILoveEffectConfig(ANSILoveConfig{Width: w, Height: h, Theme: theme, Motion: ANSILoveMotionSubtle})
 	if err != nil {
 		panic(err)
 	} // Embedded assets are verified by the reproducible bake tests.
@@ -646,20 +645,6 @@ func (s *ansiLoveSheet) fitCell(c ANSILoveConfig, x, y int, lut []ansiart.LinRGB
 	return cell
 }
 
-func ansiLoveSGR(out []byte, rgb [3]uint8, index uint8, depth ANSILoveColorDepth, bg bool) []byte {
-	out = append(out, '\x1b', '[')
-	out = ansiLoveSGRParams(out, rgb, index, depth, bg)
-	return append(out, 'm')
-}
-
-func ansiLoveSGRPair(out []byte, bgRGB [3]uint8, bgIndex uint8, fgRGB [3]uint8, fgIndex uint8, depth ANSILoveColorDepth) []byte {
-	out = append(out, '\x1b', '[')
-	out = ansiLoveSGRParams(out, bgRGB, bgIndex, depth, true)
-	out = append(out, ';')
-	out = ansiLoveSGRParams(out, fgRGB, fgIndex, depth, false)
-	return append(out, 'm')
-}
-
 func ansiLoveSGRParams(out []byte, rgb [3]uint8, index uint8, depth ANSILoveColorDepth, bg bool) []byte {
 	if depth == ANSILove16 {
 		code := 30 + int(index&7)
@@ -689,9 +674,123 @@ func ansiLoveSGRParams(out []byte, rgb [3]uint8, index uint8, depth ANSILoveColo
 	}
 	return out
 }
+
+func ansiLoveReverseColors(cell ansiLoveCell) ansiLoveCell {
+	cell.fg, cell.bg = cell.bg, cell.fg
+	cell.fi, cell.bi = cell.bi, cell.fi
+	return cell
+}
+
+func ansiLoveDigits(n uint8) int {
+	switch {
+	case n < 10:
+		return 1
+	case n < 100:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func ansiLoveIntDigits(n int) int {
+	digits := 1
+	for n >= 10 {
+		n /= 10
+		digits++
+	}
+	return digits
+}
+
+func ansiLoveSGRColorSize(rgb [3]uint8, index uint8, depth ANSILoveColorDepth, bg bool) int {
+	if depth == ANSILove16 {
+		code := 30 + int(index&7)
+		if index >= 8 {
+			code += 60
+		}
+		if bg {
+			code += 10
+		}
+		digits := 2
+		if code >= 100 {
+			digits = 3
+		}
+		return 3 + digits // ESC [ code m
+	}
+	if depth == ANSILove256 {
+		return 8 + ansiLoveDigits(index) // ESC [ 48;5;index m
+	}
+	return 10 + ansiLoveDigits(rgb[0]) + ansiLoveDigits(rgb[1]) + ansiLoveDigits(rgb[2])
+}
+
+func ansiLoveSGRTransitionSize(previous ansiLoveCell, previousValid, previousReverse bool, next ansiLoveCell, nextReverse bool, depth ANSILoveColorDepth) int {
+	bgChanged := !previousValid || previous.bg != next.bg
+	fgChanged := !previousValid || previous.fg != next.fg
+	colorSize := 0
+	switch {
+	case bgChanged && fgChanged:
+		colorSize = ansiLoveSGRColorSize(next.bg, next.bi, depth, true) + ansiLoveSGRColorSize(next.fg, next.fi, depth, false) - 2
+	case bgChanged:
+		colorSize = ansiLoveSGRColorSize(next.bg, next.bi, depth, true)
+	case fgChanged:
+		colorSize = ansiLoveSGRColorSize(next.fg, next.fi, depth, false)
+	}
+	if previousReverse != nextReverse {
+		if colorSize == 0 {
+			if nextReverse {
+				colorSize = 4 // ESC[7m
+			} else {
+				colorSize = 5 // ESC[27m
+			}
+		} else if nextReverse {
+			colorSize += 2 // append ;7 to the colour SGR
+		} else {
+			colorSize += 3 // append ;27 to the colour SGR
+		}
+	}
+	return colorSize
+}
+
+func ansiLoveAppendREP(out []byte, count int) []byte {
+	out = append(out, '\x1b', '[')
+	out = strconv.AppendInt(out, int64(count), 10)
+	return append(out, 'b')
+}
+
+func ansiLoveAppendSGRTransition(out []byte, previous ansiLoveCell, previousValid bool, next ansiLoveCell, depth ANSILoveColorDepth, reverse, reverseChanged bool) []byte {
+	bgChanged := !previousValid || previous.bg != next.bg
+	fgChanged := !previousValid || previous.fg != next.fg
+	hasColorChange := bgChanged || fgChanged
+	if !hasColorChange && !reverseChanged {
+		return out
+	}
+	if hasColorChange || reverseChanged {
+		out = append(out, '\x1b', '[')
+	}
+	switch {
+	case bgChanged && fgChanged:
+		out = ansiLoveSGRParams(out, next.bg, next.bi, depth, true)
+		out = append(out, ';')
+		out = ansiLoveSGRParams(out, next.fg, next.fi, depth, false)
+	case bgChanged:
+		out = ansiLoveSGRParams(out, next.bg, next.bi, depth, true)
+	case fgChanged:
+		out = ansiLoveSGRParams(out, next.fg, next.fi, depth, false)
+	}
+	if reverseChanged {
+		if hasColorChange {
+			out = append(out, ';')
+		}
+		if reverse {
+			out = append(out, '7')
+		} else {
+			out = append(out, '2', '7')
+		}
+	}
+	return append(out, 'm')
+}
+
 func (s *ansiLoveSheet) appendRow(out []byte, c ANSILoveConfig, row int, credit bool, lut []ansiart.LinRGB, glint, glintOpacity float64) []byte {
-	var last ansiLoveCell
-	valid := false
+	var cells [512]ansiLoveCell
 	for x := 0; x < c.Width; x++ {
 		cell := s.background
 		if x >= s.layout.Left && x < s.layout.Left+s.layout.Width && row < s.layout.SheetRows {
@@ -713,20 +812,80 @@ func (s *ansiLoveSheet) appendRow(out []byte, c ANSILoveConfig, row int, credit 
 				cell.bi = 16
 			}
 		}
-		bgChanged := !valid || cell.bg != last.bg
-		fgChanged := !valid || cell.fg != last.fg
-		if bgChanged && fgChanged {
-			out = ansiLoveSGRPair(out, cell.bg, cell.bi, cell.fg, cell.fi, c.Depth)
-		} else if bgChanged {
-			out = ansiLoveSGR(out, cell.bg, cell.bi, c.Depth, true)
-		} else if fgChanged {
-			out = ansiLoveSGR(out, cell.fg, cell.fi, c.Depth, false)
-		}
-		out = utf8.AppendRune(out, cell.ch)
-		last = cell
-		valid = true
+		cells[x] = cell
 	}
-	return append(out, "\x1b[0m"...)
+
+	width := c.Width
+	var sizes [512][2]int
+	var previousState [512][2]uint8
+	maxInt := int(^uint(0) >> 1)
+	for x := 0; x < width; x++ {
+		for state := 0; state < 2; state++ {
+			current := cells[x]
+			if state == 1 {
+				current = ansiLoveReverseColors(current)
+			}
+			glyphSize := utf8.RuneLen(cells[x].ch)
+			if x == 0 {
+				sizes[x][state] = ansiLoveSGRTransitionSize(ansiLoveCell{}, false, false, current, state == 1, c.Depth) + glyphSize
+				continue
+			}
+			best := maxInt
+			for previous := 0; previous < 2; previous++ {
+				last := cells[x-1]
+				if previous == 1 {
+					last = ansiLoveReverseColors(last)
+				}
+				candidate := sizes[x-1][previous] + ansiLoveSGRTransitionSize(last, true, previous == 1, current, state == 1, c.Depth) + glyphSize
+				if candidate < best {
+					best = candidate
+					sizes[x][state] = candidate
+					previousState[x][state] = uint8(previous)
+				}
+			}
+		}
+	}
+	if width > 0 {
+		var state [512]uint8
+		last := 0
+		if sizes[width-1][1] < sizes[width-1][0] {
+			last = 1
+		}
+		for x := width - 1; x >= 0; x-- {
+			state[x] = uint8(last)
+			last = int(previousState[x][last])
+		}
+		var previous ansiLoveCell
+		previousValid, previousReverse := false, false
+		for x := 0; x < width; {
+			reverse := state[x] == 1
+			cell := cells[x]
+			if reverse {
+				cell = ansiLoveReverseColors(cell)
+			}
+			out = ansiLoveAppendSGRTransition(out, previous, previousValid, cell, c.Depth, reverse, reverse != previousReverse)
+			out = utf8.AppendRune(out, cells[x].ch)
+			runEnd := x + 1
+			if cells[x].ch == ' ' {
+				for runEnd < width && cells[runEnd].ch == ' ' && cells[runEnd].fg == cells[x].fg && cells[runEnd].bg == cells[x].bg && state[runEnd] == state[x] {
+					runEnd++
+				}
+			}
+			runLength := runEnd - x
+			repeats := runLength - 1
+			repSize := 3 + ansiLoveIntDigits(repeats)
+			if runLength > 1 && 1+repSize < runLength {
+				out = ansiLoveAppendREP(out, repeats)
+			} else {
+				for range repeats {
+					out = append(out, ' ')
+				}
+			}
+			previous, previousValid, previousReverse = cell, true, reverse
+			x = runEnd
+		}
+	}
+	return append(out, "\x1b[m"...)
 }
 
 func (a *ANSILoveAnimation) Render() string {

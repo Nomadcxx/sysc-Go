@@ -33,7 +33,7 @@ func TestANSILovePerformanceBudgets(t *testing.T) {
 			t.Run(fmt.Sprintf("%s/%dx%d", backend.name, size.width, size.height), func(t *testing.T) {
 				start := time.Now()
 				a, err := NewANSILoveEffectConfig(ANSILoveConfig{
-					Width: size.width, Height: size.height, Backend: backend.backend, Depth: ANSILove256, Motion: ANSILoveMotionSubtle,
+					Width: size.width, Height: size.height, Backend: backend.backend, Depth: ANSILoveTrueColor, Motion: ANSILoveMotionSubtle,
 				})
 				if err != nil {
 					t.Fatal(err)
