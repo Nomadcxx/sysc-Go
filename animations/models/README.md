@@ -110,6 +110,49 @@ go run ./cmd/bake-model -sha256 abfcb27fd5da0b9deb7d41239d9321057213da3042ff9f86
 
 The baker applies selected-scene node transforms and Y-up conversion, samples
 the surface by triangle area, and stores signed 16-bit positions and normals.
-It accepts up to 64 MiB and 1,000,000 triangles; the sample codec caps bakes at
-96,000 records. The renderer rotates each model horizontally around its upright
-axis, with a fixed camera angle and no pitch or roll.
+It accepts up to 96 MiB and 2,100,000 triangles; the sample codec caps bakes
+at 96,000 records. The renderer rotates each model horizontally around its
+upright axis, with a fixed camera angle and no pitch or roll.
+
+## Historical and religious rotating model data
+
+Each source GLB stays outside the repository. These `.bin` files contain
+96,000 sampled positions and normals each. Their credits appear in the effect
+footer. Source licenses remain attached to each derived model: CC BY-SA data
+keeps the same share-alike terms, and CC BY-NC models remain limited to
+noncommercial use.
+
+| Data file | Source title and creator | Triangles | Source | License | Source SHA-256 |
+|---|---|---:|---|---|---|
+| `laocoon-and-his-sons.bin` | Laocoon and His Sons by Rigsters | 50,106 | [Sketchfab](https://sketchfab.com/3d-models/laocoon-and-his-sons-649111a9a7b74ddab3937292be5545fc) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | `0d15d6bfb2cffe79d4da54adc9ff2b700486be158bd3bd43933cbb63dd82ba63` |
+| `napoleon-bust.bin` | The bust of Napoleon Bonaparte by Virtual Museums of Małopolska | 264,708 | [Sketchfab](https://sketchfab.com/3d-models/the-bust-of-napoleon-bonaparte-a177bf0e121641bea6cf1d58ad3efc5b) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | `bdfb7e76642556b6fc92f651582464282f9d4b3717c31faaec1be66bbb2babf5` |
+| `brandenburg-gate.bin` | Brandenburg Gate (9 Mb) by Resinnnn | 390,218 | [Sketchfab](https://sketchfab.com/3d-models/brandenburg-gate-9-mb-012f2cb87cfa47029808063da072ad5c) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | `e4c1854b6c9a5d71742e2eb388ab28b51a21cf742d6232811f32842ddb1ffb7a` |
+| `louis-xiv.bin` | Louis XIV de France, Louvre, Paris by HoangHiepVu | 421,965 | [Sketchfab](https://sketchfab.com/3d-models/louis-xiv-de-france-louvre-paris-a0cc0e7eee384c99838dff2857b8158c) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | `46c94e4a1142c545e34e1c30c10dab24f1b66797daee76796fd417d399c0748f` |
+| `engel.bin` | Engel by noe-3d.at | 559,786 | [Sketchfab](https://sketchfab.com/3d-models/engel-a625483175624e0ab6f7cd67ee53cc92) | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) | `79f76b2d24f7917fb5d97437eae3ace96010f2599373dc2433af2223447895ce` |
+| `st-george.bin` | Hl. Georg als Drachentöter by VIMUNE | 2,000,065 | [Sketchfab](https://sketchfab.com/3d-models/hl-georg-als-drachentoter-a211b6af71b249e1a03854d00fc41cbd) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | `3b681018dc1deb1ad843309ed771dab665ac2dcb18f17537a23e1c1158099b44` |
+| `santa-muerte.bin` | Santa Muerte & Requiem for the Sketchfab by Mateusz Woliński | 155,410 | [Sketchfab](https://sketchfab.com/3d-models/santa-muerte-requiem-for-the-sketchfab-3fa36f79496a454995c64ca65b5d52b0) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | `fa8ca42e6c9b20df40304979603663b17624df08977fb9e82c0b8f58b010c65e` |
+| `aspasia.bin` | Aspasia by noe-3d.at | 733,174 | [Sketchfab](https://sketchfab.com/3d-models/aspasia-6f0bd1e65a244cc78c5fe082c8e0d3d1) | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) | `a4da809bdc37490a41906154e8adb0d31dc1ef6fd0e91bf5667cbbe9ffea204d` |
+| `st-nepomuk.bin` | Hl. Nepomuk by noe-3d.at | 572,386 | [Sketchfab](https://sketchfab.com/3d-models/hl-nepomuk-9d65daaa9e07470cad5ce7c668b03434) | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) | `f32dc9210b0edc93c455047b228eea1a9db93b789fcfdec654b98a770d4819b3` |
+| `lion-statue.bin` | Lion Statue - optimized by Thomas Flynn | 28,488 | [Sketchfab](https://sketchfab.com/3d-models/lion-statue-optimized-62662d27c94d4994b2479b8de3a66ca7) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | `55e6f7784afa8159235ef9928635e19bb107cc808217ccd5640ba51496e58771` |
+
+The converter applies scene-node transforms and Y-up conversion, triangulates
+the selected scene, samples its surface area, then quantizes position and
+normal values to signed 16-bit values. It ignores source textures and animation
+tracks. The St George source has just over two million triangles, so the
+offline converter's bounded input and triangle limits cover that model. Caesar
+is excluded until its source attribution and license are available.
+
+Rebake each model from the sysc-Go root with the source GLB available locally:
+
+```sh
+go run ./cmd/bake-model -sha256 0d15d6bfb2cffe79d4da54adc9ff2b700486be158bd3bd43933cbb63dd82ba63 -samples 96000 /path/to/laocoon_and_his_sons.glb animations/models/laocoon-and-his-sons.bin
+go run ./cmd/bake-model -sha256 bdfb7e76642556b6fc92f651582464282f9d4b3717c31faaec1be66bbb2babf5 -samples 96000 /path/to/the_bust_of_napoleon_bonaparte.glb animations/models/napoleon-bust.bin
+go run ./cmd/bake-model -sha256 e4c1854b6c9a5d71742e2eb388ab28b51a21cf742d6232811f32842ddb1ffb7a -samples 96000 /path/to/brandenburg_gate_9_mb.glb animations/models/brandenburg-gate.bin
+go run ./cmd/bake-model -sha256 46c94e4a1142c545e34e1c30c10dab24f1b66797daee76796fd417d399c0748f -samples 96000 /path/to/louis_xiv_de_france_louvre_paris.glb animations/models/louis-xiv.bin
+go run ./cmd/bake-model -sha256 79f76b2d24f7917fb5d97437eae3ace96010f2599373dc2433af2223447895ce -samples 96000 /path/to/engel.glb animations/models/engel.bin
+go run ./cmd/bake-model -sha256 3b681018dc1deb1ad843309ed771dab665ac2dcb18f17537a23e1c1158099b44 -samples 96000 /path/to/hl._georg_als_drachentoter.glb animations/models/st-george.bin
+go run ./cmd/bake-model -sha256 fa8ca42e6c9b20df40304979603663b17624df08977fb9e82c0b8f58b010c65e -samples 96000 /path/to/santa_muerte__requiem_for_the_sketchfab.glb animations/models/santa-muerte.bin
+go run ./cmd/bake-model -sha256 a4da809bdc37490a41906154e8adb0d31dc1ef6fd0e91bf5667cbbe9ffea204d -samples 96000 /path/to/aspasia.glb animations/models/aspasia.bin
+go run ./cmd/bake-model -sha256 f32dc9210b0edc93c455047b228eea1a9db93b789fcfdec654b98a770d4819b3 -samples 96000 /path/to/hl._nepomuk.glb animations/models/st-nepomuk.bin
+go run ./cmd/bake-model -sha256 55e6f7784afa8159235ef9928635e19bb107cc808217ccd5640ba51496e58771 -samples 96000 /path/to/lion_statue_-_optimized.glb animations/models/lion-statue.bin
+```
