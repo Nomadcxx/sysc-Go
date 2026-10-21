@@ -167,7 +167,7 @@ func normalizeANSILove(c ANSILoveConfig) (ANSILoveConfig, error) {
 		return c, fmt.Errorf("ANSI Love: unknown palette %q", c.Palette)
 	}
 	if c.Zoom == 0 {
-		c.Zoom = 2.5
+		c.Zoom = 1.5
 	}
 	if math.IsNaN(c.Zoom) || math.IsInf(c.Zoom, 0) || c.Zoom < 1 || c.Zoom > 3 {
 		return c, fmt.Errorf("ANSI Love: zoom must be between 1 and 3")
@@ -331,8 +331,8 @@ func (a *ANSILoveAnimation) SetState(s ANSILoveState) {
 	if s == ANSILoveLogin {
 		a.nextBPM = 60
 		if a.elapsed == 0 {
-			a.camera = 1
-			a.cameraRow = a.travel()
+			a.camera = .5
+			a.cameraRow = int(math.Round(a.camera * float64(a.travel())))
 			a.bpm = 60
 		}
 	}
@@ -421,14 +421,11 @@ func (a *ANSILoveAnimation) travel() int {
 	return max(0, a.sheet.layout.SheetRows-a.cfg.Height)
 }
 func (a *ANSILoveAnimation) panSpeed() float64 {
-	if a.cfg.Width >= 320 {
-		return 1
-	}
-	return 2
+	return 3.2
 }
 func (a *ANSILoveAnimation) stageDuration() float64 {
 	if a.stage%2 == 0 {
-		return [4]float64{8, 12, 20, 8}[a.stage/2]
+		return [4]float64{2, 3, 3, 2}[a.stage/2]
 	}
 	return math.Max(.05, 1.875*.5*float64(a.travel())/a.panSpeed())
 }
@@ -941,7 +938,7 @@ func (a *ANSILoveAnimation) Render() string {
 		return a.cached
 	}
 	lut := a.sheet.lut
-	strength := .35 * float64(level) / 23
+	strength := .25 * float64(level) / 23
 	for _, idx := range []int{1, 9} {
 		slot := int(ansiart.RegionHeart)*16 + idx
 		target := ansiart.ToLinear([3]uint8{255, 128, 128})

@@ -31,7 +31,7 @@ func ComputeLayout(srcW, srcH, cols, rows, cw, ch, sx, sy int, fit FitMode, zoom
 		return l
 	}
 	if !finite(zoom) || zoom < 1 {
-		zoom = 2.5
+		zoom = 1.5
 	}
 	if !finite(sMax) || sMax <= 0 {
 		sMax = 3

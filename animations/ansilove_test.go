@@ -376,7 +376,7 @@ func TestANSILoveLoginAndMotionOff(t *testing.T) {
 	for i := 0; i < 400; i++ {
 		a.UpdateElapsed(50 * time.Millisecond)
 	}
-	if a.camera != start || start != 1 {
+	if a.camera != start || start != .5 {
 		t.Fatal("login camera moved")
 	}
 	b, err := NewANSILoveEffectConfig(ANSILoveConfig{Width: 120, Height: 36, Motion: ANSILoveMotionOff})
@@ -389,6 +389,33 @@ func TestANSILoveLoginAndMotionOff(t *testing.T) {
 	}
 	if frame != b.Render() {
 		t.Fatal("motion-off changed frame")
+	}
+}
+
+func TestANSILoveDefaultsShowFiguresAndFinishTourSooner(t *testing.T) {
+	for _, size := range [][2]int{{200, 55}, {480, 135}} {
+		a := NewANSILoveEffect(size[0], size[1], "")
+		if a.cfg.Zoom != 1.5 {
+			t.Errorf("%dx%d default zoom = %v, want 1.5", size[0], size[1], a.cfg.Zoom)
+		}
+		a.SetState(ANSILoveLogin)
+		if a.camera != .5 || a.cameraRow != int(math.Round(.5*float64(a.travel()))) {
+			t.Errorf("%dx%d login camera = %v row %d, want centered", size[0], size[1], a.camera, a.cameraRow)
+		}
+
+		a.SetState(ANSILoveIdle)
+		var seconds float64
+		for range 8 {
+			seconds += a.stageDuration()
+			a.stage = (a.stage + 1) % 8
+		}
+		limit := 60.0
+		if size[0] >= 320 {
+			limit = 90
+		}
+		if seconds > limit {
+			t.Errorf("%dx%d camera tour = %.1fs, want <= %.0fs", size[0], size[1], seconds, limit)
+		}
 	}
 }
 

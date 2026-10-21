@@ -27,64 +27,79 @@ func TestANSILoveFlashSafety(t *testing.T) {
 
 	for _, backend := range backends {
 		t.Run(backend.name, func(t *testing.T) {
-			a, err := NewANSILoveEffectConfig(ANSILoveConfig{
-				Width: 200, Height: 55, Backend: backend.backend, Motion: ANSILoveMotionSubtle,
+			newEffect := func(t *testing.T) *ANSILoveAnimation {
+				t.Helper()
+				a, err := NewANSILoveEffectConfig(ANSILoveConfig{
+					Width: 200, Height: 55, Backend: backend.backend, Motion: ANSILoveMotionSubtle,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				return a
+			}
+			t.Run("camera-tour", func(t *testing.T) {
+				checkANSILoveFlashSafety(t, newEffect(t), font, 20*20)
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			coverage := map[rune]float64{}
-			luminance := map[[3]uint8]float64{}
-			previousCells, width, height := parseANSILoveFrame(t, a.Render())
-			previous := make([]float64, len(previousCells))
-			for i, cell := range previousCells {
-				previous[i] = ansiLoveCellLuminance(t, cell, font, coverage, luminance)
-			}
-
-			const frameCount = 20 * 20
-			changes := make([][]int8, 0, frameCount)
-			wholeScreen := make([]int8, 0, frameCount)
-			for frame := 0; frame < frameCount; frame++ {
-				a.UpdateElapsed(50 * time.Millisecond)
-				cells, w, h := parseANSILoveFrame(t, a.Render())
-				if w != width || h != height || len(cells) != len(previous) {
-					t.Fatalf("frame %d changed dimensions to %dx%d", frame, w, h)
-				}
-				directions := make([]int8, len(cells))
-				changedCells := 0
-				netChange := 0.0
-				for i, cell := range cells {
-					current := ansiLoveCellLuminance(t, cell, font, coverage, luminance)
-					delta := current - previous[i]
-					if math.Abs(delta) > 0.1 {
-						if delta > 0 {
-							directions[i] = 1
-						} else {
-							directions[i] = -1
-						}
-						changedCells++
-						netChange += delta
-					}
-					previous[i] = current
-				}
-				changes = append(changes, directions)
-				if changedCells*4 >= len(cells) {
-					wholeScreen = append(wholeScreen, signANSILove(netChange))
-				} else {
-					wholeScreen = append(wholeScreen, 0)
-				}
-			}
-
-			if got, at := maxANSILoveWindowReversals(wholeScreen, 20); got > 3 {
-				t.Fatalf("%d whole-screen luminance reversals in 1 s window starting at frame %d", got, at)
-			}
-			for cell := range previous {
-				if got, at := maxANSILoveCellWindowReversals(changes, cell, 20); got > 3 {
-					t.Fatalf("cell %d had %d luminance reversals in 1 s window starting at frame %d", cell, got, at)
-				}
-			}
+			t.Run("heart-hold", func(t *testing.T) {
+				hold := newEffect(t)
+				hold.stage, hold.camera, hold.cameraRow = 4, 1, hold.travel()
+				hold.cached = ""
+				checkANSILoveFlashSafety(t, hold, font, 59)
+			})
 		})
+	}
+}
+
+func checkANSILoveFlashSafety(t *testing.T, a *ANSILoveAnimation, font []byte, frameCount int) {
+	t.Helper()
+	coverage := map[rune]float64{}
+	luminance := map[[3]uint8]float64{}
+	previousCells, width, height := parseANSILoveFrame(t, a.Render())
+	previous := make([]float64, len(previousCells))
+	for i, cell := range previousCells {
+		previous[i] = ansiLoveCellLuminance(t, cell, font, coverage, luminance)
+	}
+
+	changes := make([][]int8, 0, frameCount)
+	wholeScreen := make([]int8, 0, frameCount)
+	for frame := 0; frame < frameCount; frame++ {
+		a.UpdateElapsed(50 * time.Millisecond)
+		cells, w, h := parseANSILoveFrame(t, a.Render())
+		if w != width || h != height || len(cells) != len(previous) {
+			t.Fatalf("frame %d changed dimensions to %dx%d", frame, w, h)
+		}
+		directions := make([]int8, len(cells))
+		changedCells := 0
+		netChange := 0.0
+		for i, cell := range cells {
+			current := ansiLoveCellLuminance(t, cell, font, coverage, luminance)
+			delta := current - previous[i]
+			if math.Abs(delta) > 0.1 {
+				if delta > 0 {
+					directions[i] = 1
+				} else {
+					directions[i] = -1
+				}
+				changedCells++
+				netChange += delta
+			}
+			previous[i] = current
+		}
+		changes = append(changes, directions)
+		if changedCells*4 >= len(cells) {
+			wholeScreen = append(wholeScreen, signANSILove(netChange))
+		} else {
+			wholeScreen = append(wholeScreen, 0)
+		}
+	}
+
+	if got, at := maxANSILoveWindowReversals(wholeScreen, 20); got > 3 {
+		t.Fatalf("%d whole-screen luminance reversals in 1 s window starting at frame %d", got, at)
+	}
+	for cell := range previous {
+		if got, at := maxANSILoveCellWindowReversals(changes, cell, 20); got > 3 {
+			t.Fatalf("cell %d had %d luminance reversals in 1 s window starting at frame %d", cell, got, at)
+		}
 	}
 }
 
