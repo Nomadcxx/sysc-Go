@@ -49,12 +49,15 @@ the bake is `low-poly_australian_l2a1_sar.glb`, SHA-256
 `88748cab888526b440066e32feec49a46498171101f26b86ccc92e979dcc258d`.
 
 Changes: traverse the selected glTF scene and apply all parent and node
-transforms, convert Y-up to screen Y-down, center and normalize the longest
-dimension, triangulate indexed faces, compute face normals, sample 24,000
+transforms, omit the `308 casing_30` and `308 cartridge_31` node subtrees,
+convert Y-up to screen Y-down, center and normalize the longest dimension,
+triangulate the remaining indexed faces, compute face normals, sample 24,000
 surface points, and quantize positions and normals to signed 16-bit values.
-The effect adds theme shading, braille projection, two rotations, and a
-particle swirl/reconstruction. Materials, textures, and animation tracks are
-unused. The source export is not included in the repository.
+The filtered scene contains 8,439 triangles; the two omitted subtrees contain
+392 triangles. The effect adds theme shading, braille projection, two
+rotations, and a particle swirl/reconstruction. Materials, textures, and
+animation tracks are unused. The source export is not included in the
+repository.
 
 Reproduce from the sysc-Go root with the source GLB available locally:
 

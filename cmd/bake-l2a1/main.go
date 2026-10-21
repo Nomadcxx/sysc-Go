@@ -47,6 +47,7 @@ type gltfScene struct {
 }
 
 type gltfNode struct {
+	Name        string    `json:"name"`
 	Children    []int     `json:"children"`
 	Mesh        *int      `json:"mesh"`
 	Matrix      []float64 `json:"matrix"`
@@ -158,8 +159,8 @@ func parseGLB(data []byte) ([]mesh.Triangle, error) {
 
 	var triangles []mesh.Triangle
 	state := make([]uint8, len(doc.Nodes))
-	var visit func(int, matrix4, int) error
-	visit = func(index int, parent matrix4, depth int) error {
+	var visit func(int, matrix4, int, bool) error
+	visit = func(index int, parent matrix4, depth int, skipMesh bool) error {
 		if index < 0 || index >= len(doc.Nodes) || depth > maxDepth {
 			return fmt.Errorf("invalid node index or scene depth")
 		}
@@ -168,6 +169,7 @@ func parseGLB(data []byte) ([]mesh.Triangle, error) {
 		}
 		state[index] = 1
 		node := doc.Nodes[index]
+		skipMesh = skipMesh || node.Name == "308 casing_30" || node.Name == "308 cartridge_31"
 		local, err := nodeTransform(node)
 		if err != nil {
 			return fmt.Errorf("node %d: %w", index, err)
@@ -176,7 +178,7 @@ func parseGLB(data []byte) ([]mesh.Triangle, error) {
 		if !boundedMatrix(world) {
 			return fmt.Errorf("node %d has an invalid world transform", index)
 		}
-		if node.Mesh != nil {
+		if node.Mesh != nil && !skipMesh {
 			if *node.Mesh < 0 || *node.Mesh >= len(doc.Meshes) {
 				return fmt.Errorf("node %d references an invalid mesh", index)
 			}
@@ -185,7 +187,7 @@ func parseGLB(data []byte) ([]mesh.Triangle, error) {
 			}
 		}
 		for _, child := range node.Children {
-			if err := visit(child, world, depth+1); err != nil {
+			if err := visit(child, world, depth+1, skipMesh); err != nil {
 				return err
 			}
 		}
@@ -193,7 +195,7 @@ func parseGLB(data []byte) ([]mesh.Triangle, error) {
 		return nil
 	}
 	for _, root := range doc.Scenes[sceneIndex].Nodes {
-		if err := visit(root, identity(), 0); err != nil {
+		if err := visit(root, identity(), 0, false); err != nil {
 			return nil, err
 		}
 	}

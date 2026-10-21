@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/Nomadcxx/sysc-Go/internal/mesh"
@@ -44,6 +45,17 @@ func TestParseGLBAppliesColumnMajorMatrix(t *testing.T) {
 	want := meshTriangle{{5, -6, 7}, {6, -6, 7}, {5, -6, 8}}
 	if len(triangles) != 1 || !sameTriangle(triangles[0], want) {
 		t.Fatalf("matrix transformed triangles = %v, want %v", triangles, want)
+	}
+}
+
+func TestParseGLBSkipsL2A1AmmoSubtrees(t *testing.T) {
+	for _, name := range []string{"308 casing_30", "308 cartridge_31"} {
+		t.Run(name, func(t *testing.T) {
+			data := testGLB(t, []uint16{0, 1, 2}, map[string]any{"mesh": 0}, map[string]any{"name": name})
+			if _, err := parseGLB(data); err == nil || !strings.Contains(err.Error(), "no triangle mesh") {
+				t.Fatalf("parseGLB() error = %v, want selected scene with no triangles after subtree omission", err)
+			}
+		})
 	}
 }
 
