@@ -283,6 +283,79 @@ func TestANSILoveAsyncResize(t *testing.T) {
 	}
 }
 
+func TestANSILovePreparedThemePalettePreservesAnimation(t *testing.T) {
+	first, second := [16][3]uint8{}, [16][3]uint8{}
+	for i := range first {
+		first[i] = [3]uint8{uint8(i * 13), uint8(i * 7), uint8(i * 3)}
+		second[i] = [3]uint8{uint8(255 - i*8), uint8(240 - i*5), uint8(220 - i*3)}
+	}
+	cfg := ANSILoveConfig{Width: 80, Height: 24, Theme: "dracula", Palette: "theme", Motion: ANSILoveMotionSubtle}
+	got, err := NewANSILoveEffectConfig(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := NewANSILoveEffectConfig(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got.SetThemePalette(first)
+	want.SetThemePalette(first)
+	got.SetState(ANSILoveLogin)
+	want.SetState(ANSILoveLogin)
+	for range 40 {
+		got.UpdateElapsed(50 * time.Millisecond)
+		want.UpdateElapsed(50 * time.Millisecond)
+	}
+	before := got.Render()
+	elapsed, stage, stageTime, cameraRow := got.elapsed, got.stage, got.stageTime, got.cameraRow
+	prepared := got.PrepareThemePalette("nord", second)()
+	if got.Render() != before {
+		t.Fatal("theme preparation changed the visible frame before Apply")
+	}
+	got.Apply(prepared)
+	want.SetTheme("nord")
+	want.SetThemePalette(second)
+	if got.Render() != want.Render() || got.elapsed != elapsed || got.stage != stage || got.stageTime != stageTime || got.cameraRow != cameraRow {
+		t.Fatal("prepared theme palette did not preserve the animation state")
+	}
+}
+
+func TestANSILovePreparedThemePaletteLayoutPreservesAnimation(t *testing.T) {
+	first, second := [16][3]uint8{}, [16][3]uint8{}
+	for i := range first {
+		first[i] = [3]uint8{uint8(i * 13), uint8(i * 7), uint8(i * 3)}
+		second[i] = [3]uint8{uint8(255 - i*8), uint8(240 - i*5), uint8(220 - i*3)}
+	}
+	cfg := ANSILoveConfig{Width: 80, Height: 24, Theme: "dracula", Palette: "theme", Motion: ANSILoveMotionSubtle}
+	got, err := NewANSILoveEffectConfig(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCfg := cfg
+	wantCfg.Width, wantCfg.Height, wantCfg.CellW, wantCfg.CellH, wantCfg.Theme = 120, 36, 9, 18, "nord"
+	want, err := NewANSILoveEffectConfig(wantCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got.SetThemePalette(first)
+	got.SetState(ANSILoveLogin)
+	want.SetThemePalette(second)
+	want.SetState(ANSILoveLogin)
+	for range 9 {
+		got.UpdateElapsed(50 * time.Millisecond)
+		want.UpdateElapsed(50 * time.Millisecond)
+	}
+	before := got.Render()
+	prepared := got.PrepareThemePaletteLayout("nord", second, 120, 36, 9, 18)()
+	if got.Render() != before {
+		t.Fatal("theme and layout preparation changed the visible frame before Apply")
+	}
+	got.Apply(prepared)
+	if got.Render() != want.Render() || got.cfg != want.cfg || got.elapsed != want.elapsed || got.stage != want.stage || got.stageTime != want.stageTime {
+		t.Fatal("prepared theme and layout did not preserve the animation state")
+	}
+}
+
 func TestANSILoveValidation(t *testing.T) {
 	for _, cfg := range []ANSILoveConfig{
 		{Backend: 255}, {Depth: 255}, {Fit: 255}, {Motion: 255},

@@ -148,6 +148,7 @@ type ANSILovePrepared struct {
 	generation uint64
 	cfg        ANSILoveConfig
 	sheet      *ansiLoveSheet
+	colors     *[16][3]uint8
 }
 
 func normalizeANSILove(c ANSILoveConfig) (ANSILoveConfig, error) {
@@ -215,19 +216,48 @@ func (a *ANSILoveAnimation) PrepareLayout(w, h, cellW, cellH int) func() *ANSILo
 	if cellW >= 1 && cellW <= 1024 && cellH >= 1 && cellH <= 1024 {
 		cfg.CellW, cfg.CellH = cellW, cellH
 	}
+	return a.prepare(cfg, a.colors)
+}
+
+// PrepareThemePalette snapshots a theme and host palette for an asynchronous
+// bake. The live animation remains unchanged until the prepared result is
+// passed to Apply.
+func (a *ANSILoveAnimation) PrepareThemePalette(theme string, colors [16][3]uint8) func() *ANSILovePrepared {
+	cfg := a.cfg
+	cfg.Theme = theme
+	palette := colors
+	return a.prepare(cfg, &palette)
+}
+
+// PrepareThemePaletteLayout prepares a theme palette and viewport together so
+// concurrent theme and resize events cannot discard either requested change.
+func (a *ANSILoveAnimation) PrepareThemePaletteLayout(theme string, colors [16][3]uint8, w, h, cellW, cellH int) func() *ANSILovePrepared {
+	cfg := a.cfg
+	cfg.Theme = theme
+	cfg.Width = max(1, min(512, w))
+	cfg.Height = max(1, min(256, h))
+	if cellW >= 1 && cellW <= 1024 && cellH >= 1 && cellH <= 1024 {
+		cfg.CellW, cfg.CellH = cellW, cellH
+	}
+	palette := colors
+	return a.prepare(cfg, &palette)
+}
+
+func (a *ANSILoveAnimation) prepare(cfg ANSILoveConfig, colors *[16][3]uint8) func() *ANSILovePrepared {
 	a.generation++
-	generation, colors := a.generation, a.colors
+	generation := a.generation
 	return func() *ANSILovePrepared {
-		return &ANSILovePrepared{owner: a, generation: generation, cfg: cfg, sheet: bakeANSILove(cfg, colors)}
+		return &ANSILovePrepared{owner: a, generation: generation, cfg: cfg, sheet: bakeANSILove(cfg, colors), colors: colors}
 	}
 }
+
 func (a *ANSILoveAnimation) Apply(p *ANSILovePrepared) {
 	if p == nil || p.owner != a || p.generation != a.generation {
 		return
 	}
 	oldTravel := a.travel()
 	oldDuration := a.stageDuration()
-	a.cfg, a.sheet = p.cfg, p.sheet
+	a.cfg, a.sheet, a.colors = p.cfg, p.sheet, p.colors
 	if oldDuration > 0 && a.stage%2 == 1 {
 		a.stageTime *= a.stageDuration() / oldDuration
 	}
@@ -285,10 +315,10 @@ func (a *ANSILoveAnimation) SetThemePalette(colors [16][3]uint8) {
 	if a.colors != nil && *a.colors == colors {
 		return
 	}
-	a.colors = &colors
 	if a.cfg.Palette == "theme" {
-		a.Resize(a.cfg.Width, a.cfg.Height)
+		a.Apply(a.PrepareThemePalette(a.cfg.Theme, colors)())
 	} else {
+		a.colors = &colors
 		a.generation++
 	}
 }
