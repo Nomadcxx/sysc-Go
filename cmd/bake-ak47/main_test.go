@@ -32,12 +32,13 @@ func TestAK47Bake(t *testing.T) {
 			t.Fatalf("got %d surface samples", len(pts))
 		}
 		for _, p := range pts {
-			for _, v := range p.pos {
+			for _, v := range p.Position {
 				if math.IsNaN(v) || math.IsInf(v, 0) || math.Abs(v) > 1 {
 					t.Fatal("unbounded point")
 				}
 			}
-			if math.Abs(length(p.normal)-1) > 1e-9 {
+			normalLength := math.Sqrt(p.Normal[0]*p.Normal[0] + p.Normal[1]*p.Normal[1] + p.Normal[2]*p.Normal[2])
+			if math.Abs(normalLength-1) > 1e-9 {
 				t.Fatal("nonunit normal")
 			}
 		}
@@ -49,7 +50,7 @@ func TestAK47Bake(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range pts {
-		if p.pos[2] != 0 || p.pos[0]+p.pos[1] > 1e-12 || p.pos[0] < -1 || p.pos[1] < -1 || p.normal != (vec{0, 0, 1}) {
+		if p.Position[2] != 0 || p.Position[0]+p.Position[1] > 1e-12 || p.Position[0] < -1 || p.Position[1] < -1 || p.Normal != (vec{0, 0, 1}) {
 			t.Fatal("sample left triangle surface")
 		}
 	}

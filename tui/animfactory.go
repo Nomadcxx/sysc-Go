@@ -334,6 +334,8 @@ func (m *Model) createAnimation() animations.Animation {
 		return rifle
 	case "ak-47":
 		return animations.NewAK47Effect(width, height, themeName)
+	case "l2a1-sar":
+		return animations.NewL2A1SAREffect(width, height, themeName)
 	case "skull":
 		palette := animations.GetSkullPalette(themeName)
 		skull := animations.NewSkullEffect(width, height, palette, themeName)
