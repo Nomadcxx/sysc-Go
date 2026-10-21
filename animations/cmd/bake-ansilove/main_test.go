@@ -52,8 +52,15 @@ func TestBakeSourceAndReproducibility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(b, checked) {
-		t.Fatal("committed bake differs; regenerate")
+	checkedRaster, err := ansiart.UnpackRaster(checked)
+	if err != nil {
+		t.Fatal("committed bake is invalid", err)
+	}
+	// Go releases can use different valid zlib streams for the same raster.
+	sameRaster := checkedRaster.W == r.W && checkedRaster.H == r.H &&
+		bytes.Equal(checkedRaster.Idx, r.Idx) && bytes.Equal(checkedRaster.Region, r.Region)
+	if !sameRaster {
+		t.Fatal("committed raster content differs; regenerate")
 	}
 	source[0] ^= 1
 	if _, err := bake(source); err == nil {
