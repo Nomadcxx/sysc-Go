@@ -10,12 +10,13 @@ import (
 )
 
 const (
-	// ponytail: 24,000 samples bound each rendered model pass; raise only after
-	// qualifying the frame budget at the largest supported terminal grid.
-	SampleCount = 24000
-	SampleBytes = 12
+	// ponytail: 24,000 samples remain the default; statue densities are raised
+	// only after qualifying the frame budget at the largest supported grid.
+	SampleCount    = 24000
+	MaxSampleCount = 96000
+	SampleBytes    = 12
 	// MaxTriangles bounds geometry work in the offline model converters.
-	MaxTriangles = 100000
+	MaxTriangles = 1000000
 )
 
 type Vec3 [3]float64
@@ -42,8 +43,16 @@ func length(v Vec3) float64 { return math.Sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]
 // SampleSurface area-weights triangles, normalizes the longest source axis to
 // [-1,1], then places a deterministic low-discrepancy set of samples.
 func SampleSurface(triangles []Triangle) ([]Sample, Bounds, error) {
+	return SampleSurfaceN(triangles, SampleCount)
+}
+
+// SampleSurfaceN is SampleSurface with a bounded number of deterministic samples.
+func SampleSurfaceN(triangles []Triangle, sampleCount int) ([]Sample, Bounds, error) {
 	if len(triangles) == 0 || len(triangles) > MaxTriangles {
 		return nil, Bounds{}, fmt.Errorf("empty or oversized mesh")
+	}
+	if sampleCount < SampleCount || sampleCount > MaxSampleCount {
+		return nil, Bounds{}, fmt.Errorf("sample count must be between %d and %d", SampleCount, MaxSampleCount)
 	}
 	lo, hi := Vec3{math.Inf(1), math.Inf(1), math.Inf(1)}, Vec3{math.Inf(-1), math.Inf(-1), math.Inf(-1)}
 	for _, triangle := range triangles {
@@ -90,7 +99,7 @@ func SampleSurface(triangles []Triangle) ([]Sample, Bounds, error) {
 		return nil, Bounds{}, fmt.Errorf("zero or invalid surface area")
 	}
 
-	samples := make([]Sample, SampleCount)
+	samples := make([]Sample, sampleCount)
 	for i := range samples {
 		index := sort.SearchFloat64s(areas, (float64(i)+.5)*total/float64(len(samples)))
 		triangle := normalized[index]
@@ -108,8 +117,8 @@ func SampleSurface(triangles []Triangle) ([]Sample, Bounds, error) {
 // Encode stores each sample as little-endian int16 position XYZ then normal
 // XYZ, with values quantized from [-1,1].
 func Encode(samples []Sample) ([]byte, error) {
-	if len(samples) != SampleCount {
-		return nil, fmt.Errorf("expected %d surface samples, got %d", SampleCount, len(samples))
+	if len(samples) < SampleCount || len(samples) > MaxSampleCount {
+		return nil, fmt.Errorf("sample count must be between %d and %d, got %d", SampleCount, MaxSampleCount, len(samples))
 	}
 	data := make([]byte, len(samples)*SampleBytes)
 	for i, sample := range samples {
@@ -127,10 +136,10 @@ func Encode(samples []Sample) ([]byte, error) {
 }
 
 func Decode(data []byte) ([]Sample, error) {
-	if len(data) != SampleCount*SampleBytes {
-		return nil, fmt.Errorf("expected %d sample bytes, got %d", SampleCount*SampleBytes, len(data))
+	if len(data)%SampleBytes != 0 || len(data)/SampleBytes < SampleCount || len(data)/SampleBytes > MaxSampleCount {
+		return nil, fmt.Errorf("expected between %d and %d sample records, got %d bytes", SampleCount, MaxSampleCount, len(data))
 	}
-	samples := make([]Sample, SampleCount)
+	samples := make([]Sample, len(data)/SampleBytes)
 	for i := range samples {
 		for axis := 0; axis < 3; axis++ {
 			samples[i].Position[axis] = float64(int16(binary.LittleEndian.Uint16(data[i*SampleBytes+axis*2:]))) / 32767

@@ -25,6 +25,12 @@ Standalone effects that do not require text input.
 - **Logo Morph** (`logo-morph`): rotating SYSC wordmark and cross morph
 - **AK-47** (`ak-47`): Lokeig's braille model with a particle swirl and reconstruction
 - **Australian L2A1 SAR** (`l2a1-sar`): notcplkerry's braille model with a particle swirl and reconstruction
+- **Jesus Christ Statue** (`jesus-christ-statue`): amcgi's braille model with continuous horizontal rotation (CC BY 4.0)
+- **Jason** (`jason`): noe-3d.at's braille model with continuous horizontal rotation (CC BY-NC 4.0)
+- **Nymphe der Flora** (`nymphe-der-flora`): noe-3d.at's braille model with continuous horizontal rotation (CC BY-NC 4.0)
+- **Löwe** (`lowe`): noe-3d.at's braille model with continuous horizontal rotation (CC BY-NC 4.0)
+- **Sculpture of a Roman gladiator** (`roman-gladiator`): Virtual Museums of Małopolska's braille model with continuous horizontal rotation (CC BY 4.0)
+- **Grabfigur** (`grabfigur`): noe-3d.at's braille model with continuous horizontal rotation (CC BY-NC 4.0)
 - **Great Wave** (`great-wave`): Hokusai's wave with animated ASCII foam and water
 - **Wasteland** (`wasteland`): animated ASCII scene after Valenberg
 
@@ -130,6 +136,14 @@ syscgo -effect ak-47 -theme kanagawa -duration 0
 
 # Australian L2A1 SAR: repeating 12-second cycle
 syscgo -effect l2a1-sar -theme kanagawa -duration 0
+
+# Statue effects: continuous horizontal rotation
+syscgo -effect jesus-christ-statue -theme kanagawa -duration 0
+syscgo -effect jason -theme kanagawa -duration 0
+syscgo -effect nymphe-der-flora -theme kanagawa -duration 0
+syscgo -effect lowe -theme kanagawa -duration 0
+syscgo -effect roman-gladiator -theme kanagawa -duration 0
+syscgo -effect grabfigur -theme kanagawa -duration 0
 
 # Use selected artwork as the braille-particle target
 syscgo -effect ak-47-text -file /path/to/art.txt -theme kanagawa -duration 0

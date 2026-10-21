@@ -43,6 +43,28 @@ func TestSurfaceSampleEncodingRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSurfaceSamplingAndCodecSupportHigherSampleCounts(t *testing.T) {
+	triangles := []Triangle{{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}}
+	samples, _, err := SampleSurfaceN(triangles, SampleCount*2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(samples) != SampleCount*2 {
+		t.Fatalf("got %d samples, want %d", len(samples), SampleCount*2)
+	}
+	data, err := Encode(samples)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded) != len(samples) {
+		t.Fatalf("decoded %d samples, want %d", len(decoded), len(samples))
+	}
+}
+
 func TestSurfaceSamplerRejectsInvalidMeshes(t *testing.T) {
 	for _, triangles := range [][]Triangle{
 		nil,
@@ -55,5 +77,10 @@ func TestSurfaceSamplerRejectsInvalidMeshes(t *testing.T) {
 	}
 	if _, err := Decode([]byte{1}); err == nil {
 		t.Fatal("accepted truncated sample data")
+	}
+	for _, count := range []int{SampleCount - 1, MaxSampleCount + 1} {
+		if _, _, err := SampleSurfaceN([]Triangle{{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}}, count); err == nil {
+			t.Fatalf("accepted invalid sample count %d", count)
+		}
 	}
 }

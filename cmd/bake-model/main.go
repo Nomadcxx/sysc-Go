@@ -1,5 +1,5 @@
-// bake-l2a1 converts the pinned Sketchfab GLB into bounded braille samples.
-// The derived data remains subject to CC BY 4.0; see animations/models/README.md.
+// bake-model converts a pinned Sketchfab GLB into bounded braille samples.
+// See animations/models/README.md for model attribution and bake commands.
 // ponytail: This offline tool supports the pinned GLB 2.0 triangle subset; a
 // changed source format updates this converter, never the runtime dependencies.
 package main
@@ -8,7 +8,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -18,7 +20,7 @@ import (
 )
 
 const (
-	maxGLBBytes  = 8 << 20
+	maxGLBBytes  = 64 << 20
 	maxNodes     = 10000
 	maxMeshes    = 2048
 	maxAccessors = 4096
@@ -92,7 +94,7 @@ type matrix4 [16]float64
 
 func identity() matrix4 { return matrix4{0: 1, 5: 1, 10: 1, 15: 1} }
 
-func parseGLB(data []byte) ([]mesh.Triangle, error) {
+func parseGLB(data []byte, excludedNodeNames ...string) ([]mesh.Triangle, error) {
 	if len(data) < 20 || len(data) > maxGLBBytes || string(data[:4]) != "glTF" || binary.LittleEndian.Uint32(data[4:8]) != 2 || uint64(binary.LittleEndian.Uint32(data[8:12])) != uint64(len(data)) {
 		return nil, fmt.Errorf("expected a bounded GLB version 2 file")
 	}
@@ -158,6 +160,12 @@ func parseGLB(data []byte) ([]mesh.Triangle, error) {
 	}
 
 	var triangles []mesh.Triangle
+	excludedNodes := make(map[string]struct{}, len(excludedNodeNames))
+	for _, name := range excludedNodeNames {
+		if name != "" {
+			excludedNodes[name] = struct{}{}
+		}
+	}
 	state := make([]uint8, len(doc.Nodes))
 	var visit func(int, matrix4, int, bool) error
 	visit = func(index int, parent matrix4, depth int, skipMesh bool) error {
@@ -169,7 +177,8 @@ func parseGLB(data []byte) ([]mesh.Triangle, error) {
 		}
 		state[index] = 1
 		node := doc.Nodes[index]
-		skipMesh = skipMesh || node.Name == "308 casing_30" || node.Name == "308 cartridge_31"
+		_, excluded := excludedNodes[node.Name]
+		skipMesh = skipMesh || excluded
 		local, err := nodeTransform(node)
 		if err != nil {
 			return fmt.Errorf("node %d: %w", index, err)
@@ -468,11 +477,48 @@ func boundedMatrix(m matrix4) bool {
 	return true
 }
 
-func run() error {
-	if len(os.Args) != 3 {
-		return fmt.Errorf("usage: bake-l2a1 source.glb animations/models/l2a1-sar.bin")
+func verifySourceDigest(data []byte, expected string) error {
+	want, err := hex.DecodeString(expected)
+	if err != nil || len(want) != sha256.Size {
+		return fmt.Errorf("expected source SHA-256 must be 64 hexadecimal characters")
 	}
-	f, err := os.Open(os.Args[1])
+	got := sha256.Sum256(data)
+	if !bytes.Equal(want, got[:]) {
+		return fmt.Errorf("source SHA-256 mismatch: got %x", got)
+	}
+	return nil
+}
+
+func run() error {
+	flags := flag.NewFlagSet("bake-model", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	flags.Usage = func() {
+		fmt.Fprintln(flags.Output(), "usage: bake-model -sha256 DIGEST [-samples COUNT] [-exclude-node NAME] source.glb output.bin")
+		flags.PrintDefaults()
+	}
+	expectedDigest := flags.String("sha256", "", "expected source SHA-256 (required)")
+	sampleCount := flags.Int("samples", mesh.SampleCount, "number of samples (24,000–96,000)")
+	var excludedNodes []string
+	flags.Func("exclude-node", "omit a named node and all its children (repeatable)", func(name string) error {
+		if name == "" {
+			return fmt.Errorf("excluded node name cannot be empty")
+		}
+		excludedNodes = append(excludedNodes, name)
+		return nil
+	})
+	if err := flags.Parse(os.Args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 2 {
+		return fmt.Errorf("usage: bake-model -sha256 DIGEST [-samples COUNT] [-exclude-node NAME] source.glb output.bin")
+	}
+	if *expectedDigest == "" {
+		return fmt.Errorf("-sha256 is required")
+	}
+	if *sampleCount < mesh.SampleCount || *sampleCount > mesh.MaxSampleCount {
+		return fmt.Errorf("-samples must be between %d and %d", mesh.SampleCount, mesh.MaxSampleCount)
+	}
+	f, err := os.Open(flags.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -484,14 +530,14 @@ func run() error {
 	if len(data) > maxGLBBytes {
 		return fmt.Errorf("source exceeds %d MiB", maxGLBBytes>>20)
 	}
-	if fmt.Sprintf("%x", sha256.Sum256(data)) != "88748cab888526b440066e32feec49a46498171101f26b86ccc92e979dcc258d" {
-		return fmt.Errorf("source digest differs from credited L2A1 GLB")
+	if err := verifySourceDigest(data, *expectedDigest); err != nil {
+		return err
 	}
-	triangles, err := parseGLB(data)
+	triangles, err := parseGLB(data, excludedNodes...)
 	if err != nil {
 		return err
 	}
-	samples, bounds, err := mesh.SampleSurface(triangles)
+	samples, bounds, err := mesh.SampleSurfaceN(triangles, *sampleCount)
 	if err != nil {
 		return err
 	}
@@ -499,7 +545,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if err = os.WriteFile(os.Args[2], encoded, 0644); err != nil {
+	if err = os.WriteFile(flags.Arg(1), encoded, 0644); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "source bounds %v .. %v\n", bounds.Min, bounds.Max)
