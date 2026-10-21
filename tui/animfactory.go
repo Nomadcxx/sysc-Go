@@ -338,7 +338,8 @@ func (m *Model) createAnimation() animations.Animation {
 		return animations.NewANSILoveEffect(width, height, themeName)
 	case "l2a1-sar":
 		return animations.NewL2A1SAREffect(width, height, themeName)
-	case "jesus-christ-statue", "jason", "nymphe-der-flora", "lowe", "roman-gladiator", "grabfigur":
+	case "jesus-christ-statue", "jason", "nymphe-der-flora", "lowe", "roman-gladiator", "grabfigur",
+		"laocoon-and-his-sons", "napoleon-bust", "brandenburg-gate", "louis-xiv", "engel", "st-george", "santa-muerte", "aspasia", "st-nepomuk", "lion-statue":
 		model, err := animations.NewRotatingModelEffect(animName, width, height, themeName)
 		if err != nil {
 			m.animationError = err.Error()

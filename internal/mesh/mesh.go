@@ -15,8 +15,9 @@ const (
 	SampleCount    = 24000
 	MaxSampleCount = 96000
 	SampleBytes    = 12
-	// MaxTriangles bounds geometry work in the offline model converters.
-	MaxTriangles = 1000000
+	// MaxTriangles bounds offline work for the pinned 2.1M-triangle St George
+	// source. Raise it only with a reviewed source and memory budget.
+	MaxTriangles = 2100000
 )
 
 type Vec3 [3]float64

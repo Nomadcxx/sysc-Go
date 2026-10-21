@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	maxGLBBytes  = 64 << 20
+	// The pinned St George source is 82.2 MiB; this remains a bounded offline read.
+	maxGLBBytes  = 96 << 20
 	maxNodes     = 10000
 	maxMeshes    = 2048
 	maxAccessors = 4096
