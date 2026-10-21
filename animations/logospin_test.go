@@ -161,8 +161,8 @@ func TestLogoSpinRegistry(t *testing.T) {
 			t.Errorf("registry missing %q", id)
 		}
 	}
-	if got := LibraryVersion; got != "1.0.8" {
-		t.Errorf("LibraryVersion = %q, want 1.0.8", got)
+	if got := LibraryVersion; got != "1.0.9" {
+		t.Errorf("LibraryVersion = %q, want 1.0.9", got)
 	}
 }
 
