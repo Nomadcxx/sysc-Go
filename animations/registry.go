@@ -22,6 +22,7 @@ var EffectRegistry = []EffectMetadata{
 	{Name: "ansi-love", Description: "warpus’ ansi love with full-piece scaling, heartbeat and camera tour", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "ak-47-text", RequiresText: true, Description: "Two AK-47 rotations, selected particle artwork and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "text"},
 	{Name: "ak-47", Description: "Lokeig's AK-47 in braille: two turns, particle swirl and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "scene"},
+	{Name: "l2a1-sar", Description: "notcplkerry's Australian L2A1 SAR in braille: two turns, particle swirl and reconstruction (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "great-wave", Description: "Hokusai's Great Wave with moving ASCII foam and water", VersionAdded: "1.0.7", Category: "scene"},
 	{Name: "wasteland", Description: "Animated ASCII wasteland, after Valenberg", VersionAdded: "1.0.7", Category: "scene"},
 	{

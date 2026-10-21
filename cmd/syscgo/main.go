@@ -393,6 +393,8 @@ func main() {
 		runAnimation(animations.NewAK47Effect(width, height, *theme), clock)
 	case "ansi-love":
 		runAnimation(animations.NewANSILoveEffect(width, height, *theme), clock)
+	case "l2a1-sar":
+		runAnimation(animations.NewL2A1SAREffect(width, height, *theme), clock)
 	case "great-wave", "wasteland":
 		create := animations.NewGreatWaveEffect
 		if *effect == "wasteland" {

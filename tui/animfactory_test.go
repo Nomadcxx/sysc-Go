@@ -44,6 +44,22 @@ func TestAK47ArtworkSelection(t *testing.T) {
 	}
 }
 
+func TestL2A1SARIsSelectableAndMoves(t *testing.T) {
+	m := selectAnimation(t, newTestModel(t), "l2a1-sar")
+	m.canvasHeight = 24
+	fx := m.createAnimation()
+	if fx == nil {
+		t.Fatalf("L2A1 effect was not constructed: %s", m.animationError)
+	}
+	frame := fx.Render()
+	for i := 0; i < 20; i++ {
+		fx.Update()
+	}
+	if fx.Render() == frame {
+		t.Fatal("L2A1 effect did not move in the TUI")
+	}
+}
+
 // selectAnimation points the model at an animation by name.
 func selectAnimation(t *testing.T, m Model, name string) Model {
 	t.Helper()

@@ -24,6 +24,7 @@ Standalone effects that do not require text input.
 - **Cross Logo** (`cross-logo`): spinning 3D braille Latin cross
 - **Logo Morph** (`logo-morph`): rotating SYSC wordmark and cross morph
 - **AK-47** (`ak-47`): Lokeig's braille model with a particle swirl and reconstruction
+- **Australian L2A1 SAR** (`l2a1-sar`): notcplkerry's braille model with a particle swirl and reconstruction
 - **Great Wave** (`great-wave`): Hokusai's wave with animated ASCII foam and water
 - **Wasteland** (`wasteland`): animated ASCII scene after Valenberg
 
@@ -126,6 +127,9 @@ syscgo -effect aquarium -theme dracula -duration 0
 
 # AK-47: repeating 12-second cycle
 syscgo -effect ak-47 -theme kanagawa -duration 0
+
+# Australian L2A1 SAR: repeating 12-second cycle
+syscgo -effect l2a1-sar -theme kanagawa -duration 0
 
 # Use selected artwork as the braille-particle target
 syscgo -effect ak-47-text -file /path/to/art.txt -theme kanagawa -duration 0

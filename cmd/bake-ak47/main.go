@@ -11,7 +11,8 @@ import (
 	"io"
 	"math"
 	"os"
-	"sort"
+
+	"github.com/Nomadcxx/sysc-Go/internal/mesh"
 )
 
 type node struct {
@@ -19,15 +20,10 @@ type node struct {
 	props    []any
 	children []node
 }
-type vec [3]float64
-type triangle [3]vec
-type point struct{ pos, normal vec }
+type vec = mesh.Vec3
+type triangle = mesh.Triangle
+type point = mesh.Sample
 
-func sub(a, b vec) vec { return vec{a[0] - b[0], a[1] - b[1], a[2] - b[2]} }
-func cross(a, b vec) vec {
-	return vec{a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]}
-}
-func length(v vec) float64 { return math.Sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]) }
 func (n node) child(name string) node {
 	for _, c := range n.children {
 		if c.name == name {
@@ -350,60 +346,12 @@ func rotate(p, degrees vec) vec {
 	return p
 }
 func sampleMesh(tris []triangle) ([]point, error) {
-	lo, hi := vec{math.Inf(1), math.Inf(1), math.Inf(1)}, vec{math.Inf(-1), math.Inf(-1), math.Inf(-1)}
-	for _, t := range tris {
-		for _, p := range t {
-			for k := range p {
-				lo[k] = math.Min(lo[k], p[k])
-				hi[k] = math.Max(hi[k], p[k])
-			}
-		}
+	samples, bounds, err := mesh.SampleSurface(tris)
+	if err != nil {
+		return nil, err
 	}
-	fmt.Fprintf(os.Stderr, "source bounds %v .. %v\n", lo, hi)
-	span := math.Max(hi[0]-lo[0], math.Max(hi[1]-lo[1], hi[2]-lo[2]))
-	if span <= 0 || math.IsInf(span, 0) || math.IsNaN(span) {
-		return nil, fmt.Errorf("degenerate bounds")
-	}
-	for i := range tris {
-		for j := range tris[i] {
-			p := &tris[i][j]
-			for k := range p {
-				p[k] = (p[k] - (lo[k]+hi[k])/2) * 2 / span
-			}
-		}
-	}
-	areas := make([]float64, len(tris))
-	normals := make([]vec, len(tris))
-	total := 0.0
-	for i, t := range tris {
-		n := cross(sub(t[1], t[0]), sub(t[2], t[0]))
-		size := length(n)
-		if size > 0 {
-			for k := range n {
-				n[k] /= size
-			}
-		}
-		normals[i] = n
-		total += size / 2
-		areas[i] = total
-	}
-	if total <= 0 {
-		return nil, fmt.Errorf("zero surface area")
-	}
-	out := make([]point, 24000)
-	for i := range out {
-		tri := sort.SearchFloat64s(areas, (float64(i)+.5)*total/float64(len(out)))
-		t := tris[tri]
-		// Fixed low-discrepancy samples cover each face without random clumps.
-		u := math.Sqrt(math.Mod((float64(i)+.5)*.7548776662466927, 1))
-		v := math.Mod((float64(i)+.5)*.5698402909980532, 1)
-		var p vec
-		for k := range p {
-			p[k] = t[0][k]*(1-u) + t[1][k]*u*(1-v) + t[2][k]*u*v
-		}
-		out[i] = point{p, normals[tri]}
-	}
-	return out, nil
+	fmt.Fprintf(os.Stderr, "source bounds %v .. %v\n", bounds.Min, bounds.Max)
+	return samples, nil
 }
 func run() error {
 	if len(os.Args) != 3 {
@@ -432,20 +380,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	var out bytes.Buffer
-	for _, p := range points {
-		for _, v := range []vec{p.pos, p.normal} {
-			for _, f := range v {
-				if err = binary.Write(&out, binary.LittleEndian, int16(math.Round(f*32767))); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	if err = os.WriteFile(os.Args[2], out.Bytes(), 0644); err != nil {
+	out, err := mesh.Encode(points)
+	if err != nil {
 		return err
 	}
-	fmt.Printf("baked %d triangles into %d samples (%d bytes)\n", len(tris), len(points), out.Len())
+	if err = os.WriteFile(os.Args[2], out, 0644); err != nil {
+		return err
+	}
+	fmt.Printf("baked %d triangles into %d samples (%d bytes)\n", len(tris), len(points), len(out))
 	return nil
 }
 func main() {
