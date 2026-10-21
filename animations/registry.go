@@ -23,6 +23,12 @@ var EffectRegistry = []EffectMetadata{
 	{Name: "ak-47-text", RequiresText: true, Description: "Two AK-47 rotations, selected particle artwork and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "text"},
 	{Name: "ak-47", Description: "Lokeig's AK-47 in braille: two turns, particle swirl and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "scene"},
 	{Name: "l2a1-sar", Description: "notcplkerry's Australian L2A1 SAR in braille: two turns, particle swirl and reconstruction (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
+	{Name: "jesus-christ-statue", Description: "Jesus Christ Statue by amcgi rotating horizontally in braille (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
+	{Name: "jason", Description: "Jason by noe-3d.at rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.9", Category: "scene"},
+	{Name: "nymphe-der-flora", Description: "Nymphe der Flora by noe-3d.at rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.9", Category: "scene"},
+	{Name: "lowe", Description: "Löwe by noe-3d.at rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.9", Category: "scene"},
+	{Name: "roman-gladiator", Description: "Sculpture of a Roman gladiator by Virtual Museums of Małopolska rotating horizontally in braille (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
+	{Name: "grabfigur", Description: "Grabfigur by noe-3d.at rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "great-wave", Description: "Hokusai's Great Wave with moving ASCII foam and water", VersionAdded: "1.0.7", Category: "scene"},
 	{Name: "wasteland", Description: "Animated ASCII wasteland, after Valenberg", VersionAdded: "1.0.7", Category: "scene"},
 	{

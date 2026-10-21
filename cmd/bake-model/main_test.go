@@ -2,14 +2,32 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
 
 	"github.com/Nomadcxx/sysc-Go/internal/mesh"
 )
+
+func TestVerifySourceDigest(t *testing.T) {
+	data := []byte("pinned model")
+	digest := fmt.Sprintf("%x", sha256.Sum256(data))
+	if err := verifySourceDigest(data, digest); err != nil {
+		t.Fatalf("verifySourceDigest() = %v", err)
+	}
+	if err := verifySourceDigest(data, strings.ToUpper(digest)); err != nil {
+		t.Fatalf("verifySourceDigest() rejected uppercase hex: %v", err)
+	}
+	for _, invalid := range []string{"", digest[:len(digest)-1], strings.Repeat("z", len(digest)), strings.Repeat("0", len(digest))} {
+		if err := verifySourceDigest(data, invalid); err == nil {
+			t.Fatalf("verifySourceDigest() accepted %q", invalid)
+		}
+	}
+}
 
 func TestParseGLBAppliesParentAndNodeTransforms(t *testing.T) {
 	triangles, err := parseGLB(testGLB(t, []uint16{0, 1, 2}, map[string]any{
@@ -27,7 +45,7 @@ func TestParseGLBAppliesParentAndNodeTransforms(t *testing.T) {
 	if len(triangles) != 1 {
 		t.Fatalf("got %d triangles", len(triangles))
 	}
-	want := meshTriangle{{11, -22, 33}, {11, -24, 33}, {8, -22, 33}}
+	want := meshTriangle{{11, -22, 33}, {8, -22, 33}, {11, -24, 33}}
 	if !sameTriangle(triangles[0], want) {
 		t.Fatalf("transformed triangle = %v, want %v", triangles[0], want)
 	}
@@ -42,17 +60,44 @@ func TestParseGLBAppliesColumnMajorMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := meshTriangle{{5, -6, 7}, {6, -6, 7}, {5, -6, 8}}
+	want := meshTriangle{{5, -6, 7}, {5, -6, 8}, {6, -6, 7}}
 	if len(triangles) != 1 || !sameTriangle(triangles[0], want) {
 		t.Fatalf("matrix transformed triangles = %v, want %v", triangles, want)
 	}
 }
 
-func TestParseGLBSkipsL2A1AmmoSubtrees(t *testing.T) {
+func TestParseGLBPreservesOutwardNormalsAfterYConversion(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		transform map[string]any
+	}{
+		{name: "identity", transform: map[string]any{}},
+		{name: "reflected node", transform: map[string]any{"scale": []float64{-1, 1, 1}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			triangles, err := parseGLB(testGLB(t, []uint16{0, 1, 2}, map[string]any{"mesh": 0}, test.transform))
+			if err != nil {
+				t.Fatal(err)
+			}
+			triangle := triangles[0]
+			ab := mesh.Vec3{triangle[1][0] - triangle[0][0], triangle[1][1] - triangle[0][1], triangle[1][2] - triangle[0][2]}
+			ac := mesh.Vec3{triangle[2][0] - triangle[0][0], triangle[2][1] - triangle[0][1], triangle[2][2] - triangle[0][2]}
+			normalZ := ab[0]*ac[1] - ab[1]*ac[0]
+			if normalZ <= 0 {
+				t.Fatalf("converted outward +Z normal = %g, want positive", normalZ)
+			}
+		})
+	}
+}
+
+func TestParseGLBExcludesNamedSubtreesOnlyWhenRequested(t *testing.T) {
 	for _, name := range []string{"308 casing_30", "308 cartridge_31"} {
 		t.Run(name, func(t *testing.T) {
 			data := testGLB(t, []uint16{0, 1, 2}, map[string]any{"mesh": 0}, map[string]any{"name": name})
-			if _, err := parseGLB(data); err == nil || !strings.Contains(err.Error(), "no triangle mesh") {
+			if triangles, err := parseGLB(data); err != nil || len(triangles) != 1 {
+				t.Fatalf("parseGLB() = %d triangles, %v; want the unfiltered subtree", len(triangles), err)
+			}
+			if _, err := parseGLB(data, name); err == nil || !strings.Contains(err.Error(), "no triangle mesh") {
 				t.Fatalf("parseGLB() error = %v, want selected scene with no triangles after subtree omission", err)
 			}
 		})

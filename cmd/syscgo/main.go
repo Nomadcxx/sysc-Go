@@ -395,6 +395,13 @@ func main() {
 		runAnimation(animations.NewANSILoveEffect(width, height, *theme), clock)
 	case "l2a1-sar":
 		runAnimation(animations.NewL2A1SAREffect(width, height, *theme), clock)
+	case "jesus-christ-statue", "jason", "nymphe-der-flora", "lowe", "roman-gladiator", "grabfigur":
+		model, err := animations.NewRotatingModelEffect(*effect, width, height, *theme)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		runAnimation(model, clock)
 	case "great-wave", "wasteland":
 		create := animations.NewGreatWaveEffect
 		if *effect == "wasteland" {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Nomadcxx/sysc-Go/internal/mesh"
+	"github.com/mattn/go-runewidth"
 )
 
 const meshSpinPeriod = 12 * time.Second
@@ -89,12 +90,16 @@ func modelPhase(elapsed time.Duration) (rotation, blend float64) {
 }
 
 func renderMeshSpin(m *meshSpin, points []meshPoint, rotation, blend, swirl float64, art [][2]float64, artWidth, artHeight int, modelScale float64) string {
+	return renderMeshSpinAtPitch(m, points, rotation, blend, swirl, art, artWidth, artHeight, modelScale, .10*math.Sin(rotation))
+}
+
+func renderMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, swirl float64, art [][2]float64, artWidth, artHeight int, modelScale, pitch float64) string {
 	l := m.canvas
 	for i := range l.depth {
 		l.depth[i] = math.Inf(-1)
 	}
 	sy, cy := math.Sincos(rotation)
-	sx, cx := math.Sincos(.10 * math.Sin(rotation))
+	sx, cx := math.Sincos(pitch)
 	ss, cs := math.Sincos(swirl)
 	dotW, dotH := l.width*2, l.height*4
 	// Fit a unit-radius cloud plus perspective margin in physical pixels.
@@ -149,9 +154,10 @@ func renderMeshSpin(m *meshSpin, points []meshPoint, rotation, blend, swirl floa
 }
 
 func meshCredit(frame string, width int, credit string) string {
-	if width >= len(credit) {
+	creditWidth := runewidth.StringWidth(credit)
+	if width >= creditWidth {
 		end := strings.LastIndexByte(frame, '\n') + 1
-		frame = frame[:end] + strings.Repeat(" ", width-len(credit)) + credit
+		frame = frame[:end] + strings.Repeat(" ", width-creditWidth) + credit
 	}
 	return frame
 }
