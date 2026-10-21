@@ -219,6 +219,9 @@ func appendMesh(doc *gltfDocument, bin []byte, meshIndex int, world matrix4, out
 	if len(primitives) == 0 || len(primitives) > maxAccessors {
 		return fmt.Errorf("mesh has no primitives or too many primitives")
 	}
+	// The Y conversion reflects the source winding; a reflected node transform
+	// cancels that parity change.
+	reverseWinding := determinant3x3(world) >= 0
 	for _, primitive := range primitives {
 		mode := 4
 		if primitive.Mode != nil {
@@ -256,7 +259,11 @@ func appendMesh(doc *gltfDocument, bin []byte, meshIndex int, world matrix4, out
 		for i := 0; i < len(indices); i += 3 {
 			var triangle mesh.Triangle
 			for corner := 0; corner < 3; corner++ {
-				index := indices[i+corner]
+				sourceCorner := corner
+				if reverseWinding && corner > 0 {
+					sourceCorner = 3 - corner
+				}
+				index := indices[i+sourceCorner]
 				if uint64(index) >= uint64(len(positions)) {
 					return fmt.Errorf("vertex index %d is out of range", index)
 				}
@@ -458,6 +465,13 @@ func transformPoint(m matrix4, point mesh.Vec3) mesh.Vec3 {
 		m[1]*point[0] + m[5]*point[1] + m[9]*point[2] + m[13],
 		m[2]*point[0] + m[6]*point[1] + m[10]*point[2] + m[14],
 	}
+}
+
+func determinant3x3(m matrix4) float64 {
+	a, b, c := m[0], m[4], m[8]
+	d, e, f := m[1], m[5], m[9]
+	g, h, i := m[2], m[6], m[10]
+	return a*(e*i-f*h) - b*(d*i-f*g) + c*(d*h-e*g)
 }
 
 func finiteBounded(value float64) bool {

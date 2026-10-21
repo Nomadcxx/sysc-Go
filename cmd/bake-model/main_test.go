@@ -45,7 +45,7 @@ func TestParseGLBAppliesParentAndNodeTransforms(t *testing.T) {
 	if len(triangles) != 1 {
 		t.Fatalf("got %d triangles", len(triangles))
 	}
-	want := meshTriangle{{11, -22, 33}, {11, -24, 33}, {8, -22, 33}}
+	want := meshTriangle{{11, -22, 33}, {8, -22, 33}, {11, -24, 33}}
 	if !sameTriangle(triangles[0], want) {
 		t.Fatalf("transformed triangle = %v, want %v", triangles[0], want)
 	}
@@ -60,9 +60,33 @@ func TestParseGLBAppliesColumnMajorMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := meshTriangle{{5, -6, 7}, {6, -6, 7}, {5, -6, 8}}
+	want := meshTriangle{{5, -6, 7}, {5, -6, 8}, {6, -6, 7}}
 	if len(triangles) != 1 || !sameTriangle(triangles[0], want) {
 		t.Fatalf("matrix transformed triangles = %v, want %v", triangles, want)
+	}
+}
+
+func TestParseGLBPreservesOutwardNormalsAfterYConversion(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		transform map[string]any
+	}{
+		{name: "identity", transform: map[string]any{}},
+		{name: "reflected node", transform: map[string]any{"scale": []float64{-1, 1, 1}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			triangles, err := parseGLB(testGLB(t, []uint16{0, 1, 2}, map[string]any{"mesh": 0}, test.transform))
+			if err != nil {
+				t.Fatal(err)
+			}
+			triangle := triangles[0]
+			ab := mesh.Vec3{triangle[1][0] - triangle[0][0], triangle[1][1] - triangle[0][1], triangle[1][2] - triangle[0][2]}
+			ac := mesh.Vec3{triangle[2][0] - triangle[0][0], triangle[2][1] - triangle[0][1], triangle[2][2] - triangle[0][2]}
+			normalZ := ab[0]*ac[1] - ab[1]*ac[0]
+			if normalZ <= 0 {
+				t.Fatalf("converted outward +Z normal = %g, want positive", normalZ)
+			}
+		})
 	}
 }
 

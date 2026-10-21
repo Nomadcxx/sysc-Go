@@ -44,7 +44,8 @@ func TestRotatingModelConstructorAndLoop(t *testing.T) {
 			if first == quarterTurn {
 				t.Fatal("horizontal rotation did not advance")
 			}
-			expected := renderMeshSpinAtPitch(a.meshSpin, a.spec.surface(), math.Pi/2, 0, 0, nil, 0, 0, a.spec.displayScale, 0)
+			quarterTurnRotation := 2 * math.Pi * float64(a.elapsed) / float64(a.period)
+			expected := renderMeshSpinAtPitch(a.meshSpin, a.spec.surface(), quarterTurnRotation, 0, 0, nil, 0, 0, a.spec.displayScale, 0)
 			expected = meshCredit(expected, a.canvas.width, a.spec.credit)
 			if quarterTurn != expected {
 				t.Fatal("statue rotation changed camera pitch, blend, or swirl")
