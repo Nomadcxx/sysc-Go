@@ -90,6 +90,25 @@ func TestL2A1DisplayScaleUsesMoreBrailleDots(t *testing.T) {
 	}
 }
 
+func TestL2A1DirectionalLightingSeparatesOppositeFaces(t *testing.T) {
+	a := NewL2A1SAREffect(80, 24, "kanagawa")
+	points := []meshPoint{
+		{position: [3]float64{-.45, 0, 0}, normal: [3]float64{0, 0, 1}},
+		{position: [3]float64{.45, 0, 0}, normal: [3]float64{0, 0, -1}},
+	}
+	renderMeshSpin(a.meshSpin, points, 0, 0, 0, nil, 0, 0, 1)
+
+	colors := make(map[uint32]struct{})
+	for _, color := range a.canvas.crgb {
+		if color != 0 {
+			colors[color] = struct{}{}
+		}
+	}
+	if len(colors) < 2 {
+		t.Fatalf("opposite face normals produced %d nonzero shade values, want distinct front and rear lighting", len(colors))
+	}
+}
+
 func TestL2A1DisplayScaleKeepsRotationInsideScreenEdges(t *testing.T) {
 	a := NewL2A1SAREffect(80, 24, "kanagawa")
 	for elapsed := time.Duration(0); elapsed < meshSpinPeriod; elapsed += 250 * time.Millisecond {

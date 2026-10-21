@@ -22,6 +22,7 @@ type meshSpin struct {
 	cellWidth, cellHeight int
 	colors                [16]uint32
 	period                time.Duration
+	twoSidedLighting      bool
 }
 
 func decodeMeshPoints(data []byte) []meshPoint {
@@ -44,10 +45,11 @@ func decodeMeshPoints(data []byte) []meshPoint {
 
 func newMeshSpin(width, height int, theme string, period time.Duration) *meshSpin {
 	m := &meshSpin{
-		canvas:     NewLogoSpinEffect(LogoSpinConfig{Width: width, Height: height, Theme: theme}),
-		cellWidth:  1,
-		cellHeight: 2,
-		period:     period,
+		canvas:           NewLogoSpinEffect(LogoSpinConfig{Width: width, Height: height, Theme: theme}),
+		cellWidth:        1,
+		cellHeight:       2,
+		period:           period,
+		twoSidedLighting: true,
 	}
 	for i := range m.colors {
 		t := float64(i) / 15
@@ -132,8 +134,14 @@ func renderMeshSpin(m *meshSpin, points []meshPoint, rotation, blend, swirl floa
 		if p[2] <= l.depth[index] {
 			continue
 		}
-		// Both faces stay readable as the thin mesh turns through an edge view.
-		light := clampLogo(math.Abs(n[0]*-.35+n[1]*-.45+n[2]*.82), 0, 1)
+		// AK uses absolute normal lighting; L2A1 and statues use directional light.
+		light := n[0]*-.35 + n[1]*-.45 + n[2]*.82
+		if m.twoSidedLighting {
+			light = math.Abs(light)
+		} else {
+			light = .14 + .86*math.Max(light, 0)
+		}
+		light = clampLogo(light, 0, 1)
 		shade := int(light*15 + .5)
 		l.depth[index], l.crgb[index] = p[2], m.colors[shade]
 	}
