@@ -5,7 +5,7 @@ package animations
 
 const (
 	// LibraryVersion is the sysc-Go animations library version
-	LibraryVersion = "1.0.9"
+	LibraryVersion = "1.0.10"
 )
 
 // EffectMetadata describes an animation effect
@@ -39,6 +39,10 @@ var EffectRegistry = []EffectMetadata{
 	{Name: "aspasia", Description: "Aspasia by noe-3d.at rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "st-nepomuk", Description: "Hl. Nepomuk by noe-3d.at rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "lion-statue", Description: "Lion Statue by Thomas Flynn rotating horizontally in braille (CC0 1.0)", VersionAdded: "1.0.9", Category: "scene"},
+	{Name: "f-14-tomcat", Description: "F-14 Tomcat by bohmerang rotating horizontally in braille (CC BY-NC-SA 4.0)", VersionAdded: "1.0.10", Category: "scene"},
+	{Name: "f-15e-strike-eagle", Description: "F-15E Strike Eagle by bohmerang rotating horizontally in braille (CC BY-NC-SA 4.0)", VersionAdded: "1.0.10", Category: "scene"},
+	{Name: "f-22-raptor", Description: "F-22 Raptor by bohmerang rotating horizontally in braille (CC BY-NC-SA 4.0)", VersionAdded: "1.0.10", Category: "scene"},
+	{Name: "fa-18e-super-hornet", Description: "F/A-18E Super Hornet by 42manako rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.10", Category: "scene"},
 	{Name: "great-wave", Description: "Hokusai's Great Wave with moving ASCII foam and water", VersionAdded: "1.0.7", Category: "scene"},
 	{Name: "wasteland", Description: "Animated ASCII wasteland, after Valenberg", VersionAdded: "1.0.7", Category: "scene"},
 	{

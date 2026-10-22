@@ -31,6 +31,10 @@ Standalone effects that do not require text input.
 - **Löwe** (`lowe`): noe-3d.at's braille model with continuous horizontal rotation (CC BY-NC 4.0)
 - **Sculpture of a Roman gladiator** (`roman-gladiator`): Virtual Museums of Małopolska's braille model with continuous horizontal rotation (CC BY 4.0)
 - **Grabfigur** (`grabfigur`): noe-3d.at's braille model with continuous horizontal rotation (CC BY-NC 4.0)
+- **F-14 Tomcat** (`f-14-tomcat`): bohmerang's braille model with continuous horizontal rotation (CC BY-NC-SA 4.0)
+- **F-15E Strike Eagle** (`f-15e-strike-eagle`): bohmerang's braille model with continuous horizontal rotation (CC BY-NC-SA 4.0)
+- **F-22 Raptor** (`f-22-raptor`): bohmerang's braille model with continuous horizontal rotation (CC BY-NC-SA 4.0)
+- **F/A-18E Super Hornet** (`fa-18e-super-hornet`): 42manako's braille model with continuous horizontal rotation (CC BY-NC 4.0)
 - **Great Wave** (`great-wave`): Hokusai's wave with animated ASCII foam and water
 - **Wasteland** (`wasteland`): animated ASCII scene after Valenberg
 
@@ -144,6 +148,12 @@ syscgo -effect nymphe-der-flora -theme kanagawa -duration 0
 syscgo -effect lowe -theme kanagawa -duration 0
 syscgo -effect roman-gladiator -theme kanagawa -duration 0
 syscgo -effect grabfigur -theme kanagawa -duration 0
+
+# Fighter aircraft: continuous horizontal rotation
+syscgo -effect f-14-tomcat -theme kanagawa -duration 0
+syscgo -effect f-15e-strike-eagle -theme kanagawa -duration 0
+syscgo -effect f-22-raptor -theme kanagawa -duration 0
+syscgo -effect fa-18e-super-hornet -theme kanagawa -duration 0
 
 # Use selected artwork as the braille-particle target
 syscgo -effect ak-47-text -file /path/to/art.txt -theme kanagawa -duration 0

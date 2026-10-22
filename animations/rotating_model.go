@@ -58,6 +58,18 @@ var stNepomukData []byte
 //go:embed models/lion-statue.bin
 var lionStatueData []byte
 
+//go:embed models/f-14-tomcat.bin
+var f14TomcatData []byte
+
+//go:embed models/f-15e-strike-eagle.bin
+var f15eStrikeEagleData []byte
+
+//go:embed models/f-22-raptor.bin
+var f22RaptorData []byte
+
+//go:embed models/fa-18e-super-hornet.bin
+var fa18eSuperHornetData []byte
+
 const rotatingModelPeriod = 12 * time.Second
 
 type rotatingModelSpec struct {
@@ -90,9 +102,13 @@ var rotatingModelCatalog = map[string]*rotatingModelSpec{
 	"aspasia":              {data: aspasiaData, credit: "Aspasia / noe-3d.at / CC BY-NC 4.0", displayScale: .62},
 	"st-nepomuk":           {data: stNepomukData, credit: "Hl. Nepomuk / noe-3d.at / CC BY-NC 4.0", displayScale: .60},
 	"lion-statue":          {data: lionStatueData, credit: "Lion Statue / Thomas Flynn / CC0 1.0", displayScale: .62},
+	"f-14-tomcat":          {data: f14TomcatData, credit: "F-14 Tomcat - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82},
+	"f-15e-strike-eagle":   {data: f15eStrikeEagleData, credit: "F-15E Strike Eagle - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82},
+	"f-22-raptor":          {data: f22RaptorData, credit: "F-22 Raptor - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82},
+	"fa-18e-super-hornet":  {data: fa18eSuperHornetData, credit: "F/A-18E Super Hornet (USA) / 42manako / CC BY-NC 4.0", displayScale: .82},
 }
 
-// RotatingModelAnimation keeps a statue upright and turns it around its vertical axis.
+// RotatingModelAnimation keeps a model upright and turns it around its vertical axis.
 type RotatingModelAnimation struct {
 	*meshSpin
 	spec *rotatingModelSpec

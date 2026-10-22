@@ -339,7 +339,8 @@ func (m *Model) createAnimation() animations.Animation {
 	case "l2a1-sar":
 		return animations.NewL2A1SAREffect(width, height, themeName)
 	case "jesus-christ-statue", "jason", "nymphe-der-flora", "lowe", "roman-gladiator", "grabfigur",
-		"laocoon-and-his-sons", "napoleon-bust", "brandenburg-gate", "louis-xiv", "engel", "st-george", "santa-muerte", "aspasia", "st-nepomuk", "lion-statue":
+		"laocoon-and-his-sons", "napoleon-bust", "brandenburg-gate", "louis-xiv", "engel", "st-george", "santa-muerte", "aspasia", "st-nepomuk", "lion-statue",
+		"f-14-tomcat", "f-15e-strike-eagle", "f-22-raptor", "fa-18e-super-hornet":
 		model, err := animations.NewRotatingModelEffect(animName, width, height, themeName)
 		if err != nil {
 			m.animationError = err.Error()
