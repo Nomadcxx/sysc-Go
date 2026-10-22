@@ -53,8 +53,11 @@ the bake is `low-poly_australian_l2a1_sar.glb`, SHA-256
 Changes: traverse the selected glTF scene and apply all parent and node
 transforms, omit the `308 casing_30` and `308 cartridge_31` node subtrees,
 convert Y-up to screen Y-down, center and normalize the longest dimension,
-triangulate the remaining indexed faces, compute face normals, sample 24,000
-surface points, and quantize positions and normals to signed 16-bit values.
+triangulate the remaining indexed faces, transform source vertex normals with
+the inverse-transpose node transform, sample 24,000 surface points, interpolate
+and normalize their normals, and quantize positions and normals to signed
+16-bit values. The sampler uses geometric face normals when the source has no
+usable vertex normals.
 The filtered scene contains 8,439 triangles; the two omitted subtrees contain
 392 triangles. The effect adds theme shading, braille projection, two
 rotations, and a particle swirl/reconstruction. Materials, textures, and
@@ -77,9 +80,10 @@ layout matches `ak47.bin`: 24,000 records of six little-endian int16 values
 ## Rotating statue model data
 
 Each statue source stays outside the repository. The `.bin` files contain
-96,000 sampled positions and normals from the selected glTF scene. At 491×90,
-the denser bake adds visible braille detail for all six models and meets the
-30 ms per-frame budget. Each file is 1,152,000 bytes.
+96,000 sampled positions and normals from the selected glTF scene. The baker
+transforms and interpolates source vertex normals, with geometric face normals
+as a fallback. At 491×90, the denser bake adds visible braille detail for all
+six models and meets the 30 ms per-frame budget. Each file is 1,152,000 bytes.
 The source digest, triangle count, creator, and Sketchfab license identify
 each bake.
 
@@ -135,12 +139,13 @@ noncommercial use.
 | `st-nepomuk.bin` | Hl. Nepomuk by noe-3d.at | 572,386 | [Sketchfab](https://sketchfab.com/3d-models/hl-nepomuk-9d65daaa9e07470cad5ce7c668b03434) | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) | `f32dc9210b0edc93c455047b228eea1a9db93b789fcfdec654b98a770d4819b3` |
 | `lion-statue.bin` | Lion Statue - optimized by Thomas Flynn | 28,488 | [Sketchfab](https://sketchfab.com/3d-models/lion-statue-optimized-62662d27c94d4994b2479b8de3a66ca7) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | `55e6f7784afa8159235ef9928635e19bb107cc808217ccd5640ba51496e58771` |
 
-The converter applies scene-node transforms and Y-up conversion, triangulates
-the selected scene, samples its surface area, then quantizes position and
-normal values to signed 16-bit values. It ignores source textures and animation
-tracks. The St George source has just over two million triangles, so the
-offline converter's bounded input and triangle limits cover that model. Caesar
-is excluded until its source attribution and license are available.
+The converter applies scene-node transforms and Y-up conversion, transforms and
+interpolates source vertex normals during area sampling, then quantizes
+positions and normals to signed 16-bit values. It uses geometric face normals
+when a mesh has no usable source normals. It ignores source textures and
+animation tracks. The St George source has just over two million triangles, so
+the offline converter's bounded input and triangle limits cover that model.
+Caesar is excluded until its source attribution and license are available.
 
 Rebake each model from the sysc-Go root with the source GLB available locally:
 
@@ -160,9 +165,10 @@ go run ./cmd/bake-model -sha256 55e6f7784afa8159235ef9928635e19bb107cc808217ccd5
 ## Fighter aircraft rotating model data
 
 Each source GLB stays outside the repository. Each embedded `.bin` file
-contains 96,000 sampled positions and normals (1,152,000 bytes). The models
-rotate continuously around their vertical axis with fixed pitch and roll; the
-effect footer displays the model title, creator, and license.
+contains 96,000 sampled positions and normals (1,152,000 bytes). The baker
+transforms and interpolates the source vertex normals. The models rotate
+continuously around their vertical axis with fixed pitch and roll; the effect
+footer displays the model title, creator, and license.
 
 | Data file | Source title and creator | Triangles | Source | License | Source SHA-256 |
 |---|---|---:|---|---|---|

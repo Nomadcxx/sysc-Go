@@ -20,8 +20,10 @@ provides shadow, diffuse, fill, rim, and gloss terms.
 Extend the GLB bake path to read source vertex normals, apply the inverse
 transpose of each node's linear transform and the Y-up to screen conversion,
 then interpolate and normalize normals using the same barycentric weights as
-the sampled positions. When a primitive has no usable normal attribute, keep
-the current geometric face-normal behavior.
+the sampled positions. Store temporary per-vertex normals as float32, matching
+the source precision and limiting converter memory at the 2.1-million-triangle
+cap. When a primitive has no usable normal attribute, keep the current
+geometric face-normal behavior.
 
 Use the resulting rotated normals with the existing theme lighting values and
 the `logoShade` lighting terms. This adds broader fill and controlled edge and

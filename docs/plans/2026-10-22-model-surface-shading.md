@@ -14,19 +14,21 @@
 
 **Files:**
 - Modify: `internal/mesh/mesh.go`
+- Modify: `cmd/bake-ak47/main.go`
 - Test: `internal/mesh/mesh_test.go`
+- Test: `cmd/bake-ak47/main_test.go`
 
-**Step 1: Add failing sampler tests**
+**Step 1: Add a failing GLB-to-sample check**
 
-Test that distinct vertex normals produce interpolated unit sample normals, and that triangles with no source normals keep their geometric face normal.
+Extend the GLB fixture with a `NORMAL` accessor. Parse and sample a triangle with distinct vertex normals; assert that its first sample has the expected interpolated, normalized normal. Also check that a source with no `NORMAL` accessor keeps its geometric face normal.
 
-Run: `go test ./internal/mesh -run 'TestSurfaceSample.*Normals' -count=1`
+Run: `go test ./cmd/bake-model -run '^TestParseGLBInterpolatesAuthoredNormals$' -count=1`
 
-Expected: the interpolation test fails because `Triangle` currently stores positions only.
+Expected: the test fails because `parseGLB` currently drops `NORMAL`.
 
 **Step 2: Add per-vertex normals to triangle input**
 
-Extend the triangle input with three positions and three optional normals. Use the same barycentric weights for position and normal interpolation. Normalize the interpolated normal; use the computed face normal if the interpolation has no usable direction.
+Extend the triangle input with three positions and three optional float32 normals per vertex. Add an `internal/mesh` test for interpolation and unit-length output. Update the FBX baker to initialize the new triangle shape while leaving its face-normal fallback intact. Use the same barycentric weights for position and normal interpolation. Normalize the interpolated normal; use the computed face normal if the interpolation has no usable direction.
 
 **Step 3: Verify sampler behavior**
 
@@ -84,8 +86,9 @@ git commit -m 'feat: preserve GLB surface normals'
 
 **Files:**
 - Modify: `animations/meshspin.go`
+- Modify: `animations/l2a1_sar.go`
+- Modify: `animations/rotating_model.go`
 - Modify: `animations/rotating_model_test.go`
-- Modify: `animations/l2a1_sar_test.go`
 
 **Step 1: Add a focused shading assertion**
 
@@ -108,7 +111,7 @@ Expected: theme shade separation remains visible and every 96,000-sample model s
 **Step 4: Commit**
 
 ```sh
-git add animations/meshspin.go animations/rotating_model_test.go animations/l2a1_sar_test.go
+git add animations/meshspin.go animations/l2a1_sar.go animations/rotating_model.go animations/rotating_model_test.go
 git commit -m 'feat: add richer lighting to mesh effects'
 ```
 
@@ -190,7 +193,7 @@ Expected: all changed-package tests pass, including the 30 ms model frame budget
 
 **Step 3: Review fixed-angle frames**
 
-Render the same 80x24 and 491x90 frames for one statue, one hard-surface model, L2A1, and AK-47 before and after the shader change. Check that contour readability and theme shading improve without clipping attribution or changing the loop.
+Render baseline and updated 100x32 frames at the start and quarter turn for one statue and one aircraft. Compare AK-47 and L2A1 at the same size to check the shared renderer. Existing tests cover 80x24 and 491x90 fit and the 30 ms large-frame budget.
 
 **Step 4: Run repository checks**
 
