@@ -121,7 +121,6 @@ func NewRotatingModelEffect(id string, width, height int, theme string) (*Rotati
 		return nil, fmt.Errorf("unknown rotating model effect %q", id)
 	}
 	spin := newMeshSpin(width, height, theme, rotatingModelPeriod)
-	spin.twoSidedLighting = false
 	return &RotatingModelAnimation{meshSpin: spin, spec: spec}, nil
 }
 

@@ -26,7 +26,6 @@ type L2A1SARAnimation struct{ *meshSpin }
 // NewL2A1SAREffect creates the looping Australian L2A1 SAR braille effect.
 func NewL2A1SAREffect(width, height int, theme string) *L2A1SARAnimation {
 	spin := newMeshSpin(width, height, theme, meshSpinPeriod)
-	spin.twoSidedLighting = false
 	return &L2A1SARAnimation{meshSpin: spin}
 }
 
