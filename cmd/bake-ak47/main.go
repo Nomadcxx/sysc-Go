@@ -322,7 +322,7 @@ func readFBX(data []byte) ([]triangle, error) {
 					return nil, fmt.Errorf("short polygon")
 				}
 				for j := 1; j+1 < len(poly); j++ {
-					tris = append(tris, triangle{poly[0], poly[j], poly[j+1]})
+					tris = append(tris, triangle{Vertices: [3]vec{poly[0], poly[j], poly[j+1]}})
 				}
 				poly = poly[:0]
 			}

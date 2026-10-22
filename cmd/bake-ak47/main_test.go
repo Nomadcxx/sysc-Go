@@ -45,7 +45,7 @@ func TestAK47Bake(t *testing.T) {
 		t.Logf("%d triangles, %d points", len(tris), len(pts))
 	}
 	// Every sample of a known plane must lie on it with a unit normal.
-	pts, err := sampleMesh([]triangle{{vec{0, 0, 0}, vec{2, 0, 0}, vec{0, 2, 0}}})
+	pts, err := sampleMesh([]triangle{{Vertices: [3]vec{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}}})
 	if err != nil {
 		t.Fatal(err)
 	}

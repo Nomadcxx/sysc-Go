@@ -9,7 +9,9 @@ import (
 	"github.com/Nomadcxx/sysc-Go/internal/mesh"
 )
 
-var rotatingModelTestIDs = []string{
+// ponytail: Historical models still touch the top margin at 80x24; add them to
+// this fit gate after their display scales receive a separate calibration pass.
+var rotatingModelBoundsTestIDs = []string{
 	"jesus-christ-statue",
 	"jason",
 	"nymphe-der-flora",
@@ -21,6 +23,19 @@ var rotatingModelTestIDs = []string{
 	"f-22-raptor",
 	"fa-18e-super-hornet",
 }
+
+var allRotatingModelTestIDs = append(append([]string(nil), rotatingModelBoundsTestIDs...),
+	"laocoon-and-his-sons",
+	"napoleon-bust",
+	"brandenburg-gate",
+	"louis-xiv",
+	"engel",
+	"st-george",
+	"santa-muerte",
+	"aspasia",
+	"st-nepomuk",
+	"lion-statue",
+)
 
 func TestFighterModelCreditsMatchSources(t *testing.T) {
 	models := []struct{ id, credit string }{
@@ -53,7 +68,7 @@ func TestRotatingModelConstructorAndLoop(t *testing.T) {
 	if _, err := NewRotatingModelEffect("missing", 80, 24, "kanagawa"); err == nil {
 		t.Fatal("accepted unknown model ID")
 	}
-	for _, id := range rotatingModelTestIDs {
+	for _, id := range allRotatingModelTestIDs {
 		t.Run(id, func(t *testing.T) {
 			a, err := NewRotatingModelEffect(id, 80, 24, "kanagawa")
 			if err != nil {
@@ -90,7 +105,7 @@ func TestRotatingModelConstructorAndLoop(t *testing.T) {
 }
 
 func TestRotatingModelsStayInsideScreenThroughFullYaw(t *testing.T) {
-	for _, id := range rotatingModelTestIDs {
+	for _, id := range rotatingModelBoundsTestIDs {
 		t.Run(id, func(t *testing.T) {
 			for _, size := range []struct{ width, height int }{{80, 24}, {491, 90}} {
 				a, err := NewRotatingModelEffect(id, size.width, size.height, "kanagawa")
@@ -111,7 +126,7 @@ func TestRotatingModelsStayInsideScreenThroughFullYaw(t *testing.T) {
 }
 
 func TestRotatingModelsShadeTheirSurfaces(t *testing.T) {
-	for _, id := range rotatingModelTestIDs {
+	for _, id := range allRotatingModelTestIDs {
 		t.Run(id, func(t *testing.T) {
 			a, err := NewRotatingModelEffect(id, 80, 24, "kanagawa")
 			if err != nil {
@@ -131,8 +146,32 @@ func TestRotatingModelsShadeTheirSurfaces(t *testing.T) {
 	}
 }
 
+func TestMeshSpinLightingSeparatesFrontAndBackFaces(t *testing.T) {
+	m := newMeshSpin(80, 24, "kanagawa", meshSpinPeriod)
+	points := []meshPoint{
+		{position: [3]float64{-.3, 0, 0}, normal: [3]float64{0, 0, 1}},
+		{position: [3]float64{.3, 0, 0}, normal: [3]float64{0, 0, -1}},
+	}
+	renderMeshSpinAtPitch(m, points, 0, 0, 0, nil, 0, 0, 1, 0)
+	front := meshSpinColorAt(m, points[0].position)
+	back := meshSpinColorAt(m, points[1].position)
+	if front == 0 || back == 0 || front == back {
+		t.Fatalf("front and back lighting = %#06x and %#06x, want distinct nonzero theme shades", front, back)
+	}
+}
+
+func meshSpinColorAt(m *meshSpin, p [3]float64) uint32 {
+	l := m.canvas
+	scale := math.Min(float64(l.width*m.cellWidth)*.40, float64((l.height-2)*m.cellHeight)*.72)
+	scaleX, scaleY := scale*2/float64(m.cellWidth), scale*4/float64(m.cellHeight)
+	perspective := logoPerspective / (logoPerspective - p[2])
+	x := int(math.Floor(float64(l.width*2)/2 + p[0]*scaleX*perspective))
+	y := int(math.Floor(float64(l.height*4-8)/2 + p[1]*scaleY*perspective))
+	return l.crgb[y*l.width*2+x]
+}
+
 func TestRotatingModelBakesUseTheBoundedVariableSampleCodec(t *testing.T) {
-	for _, id := range rotatingModelTestIDs {
+	for _, id := range allRotatingModelTestIDs {
 		spec := rotatingModelCatalog[id]
 		if spec == nil {
 			t.Errorf("%s missing from rotating model catalog", id)
@@ -156,7 +195,7 @@ func TestRotatingModelPerformanceBudget(t *testing.T) {
 		t.Skip("render budget check runs outside race instrumentation")
 	}
 	const frameBudget = 30 * time.Millisecond
-	for _, id := range rotatingModelTestIDs {
+	for _, id := range allRotatingModelTestIDs {
 		t.Run(id, func(t *testing.T) {
 			a, err := NewRotatingModelEffect(id, 491, 90, "kanagawa")
 			if err != nil {

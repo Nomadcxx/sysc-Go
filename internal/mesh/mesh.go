@@ -21,7 +21,10 @@ const (
 )
 
 type Vec3 [3]float64
-type Triangle [3]Vec3
+type Triangle struct {
+	Vertices [3]Vec3
+	Normals  [3][3]float32
+}
 
 type Sample struct {
 	Position Vec3
@@ -57,7 +60,7 @@ func SampleSurfaceN(triangles []Triangle, sampleCount int) ([]Sample, Bounds, er
 	}
 	lo, hi := Vec3{math.Inf(1), math.Inf(1), math.Inf(1)}, Vec3{math.Inf(-1), math.Inf(-1), math.Inf(-1)}
 	for _, triangle := range triangles {
-		for _, point := range triangle {
+		for _, point := range triangle.Vertices {
 			for axis, value := range point {
 				if math.IsNaN(value) || math.IsInf(value, 0) || math.Abs(value) > 1e8 {
 					return nil, Bounds{}, fmt.Errorf("nonfinite or oversized vertex")
@@ -74,25 +77,25 @@ func SampleSurfaceN(triangles []Triangle, sampleCount int) ([]Sample, Bounds, er
 	}
 	normalized := append([]Triangle(nil), triangles...)
 	for i := range normalized {
-		for j := range normalized[i] {
-			for axis := range normalized[i][j] {
-				normalized[i][j][axis] = (normalized[i][j][axis] - (lo[axis]+hi[axis])/2) * 2 / span
+		for j := range normalized[i].Vertices {
+			for axis := range normalized[i].Vertices[j] {
+				normalized[i].Vertices[j][axis] = (normalized[i].Vertices[j][axis] - (lo[axis]+hi[axis])/2) * 2 / span
 			}
 		}
 	}
 
 	areas := make([]float64, len(normalized))
-	normals := make([]Vec3, len(normalized))
+	faceNormals := make([]Vec3, len(normalized))
 	total := 0.0
 	for i, triangle := range normalized {
-		normal := cross(sub(triangle[1], triangle[0]), sub(triangle[2], triangle[0]))
+		normal := cross(sub(triangle.Vertices[1], triangle.Vertices[0]), sub(triangle.Vertices[2], triangle.Vertices[0]))
 		area2 := length(normal)
 		if area2 > 0 {
 			for axis := range normal {
 				normal[axis] /= area2
 			}
 		}
-		normals[i] = normal
+		faceNormals[i] = normal
 		total += area2 / 2
 		areas[i] = total
 	}
@@ -106,11 +109,24 @@ func SampleSurfaceN(triangles []Triangle, sampleCount int) ([]Sample, Bounds, er
 		triangle := normalized[index]
 		u := math.Sqrt(math.Mod((float64(i)+.5)*.7548776662466927, 1))
 		v := math.Mod((float64(i)+.5)*.5698402909980532, 1)
+		weights := [3]float64{1 - u, u * (1 - v), u * v}
 		var position Vec3
-		for axis := range position {
-			position[axis] = triangle[0][axis]*(1-u) + triangle[1][axis]*u*(1-v) + triangle[2][axis]*u*v
+		var normal Vec3
+		for corner, weight := range weights {
+			for axis := range position {
+				position[axis] += triangle.Vertices[corner][axis] * weight
+				normal[axis] += float64(triangle.Normals[corner][axis]) * weight
+			}
 		}
-		samples[i] = Sample{Position: position, Normal: normals[index]}
+		normalLength := length(normal)
+		if normalLength <= 1e-12 || math.IsNaN(normalLength) || math.IsInf(normalLength, 0) {
+			normal = faceNormals[index]
+		} else {
+			for axis := range normal {
+				normal[axis] /= normalLength
+			}
+		}
+		samples[i] = Sample{Position: position, Normal: normal}
 	}
 	return samples, bounds, nil
 }

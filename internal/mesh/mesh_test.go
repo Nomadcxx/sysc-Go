@@ -6,7 +6,7 @@ import (
 )
 
 func TestSurfaceSampleEncodingRoundTrip(t *testing.T) {
-	triangles := []Triangle{{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}}
+	triangles := []Triangle{{Vertices: [3]Vec3{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}}}
 	samples, bounds, err := SampleSurface(triangles)
 	if err != nil {
 		t.Fatal(err)
@@ -43,8 +43,28 @@ func TestSurfaceSampleEncodingRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSurfaceSamplingInterpolatesAndNormalizesVertexNormals(t *testing.T) {
+	triangle := Triangle{
+		Vertices: [3]Vec3{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}},
+		Normals:  [3][3]float32{{0, 0, 1}, {0, 1, 1}, {1, 0, 1}},
+	}
+	samples, _, err := SampleSurfaceN([]Triangle{triangle}, SampleCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, last := samples[0].Normal, samples[len(samples)-1].Normal
+	if first == last {
+		t.Fatal("sampled vertex normals were not interpolated across the triangle")
+	}
+	for i, sample := range samples {
+		if math.Abs(length(sample.Normal)-1) > 1e-12 {
+			t.Fatalf("sample %d normal length = %g, want 1", i, length(sample.Normal))
+		}
+	}
+}
+
 func TestSurfaceSamplingAndCodecSupportHigherSampleCounts(t *testing.T) {
-	triangles := []Triangle{{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}}
+	triangles := []Triangle{{Vertices: [3]Vec3{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}}}
 	samples, _, err := SampleSurfaceN(triangles, SampleCount*2)
 	if err != nil {
 		t.Fatal(err)
@@ -68,8 +88,8 @@ func TestSurfaceSamplingAndCodecSupportHigherSampleCounts(t *testing.T) {
 func TestSurfaceSamplerRejectsInvalidMeshes(t *testing.T) {
 	for _, triangles := range [][]Triangle{
 		nil,
-		{{{0, 0, 0}, {1, 1, 1}, {2, 2, 2}}},
-		{{{0, 0, 0}, {math.NaN(), 1, 0}, {0, 1, 0}}},
+		{{Vertices: [3]Vec3{{0, 0, 0}, {1, 1, 1}, {2, 2, 2}}}},
+		{{Vertices: [3]Vec3{{0, 0, 0}, {math.NaN(), 1, 0}, {0, 1, 0}}}},
 	} {
 		if _, _, err := SampleSurface(triangles); err == nil {
 			t.Fatal("accepted empty, degenerate, or non-finite mesh")
@@ -79,7 +99,7 @@ func TestSurfaceSamplerRejectsInvalidMeshes(t *testing.T) {
 		t.Fatal("accepted truncated sample data")
 	}
 	for _, count := range []int{SampleCount - 1, MaxSampleCount + 1} {
-		if _, _, err := SampleSurfaceN([]Triangle{{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}}, count); err == nil {
+		if _, _, err := SampleSurfaceN([]Triangle{{Vertices: [3]Vec3{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}}}, count); err == nil {
 			t.Fatalf("accepted invalid sample count %d", count)
 		}
 	}
