@@ -239,6 +239,13 @@ func appendMesh(doc *gltfDocument, bin []byte, meshIndex int, world matrix4, out
 		if err != nil {
 			return err
 		}
+		var sourceNormals []mesh.Vec3
+		if normalIndex, ok := primitive.Attributes["NORMAL"]; ok {
+			sourceNormals, err = readNormals(doc, bin, normalIndex, len(positions))
+			if err != nil {
+				return err
+			}
+		}
 		var indices []uint32
 		if primitive.Indices != nil {
 			indices, err = readIndices(doc, bin, *primitive.Indices)
@@ -259,6 +266,7 @@ func appendMesh(doc *gltfDocument, bin []byte, meshIndex int, world matrix4, out
 		}
 		for i := 0; i < len(indices); i += 3 {
 			var triangle mesh.Triangle
+			normalsUsable := len(sourceNormals) != 0
 			for corner := 0; corner < 3; corner++ {
 				sourceCorner := corner
 				if reverseWinding && corner > 0 {
@@ -273,7 +281,19 @@ func appendMesh(doc *gltfDocument, bin []byte, meshIndex int, world matrix4, out
 				if !boundedVec(point) {
 					return fmt.Errorf("transformed position is nonfinite or oversized")
 				}
-				triangle[corner] = point
+				triangle.Vertices[corner] = point
+				if normalsUsable {
+					normal, ok := transformNormal(world, sourceNormals[index])
+					if !ok {
+						normalsUsable = false
+						continue
+					}
+					normal[1] = -normal[1]
+					triangle.Normals[corner] = normal
+				}
+			}
+			if !normalsUsable {
+				triangle.Normals = [3]mesh.Vec3{}
 			}
 			*out = append(*out, triangle)
 			if len(*out) > mesh.MaxTriangles {
@@ -284,7 +304,7 @@ func appendMesh(doc *gltfDocument, bin []byte, meshIndex int, world matrix4, out
 	return nil
 }
 
-func accessorData(doc *gltfDocument, bin []byte, index, itemSize, maxCount int) (gltfAccessor, []byte, int, gltfBufferView, error) {
+func accessorData(doc *gltfDocument, bin []byte, index, itemSize, componentSize, maxCount int) (gltfAccessor, []byte, int, gltfBufferView, error) {
 	if index < 0 || index >= len(doc.Accessors) {
 		return gltfAccessor{}, nil, 0, gltfBufferView{}, fmt.Errorf("accessor index out of range")
 	}
@@ -302,7 +322,7 @@ func accessorData(doc *gltfDocument, bin []byte, index, itemSize, maxCount int) 
 	} else if stride < itemSize || stride%4 != 0 {
 		return gltfAccessor{}, nil, 0, gltfBufferView{}, fmt.Errorf("invalid accessor byte stride")
 	}
-	if a.ByteOffset%min(itemSize, 4) != 0 || view.ByteOffset%min(itemSize, 4) != 0 {
+	if a.ByteOffset%componentSize != 0 || view.ByteOffset%componentSize != 0 {
 		return gltfAccessor{}, nil, 0, gltfBufferView{}, fmt.Errorf("misaligned accessor data")
 	}
 	span := (a.Count-1)*stride + itemSize
@@ -314,7 +334,7 @@ func accessorData(doc *gltfDocument, bin []byte, index, itemSize, maxCount int) 
 }
 
 func readPositions(doc *gltfDocument, bin []byte, index int) ([]mesh.Vec3, error) {
-	a, data, stride, _, err := accessorData(doc, bin, index, 12, maxVertices)
+	a, data, stride, _, err := accessorData(doc, bin, index, 12, 4, maxVertices)
 	if err != nil {
 		return nil, err
 	}
@@ -334,6 +354,56 @@ func readPositions(doc *gltfDocument, bin []byte, index int) ([]mesh.Vec3, error
 	return positions, nil
 }
 
+func readNormals(doc *gltfDocument, bin []byte, index, expectedCount int) ([]mesh.Vec3, error) {
+	if index < 0 || index >= len(doc.Accessors) {
+		return nil, fmt.Errorf("normal accessor index out of range")
+	}
+	accessor := doc.Accessors[index]
+	componentSize, itemSize := 0, 0
+	switch accessor.ComponentType {
+	case 5126:
+		componentSize, itemSize = 4, 12
+	case 5120:
+		componentSize, itemSize = 1, 3
+	case 5122:
+		componentSize, itemSize = 2, 6
+	default:
+		return nil, fmt.Errorf("unsupported NORMAL component type %d", accessor.ComponentType)
+	}
+	a, data, stride, _, err := accessorData(doc, bin, index, itemSize, componentSize, maxVertices)
+	if err != nil {
+		return nil, err
+	}
+	if a.Type != "VEC3" || a.Count != expectedCount || (a.ComponentType == 5126 && a.Normalized) || (a.ComponentType != 5126 && !a.Normalized) {
+		return nil, fmt.Errorf("NORMAL must be a matching FLOAT or normalized signed BYTE/SHORT VEC3 accessor")
+	}
+	normals := make([]mesh.Vec3, a.Count)
+	for i := range normals {
+		for axis := 0; axis < 3; axis++ {
+			component := data[i*stride+axis*componentSize:]
+			switch a.ComponentType {
+			case 5126:
+				normals[i][axis] = float64(math.Float32frombits(binary.LittleEndian.Uint32(component)))
+			case 5120:
+				value := float64(int8(component[0])) / 127
+				normals[i][axis] = math.Max(-1, value)
+			case 5122:
+				value := float64(int16(binary.LittleEndian.Uint16(component))) / 32767
+				normals[i][axis] = math.Max(-1, value)
+			}
+		}
+		if !boundedVec(normals[i]) {
+			return nil, fmt.Errorf("NORMAL contains nonfinite or oversized data")
+		}
+		var ok bool
+		normals[i], ok = normalize(normals[i])
+		if !ok {
+			return nil, fmt.Errorf("NORMAL contains a zero direction")
+		}
+	}
+	return normals, nil
+}
+
 func readIndices(doc *gltfDocument, bin []byte, index int) ([]uint32, error) {
 	if index < 0 || index >= len(doc.Accessors) {
 		return nil, fmt.Errorf("index accessor out of range")
@@ -350,7 +420,7 @@ func readIndices(doc *gltfDocument, bin []byte, index int) ([]uint32, error) {
 	default:
 		return nil, fmt.Errorf("unsupported index component type %d", accessor.ComponentType)
 	}
-	a, data, stride, view, err := accessorData(doc, bin, index, itemSize, maxIndices)
+	a, data, stride, view, err := accessorData(doc, bin, index, itemSize, itemSize, maxIndices)
 	if err != nil {
 		return nil, err
 	}
@@ -466,6 +536,49 @@ func transformPoint(m matrix4, point mesh.Vec3) mesh.Vec3 {
 		m[1]*point[0] + m[5]*point[1] + m[9]*point[2] + m[13],
 		m[2]*point[0] + m[6]*point[1] + m[10]*point[2] + m[14],
 	}
+}
+
+func transformNormal(m matrix4, normal mesh.Vec3) (mesh.Vec3, bool) {
+	a00, a01, a02 := m[0], m[4], m[8]
+	a10, a11, a12 := m[1], m[5], m[9]
+	a20, a21, a22 := m[2], m[6], m[10]
+	c00 := a11*a22 - a12*a21
+	c01 := a12*a20 - a10*a22
+	c02 := a10*a21 - a11*a20
+	c10 := a02*a21 - a01*a22
+	c11 := a00*a22 - a02*a20
+	c12 := a01*a20 - a00*a21
+	c20 := a01*a12 - a02*a11
+	c21 := a02*a10 - a00*a12
+	c22 := a00*a11 - a01*a10
+	determinant := a00*c00 + a01*c01 + a02*c02
+	if determinant == 0 || math.IsNaN(determinant) || math.IsInf(determinant, 0) {
+		return mesh.Vec3{}, false
+	}
+	// The cofactor matrix points along the inverse-transpose normal; determinant
+	// sign preserves orientation for reflected node transforms.
+	direction := mesh.Vec3{
+		c00*normal[0] + c01*normal[1] + c02*normal[2],
+		c10*normal[0] + c11*normal[1] + c12*normal[2],
+		c20*normal[0] + c21*normal[1] + c22*normal[2],
+	}
+	if determinant < 0 {
+		for axis := range direction {
+			direction[axis] = -direction[axis]
+		}
+	}
+	return normalize(direction)
+}
+
+func normalize(vector mesh.Vec3) (mesh.Vec3, bool) {
+	length := math.Hypot(math.Hypot(vector[0], vector[1]), vector[2])
+	if length == 0 || math.IsNaN(length) || math.IsInf(length, 0) {
+		return mesh.Vec3{}, false
+	}
+	for axis := range vector {
+		vector[axis] /= length
+	}
+	return vector, true
 }
 
 func determinant3x3(m matrix4) float64 {
