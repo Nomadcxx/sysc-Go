@@ -27,10 +27,10 @@ sysc-Go's embedded data.
 Use one shared rotating-model catalog for all four aircraft. Each effect uses
 the approved continuous level yaw loop.
 
-Set the initial yaw and display scale per model. Show a recognizable profile
-on the first frame and keep the full turn inside the render area with room for
-attribution. Keep camera pitch and roll fixed. Check the maximum sample count
-against the large-frame render budget.
+Use the source yaw for the first frame and set display scale per model. Keep
+each full turn inside the render area with room for attribution. Keep camera
+pitch and roll fixed. Check the maximum sample count against the large-frame
+render budget.
 
 ## Model source and license
 

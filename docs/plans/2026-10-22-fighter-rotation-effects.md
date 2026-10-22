@@ -25,7 +25,7 @@
    - `F-22 Raptor - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0`
    - `F/A-18E Super Hornet (USA) / 42manako / CC BY-NC 4.0`
 3. Set the library-version assertion to `1.0.10`.
-4. Run `go test ./animations -run 'TestRotatingModel|TestLibraryVersion' -count=1`.
+4. Run `go test ./animations -run 'TestRotatingModel|TestLogoSpinRegistry' -count=1`.
 5. Confirm the new model cases fail because the catalog has no aircraft entries yet.
 6. Commit the tests with `test: cover rotating fighter model effects`.
 
@@ -58,13 +58,12 @@ Each command must report 96,000 samples and create a 1,152,000-byte file. The ba
 **Steps:**
 
 1. Add `go:embed` variables for the four baked files.
-2. Add catalog entries with the exact credits from Task 1 and provisional start angles and display scales for each plane.
-3. Add a per-model start angle to `rotatingModelSpec` and apply it to the shared yaw phase. Keep the zero value for existing catalog entries.
-4. Add four scene entries to `EffectRegistry`, mark them as version `1.0.10`, and describe their horizontal rotation and licenses.
-5. Set `LibraryVersion` to `1.0.10`.
-7. Run `go test ./animations -run 'TestRotatingModel|TestLibraryVersion' -count=1`.
-8. Confirm exact credits, deterministic rendering, shade separation, full-loop continuity, sample-data sizes, and the 30 ms render budget.
-9. Commit with `feat: add rotating fighter jet effects`.
+2. Add catalog entries with the exact credits from Task 1 and a provisional display scale for each plane.
+3. Add four scene entries to `EffectRegistry`, mark them as version `1.0.10`, and describe their horizontal rotation and licenses.
+4. Set `LibraryVersion` to `1.0.10`.
+5. Run `go test ./animations -run 'TestRotatingModel|TestLogoSpinRegistry' -count=1`.
+6. Confirm exact credits, deterministic rendering, shade separation, full-loop continuity, sample-data sizes, and the 30 ms render budget.
+7. Commit with `feat: add rotating fighter jet effects`.
 
 ## Task 4: Fit and document the four models
 
@@ -75,12 +74,12 @@ Each command must report 96,000 samples and create a 1,152,000-byte file. The ba
 
 **Steps:**
 
-1. Run the full-yaw frame-bounds test at `80x24` and `491x90`; tune each model's start angle and `displayScale` until the aircraft keeps a margin and the credit row remains clear.
+1. Run the full-yaw frame-bounds test at `80x24` and `491x90`; tune each model's `displayScale` until the aircraft keeps a margin and the credit row remains clear.
 2. Check the generated frame at the start and quarter turns for recognizable aircraft profiles and readable theme shading.
 3. Add a model-data table with the exact title, creator, Sketchfab URL, source digest, triangle count, and license from the design document.
 4. Add reproduction commands for the four bakes to `animations/models/README.md`.
 5. Add the four effect names and continuous-rotation examples to the root `README.md`.
-6. Run `go test ./animations -run 'TestRotatingModel|TestLibraryVersion' -count=1` and `go test ./tui ./cmd/syscgo`.
+6. Run `go test ./animations -run 'TestRotatingModel|TestLogoSpinRegistry' -count=1` and `go test ./tui ./cmd/syscgo`.
 7. Commit with `docs: document fighter jet effects`.
 
 ## Task 5: Review and merge sysc-Go
@@ -90,7 +89,7 @@ Each command must report 96,000 samples and create a 1,152,000-byte file. The ba
 
 **Steps:**
 
-1. Run `go test ./animations -run 'TestRotatingModel|TestLibraryVersion' -count=1`, `go test ./tui ./cmd/syscgo`, and `git diff --check refs/remotes/origin/master...HEAD`.
+1. Run `go test ./animations -run 'TestRotatingModel|TestLogoSpinRegistry' -count=1`, `go test ./tui ./cmd/syscgo`, and `git diff --check refs/remotes/origin/master...HEAD`.
 2. Review the complete diff for source hashes, exact credit strings, display bounds, and unchanged AK-47/L2A1 behavior.
 3. Push `feat/fighter-rotation-effects` and open a PR against `master`.
 4. Review the PR diff and CI results manually; merge only when LGTM.
