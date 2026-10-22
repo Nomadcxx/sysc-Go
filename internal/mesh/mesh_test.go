@@ -46,7 +46,7 @@ func TestSurfaceSampleEncodingRoundTrip(t *testing.T) {
 func TestSurfaceSamplingInterpolatesAndNormalizesVertexNormals(t *testing.T) {
 	triangle := Triangle{
 		Vertices: [3]Vec3{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}},
-		Normals:  [3]Vec3{{0, 0, 1}, {0, 1, 1}, {1, 0, 1}},
+		Normals:  [3][3]float32{{0, 0, 1}, {0, 1, 1}, {1, 0, 1}},
 	}
 	samples, _, err := SampleSurfaceN([]Triangle{triangle}, SampleCount)
 	if err != nil {

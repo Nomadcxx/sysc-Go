@@ -23,7 +23,7 @@ const (
 type Vec3 [3]float64
 type Triangle struct {
 	Vertices [3]Vec3
-	Normals  [3]Vec3
+	Normals  [3][3]float32
 }
 
 type Sample struct {
@@ -115,7 +115,7 @@ func SampleSurfaceN(triangles []Triangle, sampleCount int) ([]Sample, Bounds, er
 		for corner, weight := range weights {
 			for axis := range position {
 				position[axis] += triangle.Vertices[corner][axis] * weight
-				normal[axis] += triangle.Normals[corner][axis] * weight
+				normal[axis] += float64(triangle.Normals[corner][axis]) * weight
 			}
 		}
 		normalLength := length(normal)

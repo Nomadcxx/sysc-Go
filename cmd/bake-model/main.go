@@ -289,11 +289,13 @@ func appendMesh(doc *gltfDocument, bin []byte, meshIndex int, world matrix4, out
 						continue
 					}
 					normal[1] = -normal[1]
-					triangle.Normals[corner] = normal
+					for axis := range normal {
+						triangle.Normals[corner][axis] = float32(normal[axis])
+					}
 				}
 			}
 			if !normalsUsable {
-				triangle.Normals = [3]mesh.Vec3{}
+				triangle.Normals = [3][3]float32{}
 			}
 			*out = append(*out, triangle)
 			if len(*out) > mesh.MaxTriangles {

@@ -177,6 +177,21 @@ func TestParseGLBReadsNormalizedShortNormals(t *testing.T) {
 	}
 }
 
+func TestParseGLBReadsNormalizedByteNormals(t *testing.T) {
+	normals := [][3]int8{{-128, 0, 0}, {-128, 0, 0}, {-128, 0, 0}}
+	triangles, err := parseGLB(testGLBWithByteNormals(t, []uint16{0, 1, 2}, map[string]any{"mesh": 0}, nil, normals...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	samples, _, err := mesh.SampleSurfaceN(triangles, mesh.SampleCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (mesh.Vec3{-1, 0, 0}); samples[0].Normal != want {
+		t.Fatalf("sample normal = %v, want normalized signed BYTE normal %v", samples[0].Normal, want)
+	}
+}
+
 func TestParseGLBUsesFaceNormalsWhenAuthoredNormalsAreMissing(t *testing.T) {
 	triangles, err := parseGLB(testGLB(t, []uint16{0, 1, 2}, map[string]any{"mesh": 0}, nil))
 	if err != nil {
@@ -275,6 +290,17 @@ func testGLBWithShortNormals(t *testing.T, indices []uint16, meshNode map[string
 	return testGLBData(t, indices, meshNode, rootNode, normalData.Bytes(), len(normalValues), 5122, true, 2)
 }
 
+func testGLBWithByteNormals(t *testing.T, indices []uint16, meshNode map[string]any, rootNode map[string]any, normalValues ...[3]int8) []byte {
+	t.Helper()
+	var normalData bytes.Buffer
+	for _, normal := range normalValues {
+		if err := binary.Write(&normalData, binary.LittleEndian, normal); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return testGLBData(t, indices, meshNode, rootNode, normalData.Bytes(), len(normalValues), 5120, true, 1)
+}
+
 func testGLBData(t *testing.T, indices []uint16, meshNode map[string]any, rootNode map[string]any, normalData []byte, normalCount, normalComponentType int, normalNormalized bool, normalComponentSize int) []byte {
 	t.Helper()
 	var bin bytes.Buffer
@@ -284,6 +310,7 @@ func testGLBData(t *testing.T, indices []uint16, meshNode map[string]any, rootNo
 		}
 	}
 	bin.Write(normalData)
+	bin.Write(make([]byte, (4-bin.Len()%4)%4))
 	indexOffset := bin.Len()
 	for _, index := range indices {
 		if err := binary.Write(&bin, binary.LittleEndian, index); err != nil {
