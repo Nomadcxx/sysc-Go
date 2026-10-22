@@ -16,6 +16,37 @@ var rotatingModelTestIDs = []string{
 	"lowe",
 	"roman-gladiator",
 	"grabfigur",
+	"f-14-tomcat",
+	"f-15e-strike-eagle",
+	"f-22-raptor",
+	"fa-18e-super-hornet",
+}
+
+func TestFighterModelCreditsMatchSources(t *testing.T) {
+	models := []struct{ id, credit string }{
+		{"f-14-tomcat", "F-14 Tomcat - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0"},
+		{"f-15e-strike-eagle", "F-15E Strike Eagle - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0"},
+		{"f-22-raptor", "F-22 Raptor - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0"},
+		{"fa-18e-super-hornet", "F/A-18E Super Hornet (USA) / 42manako / CC BY-NC 4.0"},
+	}
+	for _, model := range models {
+		t.Run(model.id, func(t *testing.T) {
+			spec := rotatingModelCatalog[model.id]
+			if spec == nil {
+				t.Fatal("model missing from rotating model catalog")
+			}
+			if spec.credit != model.credit {
+				t.Fatalf("credit = %q, want %q", spec.credit, model.credit)
+			}
+			a, err := NewRotatingModelEffect(model.id, 100, 30, "kanagawa")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if frame := a.Render(); !strings.Contains(frame, model.credit) {
+				t.Fatalf("rendered frame omits credit %q", model.credit)
+			}
+		})
+	}
 }
 
 func TestRotatingModelConstructorAndLoop(t *testing.T) {
@@ -102,7 +133,12 @@ func TestRotatingModelsShadeTheirSurfaces(t *testing.T) {
 
 func TestRotatingModelBakesUseTheBoundedVariableSampleCodec(t *testing.T) {
 	for _, id := range rotatingModelTestIDs {
-		data := rotatingModelCatalog[id].data
+		spec := rotatingModelCatalog[id]
+		if spec == nil {
+			t.Errorf("%s missing from rotating model catalog", id)
+			continue
+		}
+		data := spec.data
 		if got, want := len(data), 96000*mesh.SampleBytes; got != want {
 			t.Errorf("%s data has %d bytes, want %d", id, got, want)
 		}
