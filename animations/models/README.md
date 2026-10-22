@@ -156,3 +156,30 @@ go run ./cmd/bake-model -sha256 a4da809bdc37490a41906154e8adb0d31dc1ef6fd0e91bf5
 go run ./cmd/bake-model -sha256 f32dc9210b0edc93c455047b228eea1a9db93b789fcfdec654b98a770d4819b3 -samples 96000 /path/to/hl._nepomuk.glb animations/models/st-nepomuk.bin
 go run ./cmd/bake-model -sha256 55e6f7784afa8159235ef9928635e19bb107cc808217ccd5640ba51496e58771 -samples 96000 /path/to/lion_statue_-_optimized.glb animations/models/lion-statue.bin
 ```
+
+## Fighter aircraft rotating model data
+
+Each source GLB stays outside the repository. Each embedded `.bin` file
+contains 96,000 sampled positions and normals (1,152,000 bytes). The models
+rotate continuously around their vertical axis with fixed pitch and roll; the
+effect footer displays the model title, creator, and license.
+
+| Data file | Source title and creator | Triangles | Source | License | Source SHA-256 |
+|---|---|---:|---|---|---|
+| `f-14-tomcat.bin` | F-14 Tomcat - Fighter Jet - Free by bohmerang | 43,154 | [Sketchfab](https://sketchfab.com/3d-models/f-14-tomcat-fighter-jet-free-497f77c311b5411d9b567d8707a81c33) | [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) | `3b2754fafc2cea9fbc62352575337b0d0315fe805c08fa018caca35321df16e7` |
+| `f-15e-strike-eagle.bin` | F-15E Strike Eagle - Fighter Jet - Free by bohmerang | 41,808 | [Sketchfab](https://sketchfab.com/3d-models/f-15e-strike-eagle-fighter-jet-free-fff7d75490474e9b964d90cc031c8d01) | [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) | `d8fbe2d534d8bb4f120e9f25a63e6b6ef67bb59ca9c9383dc1268ec15b3fce31` |
+| `f-22-raptor.bin` | F-22 Raptor - Fighter Jet - Free by bohmerang | 41,072 | [Sketchfab](https://sketchfab.com/3d-models/f-22-raptor-fighter-jet-free-508de5c48845456bb033fb267ebe1d1e) | [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) | `fac05850b4b0025a78b9679fc3b6bfd71f38082eb35f0d6420c9a5794d3cf3d9` |
+| `fa-18e-super-hornet.bin` | F/A-18E Super Hornet (USA) by 42manako | 4,270 | [Sketchfab](https://sketchfab.com/3d-models/fa-18e-super-hornet-usa-0eb69d3fd53945488245b7d8464ffaa5) | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) | `0910707eeb04d85f35c55103b129df6aff961e32cfe3e4d358f75d73b3783273` |
+
+The three bohmerang model bakes remain under CC BY-NC-SA 4.0, including its
+noncommercial and share-alike terms. The F/A-18E bake remains under CC BY-NC
+4.0. The repository's code license does not change these model licenses.
+
+Rebake each model from the sysc-Go root with its source GLB available locally:
+
+```sh
+go run ./cmd/bake-model -sha256 3b2754fafc2cea9fbc62352575337b0d0315fe805c08fa018caca35321df16e7 -samples 96000 /path/to/f-14_tomcat_-_fighter_jet_-_free.glb animations/models/f-14-tomcat.bin
+go run ./cmd/bake-model -sha256 d8fbe2d534d8bb4f120e9f25a63e6b6ef67bb59ca9c9383dc1268ec15b3fce31 -samples 96000 /path/to/f-15e_strike_eagle_-_fighter_jet_-_free.glb animations/models/f-15e-strike-eagle.bin
+go run ./cmd/bake-model -sha256 fac05850b4b0025a78b9679fc3b6bfd71f38082eb35f0d6420c9a5794d3cf3d9 -samples 96000 /path/to/f-22_raptor_-_fighter_jet_-_free.glb animations/models/f-22-raptor.bin
+go run ./cmd/bake-model -sha256 0910707eeb04d85f35c55103b129df6aff961e32cfe3e4d358f75d73b3783273 -samples 96000 /path/to/fa-18e_super_hornet_usa.glb animations/models/fa-18e-super-hornet.bin
+```

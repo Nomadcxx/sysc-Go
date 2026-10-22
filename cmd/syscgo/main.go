@@ -396,7 +396,8 @@ func main() {
 	case "l2a1-sar":
 		runAnimation(animations.NewL2A1SAREffect(width, height, *theme), clock)
 	case "jesus-christ-statue", "jason", "nymphe-der-flora", "lowe", "roman-gladiator", "grabfigur",
-		"laocoon-and-his-sons", "napoleon-bust", "brandenburg-gate", "louis-xiv", "engel", "st-george", "santa-muerte", "aspasia", "st-nepomuk", "lion-statue":
+		"laocoon-and-his-sons", "napoleon-bust", "brandenburg-gate", "louis-xiv", "engel", "st-george", "santa-muerte", "aspasia", "st-nepomuk", "lion-statue",
+		"f-14-tomcat", "f-15e-strike-eagle", "f-22-raptor", "fa-18e-super-hornet":
 		model, err := animations.NewRotatingModelEffect(*effect, width, height, *theme)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
