@@ -18,6 +18,11 @@ type meshPoint struct {
 	cloud    [3]float64
 }
 
+type meshPose struct {
+	yaw, pitch, roll float64
+	lift, liftRange  float64 // fractions of the available vertical half-height
+}
+
 type meshSpin struct {
 	canvas                *LogoSpinAnimation
 	elapsed               time.Duration
@@ -96,9 +101,14 @@ func renderMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, swi
 }
 
 func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, swirl float64, art [][2]float64, artWidth, artHeight int, modelScale, pitch float64) *LogoSpinAnimation {
+	return rasterizeMeshSpinAtPose(m, points, meshPose{yaw: rotation, pitch: pitch}, blend, swirl, art, artWidth, artHeight, modelScale)
+}
+
+func rasterizeMeshSpinAtPose(m *meshSpin, points []meshPoint, pose meshPose, blend, swirl float64, art [][2]float64, artWidth, artHeight int, modelScale float64) *LogoSpinAnimation {
 	l := m.canvas
-	sy, cy := math.Sincos(rotation)
-	sx, cx := math.Sincos(pitch)
+	sy, cy := math.Sincos(pose.yaw)
+	sx, cx := math.Sincos(pose.pitch)
+	sr, cr := math.Sincos(pose.roll)
 	ss, cs := math.Sincos(swirl)
 	dotW, dotH := l.width*2, l.height*4
 	// Fit a unit-radius cloud plus perspective margin in physical pixels.
@@ -111,7 +121,8 @@ func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, 
 	}
 	rot := func(p [3]float64) [3]float64 {
 		x, z := p[0]*cy+p[2]*sy, -p[0]*sy+p[2]*cy
-		return [3]float64{x, p[1]*cx - z*sx, p[1]*sx + z*cx}
+		y := p[1]*cx - z*sx
+		return [3]float64{x*cr - y*sr, x*sr + y*cr, p[1]*sx + z*cx}
 	}
 	sampleAt := func(i int, sample meshPoint) ([3]float64, [3]float64) {
 		p, n := rot(sample.position), rot(sample.normal)
@@ -134,6 +145,11 @@ func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, 
 	// ponytail: overflowing frames get one extra pass instead of a point-sized
 	// scratch buffer; cache projections if that extra pass becomes expensive.
 	centerX, centerY := float64(dotW)/2, float64(dotH-8)/2
+	travel := math.Max(0, math.Min(centerY-4, float64(dotH-4)-centerY))
+	// Reserve the whole flight envelope before translating, so climbing alone
+	// never changes the fit scale. Rotation still receives the normal fit check.
+	reserveY := travel * pose.liftRange
+	shiftY := travel * pose.lift
 	if len(m.light) != len(l.depth) {
 		m.light = make([]float64, len(l.depth))
 	}
@@ -150,7 +166,7 @@ func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, 
 				for axis, offset := range [2]float64{dx, dy} {
 					low, high := 2-centerX+1e-6, float64(dotW-2)-centerX-1e-6
 					if axis == 1 {
-						low, high = 4-centerY+1e-6, float64(dotH-4)-centerY-1e-6
+						low, high = 4-centerY+reserveY+1e-6, float64(dotH-4)-centerY-reserveY-1e-6
 					}
 					if offset < low && offset < 0 {
 						fit = math.Min(fit, math.Max(0, low/offset))
@@ -160,7 +176,7 @@ func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, 
 					}
 				}
 			}
-			x, y := int(math.Floor(centerX+dx)), int(math.Floor(centerY+dy))
+			x, y := int(math.Floor(centerX+dx)), int(math.Floor(centerY+dy+shiftY))
 			if x < 0 || y < 0 || x >= dotW || y >= dotH-4 {
 				continue
 			}

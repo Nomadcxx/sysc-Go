@@ -93,7 +93,15 @@ func TestRotatingModelConstructorAndLoop(t *testing.T) {
 			quarterTurnRotation := 2 * math.Pi * float64(a.elapsed) / float64(a.period)
 			expected := renderMeshSpinAtPitch(a.meshSpin, a.spec.surface(), quarterTurnRotation, 0, 0, nil, 0, 0, a.spec.displayScale, 0)
 			expected = meshCredit(expected, a.canvas.width, a.spec.credit)
-			if quarterTurn != expected {
+			fighter := false
+			switch id {
+			case "f-14-tomcat", "f-15e-strike-eagle", "f-22-raptor", "fa-18e-super-hornet":
+				fighter = true
+			}
+			if fighter && quarterTurn == expected {
+				t.Fatal("fighter still uses a horizontal turntable pose")
+			}
+			if !fighter && quarterTurn != expected {
 				t.Fatal("statue rotation changed camera pitch, blend, or swirl")
 			}
 			a.UpdateElapsed(rotatingModelPeriod * 3 / 4)
@@ -101,6 +109,52 @@ func TestRotatingModelConstructorAndLoop(t *testing.T) {
 				t.Fatal("full yaw loop did not return to its initial frame")
 			}
 		})
+	}
+}
+
+func TestMeshFlightTranslationKeepsScale(t *testing.T) {
+	m := newMeshSpin(60, 18, "dracula", meshSpinPeriod)
+	points := []meshPoint{
+		{position: [3]float64{-.8, -1.2, 0}, normal: [3]float64{0, 0, 1}},
+		{position: [3]float64{.8, 1.2, 0}, normal: [3]float64{0, 0, 1}},
+	}
+	previousY, spanX, spanY := -1, -1, -1
+	for _, lift := range []float64{-.12, 0, .12} {
+		l := rasterizeMeshSpinAtPose(m, points, meshPose{lift: lift, liftRange: .12}, 0, 0, nil, 0, 0, 1)
+		x0, y0, x1, y1 := l.width*2, l.height*4, -1, -1
+		for i, depth := range l.depth {
+			if !math.IsInf(depth, -1) {
+				x, y := i%(l.width*2), i/(l.width*2)
+				x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
+			}
+		}
+		if x1 < 0 || (spanX >= 0 && (x1-x0 != spanX || math.Abs(float64(y1-y0-spanY)) > 1)) {
+			t.Fatalf("lift %.2f changed model scale: (%d,%d)-(%d,%d)", lift, x0, y0, x1, y1)
+		}
+		if y0 <= previousY {
+			t.Fatalf("lift %.2f did not move vertically: y=%d after %d", lift, y0, previousY)
+		}
+		spanX, spanY, previousY = x1-x0, y1-y0, y0
+	}
+}
+
+func TestFighterFlightStaysInsideSmallViewports(t *testing.T) {
+	for _, id := range []string{"f-14-tomcat", "f-15e-strike-eagle", "f-22-raptor", "fa-18e-super-hornet"} {
+		for _, size := range [][2]int{{40, 12}, {60, 18}, {100, 30}} {
+			a, err := NewRotatingModelEffect(id, size[0], size[1], "dracula")
+			if err != nil {
+				t.Fatal(err)
+			}
+			a.SetCellAspect(9, 20)
+			for step := 0; step < 48; step++ {
+				a.Reset()
+				a.UpdateElapsed(rotatingModelPeriod * time.Duration(step) / 48)
+				x0, x1, y0, y1, ok := brailleBounds(a.Render())
+				if !ok || x0 < 1 || x1 >= size[0]-1 || y0 < 1 || y1 >= size[1]-1 {
+					t.Fatalf("%s flight step %d at %v: bounds (%d,%d)-(%d,%d)", id, step, size, x0, y0, x1, y1)
+				}
+			}
+		}
 	}
 }
 

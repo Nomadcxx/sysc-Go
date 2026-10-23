@@ -76,6 +76,7 @@ type rotatingModelSpec struct {
 	data         []byte
 	credit       string
 	displayScale float64
+	flight       bool
 	decode       sync.Once
 	points       []meshPoint
 }
@@ -102,19 +103,19 @@ var rotatingModelCatalog = map[string]*rotatingModelSpec{
 	"aspasia":              {data: aspasiaData, credit: "Aspasia / noe-3d.at / CC BY-NC 4.0", displayScale: .62},
 	"st-nepomuk":           {data: stNepomukData, credit: "Hl. Nepomuk / noe-3d.at / CC BY-NC 4.0", displayScale: .60},
 	"lion-statue":          {data: lionStatueData, credit: "Lion Statue / Thomas Flynn / CC0 1.0", displayScale: .62},
-	"f-14-tomcat":          {data: f14TomcatData, credit: "F-14 Tomcat - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82},
-	"f-15e-strike-eagle":   {data: f15eStrikeEagleData, credit: "F-15E Strike Eagle - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82},
-	"f-22-raptor":          {data: f22RaptorData, credit: "F-22 Raptor - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82},
-	"fa-18e-super-hornet":  {data: fa18eSuperHornetData, credit: "F/A-18E Super Hornet (USA) / 42manako / CC BY-NC 4.0", displayScale: .82},
+	"f-14-tomcat":          {data: f14TomcatData, credit: "F-14 Tomcat - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82, flight: true},
+	"f-15e-strike-eagle":   {data: f15eStrikeEagleData, credit: "F-15E Strike Eagle - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82, flight: true},
+	"f-22-raptor":          {data: f22RaptorData, credit: "F-22 Raptor - Fighter Jet - Free / bohmerang / CC BY-NC-SA 4.0", displayScale: .82, flight: true},
+	"fa-18e-super-hornet":  {data: fa18eSuperHornetData, credit: "F/A-18E Super Hornet (USA) / 42manako / CC BY-NC 4.0", displayScale: .82, flight: true},
 }
 
-// RotatingModelAnimation keeps a model upright and turns it around its vertical axis.
+// RotatingModelAnimation turns statues upright and banks aircraft through a flight loop.
 type RotatingModelAnimation struct {
 	*meshSpin
 	spec *rotatingModelSpec
 }
 
-// NewRotatingModelEffect creates an attributed horizontal-turn effect by catalog ID.
+// NewRotatingModelEffect creates an attributed model effect by catalog ID.
 func NewRotatingModelEffect(id string, width, height int, theme string) (*RotatingModelAnimation, error) {
 	spec, ok := rotatingModelCatalog[id]
 	if !ok {
@@ -126,7 +127,13 @@ func NewRotatingModelEffect(id string, width, height int, theme string) (*Rotati
 
 func (a *RotatingModelAnimation) rasterize() *LogoSpinAnimation {
 	rotation := 2 * math.Pi * float64(a.elapsed) / float64(a.period)
-	return rasterizeMeshSpinAtPitch(a.meshSpin, a.spec.surface(), rotation, 0, 0, nil, 0, 0, a.spec.displayScale, 0)
+	pose := meshPose{yaw: rotation}
+	if a.spec.flight {
+		pose.pitch = .30 * math.Sin(rotation)
+		pose.roll = .26 * math.Sin(2*rotation)
+		pose.lift, pose.liftRange = -.12*math.Sin(rotation), .12
+	}
+	return rasterizeMeshSpinAtPose(a.meshSpin, a.spec.surface(), pose, 0, 0, nil, 0, 0, a.spec.displayScale)
 }
 
 func (a *RotatingModelAnimation) Render() string {
