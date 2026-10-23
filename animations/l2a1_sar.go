@@ -29,15 +29,24 @@ func NewL2A1SAREffect(width, height int, theme string) *L2A1SARAnimation {
 	return &L2A1SARAnimation{meshSpin: spin}
 }
 
-func (a *L2A1SARAnimation) Render() string {
+func (a *L2A1SARAnimation) rasterize() *LogoSpinAnimation {
 	rotation, blend := modelPhase(a.elapsed)
 	rotation += math.Pi / 2 // Present the rifle side-on at the start of its cycle.
 	swirl := 0.0
 	if a.elapsed >= 8*time.Second {
 		swirl = float64(a.elapsed-8*time.Second) / float64(4*time.Second) * 2 * math.Pi
 	}
-	frame := renderMeshSpin(a.meshSpin, l2a1Points(), rotation, blend, swirl, nil, 0, 0, l2a1DisplayScale)
-	return meshCredit(frame, a.canvas.width, "L2A1 SAR / notcplkerry / CC BY 4.0")
+	return rasterizeMeshSpinAtPitch(a.meshSpin, l2a1Points(), rotation, blend, swirl, nil, 0, 0, l2a1DisplayScale, .10*math.Sin(rotation))
+}
+
+func (a *L2A1SARAnimation) Render() string {
+	return meshCredit(a.rasterize().compose(), a.canvas.width, "L2A1 SAR / notcplkerry / CC BY 4.0")
+}
+
+// RenderFrame returns the current transparent per-dot image and attribution.
+// Hosts choose how to present it; Render remains the portable ANSI output.
+func (a *L2A1SARAnimation) RenderFrame() MeshFrame {
+	return MeshFrame{Pixels: a.rasterize().rasterImage(), Credit: "L2A1 SAR / notcplkerry / CC BY 4.0"}
 }
 
 var _ Animation = (*L2A1SARAnimation)(nil)

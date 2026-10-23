@@ -1,6 +1,7 @@
 package animations
 
 import (
+	"image"
 	"math"
 	"strings"
 	"time"
@@ -22,6 +23,13 @@ type meshSpin struct {
 	elapsed               time.Duration
 	cellWidth, cellHeight int
 	period                time.Duration
+}
+
+// MeshFrame contains one rendered mesh at two pixels per terminal column and
+// four pixels per terminal row. Unoccupied dots have zero alpha.
+type MeshFrame struct {
+	Pixels *image.NRGBA
+	Credit string
 }
 
 func decodeMeshPoints(data []byte) []meshPoint {
@@ -83,6 +91,10 @@ func renderMeshSpin(m *meshSpin, points []meshPoint, rotation, blend, swirl floa
 }
 
 func renderMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, swirl float64, art [][2]float64, artWidth, artHeight int, modelScale, pitch float64) string {
+	return rasterizeMeshSpinAtPitch(m, points, rotation, blend, swirl, art, artWidth, artHeight, modelScale, pitch).compose()
+}
+
+func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, swirl float64, art [][2]float64, artWidth, artHeight int, modelScale, pitch float64) *LogoSpinAnimation {
 	l := m.canvas
 	sy, cy := math.Sincos(rotation)
 	sx, cx := math.Sincos(pitch)
@@ -159,7 +171,7 @@ func renderMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, swi
 		}
 		scaleX, scaleY = scaleX*fit, scaleY*fit
 	}
-	return l.compose()
+	return l
 }
 
 func meshCredit(frame string, width int, credit string) string {

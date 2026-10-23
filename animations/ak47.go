@@ -103,7 +103,7 @@ func NewAK47TextEffect(width, height int, theme, text string) (*AK47Animation, e
 func ak47Phase(elapsed time.Duration) (rotation, blend float64) {
 	return modelPhase(elapsed)
 }
-func (a *AK47Animation) Render() string {
+func (a *AK47Animation) rasterize() *LogoSpinAnimation {
 	rotation, blend := ak47Phase(a.elapsed)
 	if a.art != nil && a.elapsed >= 8*time.Second {
 		rotation, blend = 4*math.Pi, 1
@@ -117,6 +117,15 @@ func (a *AK47Animation) Render() string {
 	if a.elapsed >= 8*time.Second {
 		swirl = float64(a.elapsed-8*time.Second) / float64(4*time.Second) * 2 * math.Pi
 	}
-	frame := renderMeshSpin(a.meshSpin, ak47Points(), rotation, blend, swirl, a.art, a.artWidth, a.artHeight, 1)
-	return meshCredit(frame, a.canvas.width, "AK-47 / Lokeig / CC BY-NC 4.0")
+	return rasterizeMeshSpinAtPitch(a.meshSpin, ak47Points(), rotation, blend, swirl, a.art, a.artWidth, a.artHeight, 1, .10*math.Sin(rotation))
+}
+
+func (a *AK47Animation) Render() string {
+	return meshCredit(a.rasterize().compose(), a.canvas.width, "AK-47 / Lokeig / CC BY-NC 4.0")
+}
+
+// RenderFrame returns the current transparent per-dot image and attribution.
+// Hosts choose how to present it; Render remains the portable ANSI output.
+func (a *AK47Animation) RenderFrame() MeshFrame {
+	return MeshFrame{Pixels: a.rasterize().rasterImage(), Credit: "AK-47 / Lokeig / CC BY-NC 4.0"}
 }

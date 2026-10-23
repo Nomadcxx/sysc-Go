@@ -124,10 +124,19 @@ func NewRotatingModelEffect(id string, width, height int, theme string) (*Rotati
 	return &RotatingModelAnimation{meshSpin: spin, spec: spec}, nil
 }
 
-func (a *RotatingModelAnimation) Render() string {
+func (a *RotatingModelAnimation) rasterize() *LogoSpinAnimation {
 	rotation := 2 * math.Pi * float64(a.elapsed) / float64(a.period)
-	frame := renderMeshSpinAtPitch(a.meshSpin, a.spec.surface(), rotation, 0, 0, nil, 0, 0, a.spec.displayScale, 0)
-	return meshCredit(frame, a.canvas.width, a.spec.credit)
+	return rasterizeMeshSpinAtPitch(a.meshSpin, a.spec.surface(), rotation, 0, 0, nil, 0, 0, a.spec.displayScale, 0)
+}
+
+func (a *RotatingModelAnimation) Render() string {
+	return meshCredit(a.rasterize().compose(), a.canvas.width, a.spec.credit)
+}
+
+// RenderFrame returns the current transparent per-dot image and attribution.
+// Hosts choose how to present it; Render remains the portable ANSI output.
+func (a *RotatingModelAnimation) RenderFrame() MeshFrame {
+	return MeshFrame{Pixels: a.rasterize().rasterImage(), Credit: a.spec.credit}
 }
 
 var _ Animation = (*RotatingModelAnimation)(nil)

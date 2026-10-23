@@ -1,6 +1,7 @@
 package animations
 
 import (
+	"image"
 	"math"
 	"strconv"
 	"strings"
@@ -809,6 +810,24 @@ func (l *LogoSpinAnimation) compose() string {
 		}
 	}
 	return l.builder.String()
+}
+
+func (l *LogoSpinAnimation) rasterImage() *image.NRGBA {
+	dotColumns := l.width * 2
+	dotRows := l.height * 4
+	img := image.NewNRGBA(image.Rect(0, 0, dotColumns, dotRows))
+	for i, depth := range l.depth {
+		if math.IsInf(depth, -1) {
+			continue
+		}
+		offset := i * 4
+		c := l.crgb[i]
+		img.Pix[offset] = byte(c >> 16)
+		img.Pix[offset+1] = byte(c >> 8)
+		img.Pix[offset+2] = byte(c)
+		img.Pix[offset+3] = 0xff
+	}
+	return img
 }
 
 // writeUint appends v in decimal. The conversion goes through l.num rather than
