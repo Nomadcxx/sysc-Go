@@ -23,6 +23,7 @@ type meshSpin struct {
 	elapsed               time.Duration
 	cellWidth, cellHeight int
 	period                time.Duration
+	light                 []float64 // diffuse term per dot, read by stipple
 }
 
 // MeshFrame contains one rendered mesh at two pixels per terminal column and
@@ -91,7 +92,7 @@ func renderMeshSpin(m *meshSpin, points []meshPoint, rotation, blend, swirl floa
 }
 
 func renderMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, swirl float64, art [][2]float64, artWidth, artHeight int, modelScale, pitch float64) string {
-	return rasterizeMeshSpinAtPitch(m, points, rotation, blend, swirl, art, artWidth, artHeight, modelScale, pitch).compose()
+	return m.braille(rasterizeMeshSpinAtPitch(m, points, rotation, blend, swirl, art, artWidth, artHeight, modelScale, pitch))
 }
 
 func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, swirl float64, art [][2]float64, artWidth, artHeight int, modelScale, pitch float64) *LogoSpinAnimation {
@@ -133,6 +134,9 @@ func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, 
 	// ponytail: overflowing frames get one extra pass instead of a point-sized
 	// scratch buffer; cache projections if that extra pass becomes expensive.
 	centerX, centerY := float64(dotW)/2, float64(dotH-8)/2
+	if len(m.light) != len(l.depth) {
+		m.light = make([]float64, len(l.depth))
+	}
 	for pass := 0; pass < 2; pass++ {
 		for i := range l.depth {
 			l.depth[i] = math.Inf(-1)
@@ -164,7 +168,8 @@ func rasterizeMeshSpinAtPitch(m *meshSpin, points []meshPoint, rotation, blend, 
 			if p[2] <= l.depth[index] {
 				continue
 			}
-			l.depth[index], l.crgb[index] = p[2], meshShade(n, p[2], l)
+			light := meshDiffuse(n)
+			l.depth[index], l.crgb[index], m.light[index] = p[2], meshShade(light, l), light
 		}
 		if fit == 1 {
 			break
@@ -183,20 +188,56 @@ func meshCredit(frame string, width int, credit string) string {
 	return frame
 }
 
-// meshShade keeps broad surfaces visible after Braille cells average their dots.
-// LogoSpin retains its own material lighting.
-func meshShade(n [3]float64, depth float64, l *LogoSpinAnimation) uint32 {
-	diffuse := clampLogo(n[0]*-.410+n[1]*-.564+n[2]*.718, 0, 1)
-	fill := clampLogo(n[0]*.55+n[1]*.20-n[2]*.35, 0, 1) * .15 * (1 - diffuse)
-	gloss := math.Pow(clampLogo(n[0]*-.220+n[1]*-.302+n[2]*.928, 0, 1), 18) * .25
-	gain := clampLogo(.96+depth*.08, .82, 1)
+// ponytail: a fixed screen-space tile avoids random flicker but repeats every
+// four dots; use a larger blue-noise tile if that pattern becomes distracting.
+var meshStippleThresholds = [4][4]float64{
+	{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5},
+}
+
+// braille composes the mesh as Braille text after stippling its shadows.
+func (m *meshSpin) braille(l *LogoSpinAnimation) string {
+	m.stipple(l)
+	return l.compose()
+}
+
+// stipple drops shadowed interior dots in an ordered pattern. A Braille cell
+// can show only one colour, so averaging leaves curved surfaces as flat
+// patches; dot density is the cell's remaining channel for shading. Silhouette
+// dots stay, keeping outlines intact at small sizes. Even lit interiors retain
+// gaps so the surface reads as particles. Image output keeps every dot's colour.
+func (m *meshSpin) stipple(l *LogoSpinAnimation) {
+	w := l.width * 2
+	occupied := func(i int) bool { return i >= 0 && i < len(l.depth) && !math.IsInf(l.depth[i], -1) }
+	// Mark first and clear afterwards, so dropped dots never read as silhouette.
+	for i := range l.depth {
+		x := i % w
+		if !occupied(i) || x == 0 || x == w-1 || !occupied(i-1) || !occupied(i+1) || !occupied(i-w) || !occupied(i+w) {
+			continue
+		}
+		coverage := .25 + .60*m.light[i]
+		if coverage < (meshStippleThresholds[(i/w)%4][x%4]+.5)/16 {
+			m.light[i] = -1
+		}
+	}
+	for i := range l.depth {
+		if occupied(i) && m.light[i] < 0 {
+			l.depth[i] = math.Inf(-1)
+		}
+	}
+}
+
+func meshDiffuse(n [3]float64) float64 {
+	return clampLogo(n[0]*-.410+n[1]*-.564+n[2]*.718, 0, 1)
+}
+
+// meshShade restores the theme-coloured ramp used before the mesh shader.
+// Density carries shadow contrast without dimming particles into the background.
+func meshShade(diffuse float64, l *LogoSpinAnimation) uint32 {
+	light := .14 + .86*diffuse
 	var out uint32
 	for i := 0; i < 3; i++ {
-		shadow := l.litBg[i] + (l.litHigh[i]-l.litBg[i])*.20
-		key := l.litKey[i]*.25 + l.litHigh[i]*.75
-		value := shadow*(1-diffuse) + key*diffuse
-		value = (value*(1-fill)+l.litFill[i]*fill)*(1-gloss) + l.litHigh[i]*gloss
-		out = out<<8 | uint32(clampLogo(l.litBg[i]+(value-l.litBg[i])*gain, 0, 255)+.5)
+		low := l.litFill[i]*.55 + l.litKey[i]*.45
+		out = out<<8 | uint32(low*(1-light)+l.litHigh[i]*light+.5)
 	}
 	return out
 }

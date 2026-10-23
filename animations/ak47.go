@@ -121,7 +121,7 @@ func (a *AK47Animation) rasterize() *LogoSpinAnimation {
 }
 
 func (a *AK47Animation) Render() string {
-	return meshCredit(a.rasterize().compose(), a.canvas.width, "AK-47 / Lokeig / CC BY-NC 4.0")
+	return meshCredit(a.braille(a.rasterize()), a.canvas.width, "AK-47 / Lokeig / CC BY-NC 4.0")
 }
 
 // RenderFrame returns the current transparent per-dot image and attribution.

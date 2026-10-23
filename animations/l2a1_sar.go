@@ -40,7 +40,7 @@ func (a *L2A1SARAnimation) rasterize() *LogoSpinAnimation {
 }
 
 func (a *L2A1SARAnimation) Render() string {
-	return meshCredit(a.rasterize().compose(), a.canvas.width, "L2A1 SAR / notcplkerry / CC BY 4.0")
+	return meshCredit(a.braille(a.rasterize()), a.canvas.width, "L2A1 SAR / notcplkerry / CC BY 4.0")
 }
 
 // RenderFrame returns the current transparent per-dot image and attribution.

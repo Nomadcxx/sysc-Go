@@ -130,7 +130,7 @@ func (a *RotatingModelAnimation) rasterize() *LogoSpinAnimation {
 }
 
 func (a *RotatingModelAnimation) Render() string {
-	return meshCredit(a.rasterize().compose(), a.canvas.width, a.spec.credit)
+	return meshCredit(a.braille(a.rasterize()), a.canvas.width, a.spec.credit)
 }
 
 // RenderFrame returns the current transparent per-dot image and attribution.
