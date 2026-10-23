@@ -5,6 +5,7 @@ import (
 
 	"github.com/Nomadcxx/sysc-Go/animations"
 	"github.com/Nomadcxx/sysc-Go/internal/artfile"
+	"github.com/Nomadcxx/sysc-Go/internal/termcell"
 )
 
 // AnimationWrapper wraps any animation type to provide a common interface
@@ -38,7 +39,8 @@ func animationNeedsFile(animName string) bool {
 
 // createAnimation creates an animation instance based on the selected type and settings
 // Returns nil if the animation requires user interaction (editors) or isn't supported yet
-func (m *Model) createAnimation() animations.Animation {
+func (m *Model) createAnimation() (animation animations.Animation) {
+	defer func() { termcell.Apply(int(os.Stdout.Fd()), animation) }()
 	m.animationError = ""
 	animName := m.animations[m.selectedAnimation]
 	themeName := m.themes[m.selectedTheme]

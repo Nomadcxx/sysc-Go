@@ -13,6 +13,7 @@ import (
 
 	"github.com/Nomadcxx/sysc-Go/animations"
 	"github.com/Nomadcxx/sysc-Go/internal/artfile"
+	"github.com/Nomadcxx/sysc-Go/internal/termcell"
 	"golang.org/x/term"
 )
 
@@ -1504,6 +1505,7 @@ func runAnimation(animation animations.Animation, clock *cliFrameClock) {
 		} else {
 			animation.Update()
 		}
+		termcell.Apply(int(os.Stdout.Fd()), animation)
 		output := animation.Render()
 
 		fmt.Print("\033[H")

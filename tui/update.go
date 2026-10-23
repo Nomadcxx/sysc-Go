@@ -3,9 +3,11 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/Nomadcxx/sysc-Go/animations"
+	"github.com/Nomadcxx/sysc-Go/internal/termcell"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -43,6 +45,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.animationRunning && m.currentAnim != nil {
 			if rifle, ok := m.currentAnim.(*animations.AK47Animation); ok {
 				rifle.Resize(m.width-10, m.canvasHeight)
+				termcell.Apply(int(os.Stdout.Fd()), rifle)
 			} else {
 				m.currentAnim = m.createAnimation()
 			}
