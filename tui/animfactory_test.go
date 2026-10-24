@@ -60,6 +60,22 @@ func TestL2A1SARIsSelectableAndMoves(t *testing.T) {
 	}
 }
 
+func TestHiggsFieldIsSelectableAndMoves(t *testing.T) {
+	m := selectAnimation(t, newTestModel(t), "higgs-field")
+	m.canvasHeight = 24
+	fx := m.createAnimation()
+	if fx == nil {
+		t.Fatalf("Higgs field was not constructed: %s", m.animationError)
+	}
+	frame := fx.Render()
+	for i := 0; i < 20; i++ {
+		fx.Update()
+	}
+	if fx.Render() == frame {
+		t.Fatal("Higgs field did not move in the TUI")
+	}
+}
+
 // selectAnimation points the model at an animation by name.
 func selectAnimation(t *testing.T, m Model, name string) Model {
 	t.Helper()

@@ -336,6 +336,8 @@ func (m *Model) createAnimation() (animation animations.Animation) {
 		return rifle
 	case "ak-47":
 		return animations.NewAK47Effect(width, height, themeName)
+	case "higgs-field":
+		return animations.NewHiggsFieldEffect(width, height, themeName)
 	case "ansi-love":
 		return animations.NewANSILoveEffect(width, height, themeName)
 	case "l2a1-sar":

@@ -85,7 +85,7 @@ func TestRotatingModelConstructorAndLoop(t *testing.T) {
 				t.Fatal("missing standalone effect registry entry")
 			}
 
-			a.UpdateElapsed(rotatingModelPeriod / 4)
+			a.UpdateElapsed(a.period / 4)
 			quarterTurn := a.Render()
 			if first == quarterTurn {
 				t.Fatal("horizontal rotation did not advance")
@@ -98,13 +98,14 @@ func TestRotatingModelConstructorAndLoop(t *testing.T) {
 			case "f-14-tomcat", "f-15e-strike-eagle", "f-22-raptor", "fa-18e-super-hornet":
 				fighter = true
 			}
-			if fighter && quarterTurn == expected {
-				t.Fatal("fighter still uses a horizontal turntable pose")
+			dynamic := fighter || id == "napoleon-bust"
+			if dynamic && quarterTurn == expected {
+				t.Fatal("dynamic model still uses a horizontal turntable pose")
 			}
-			if !fighter && quarterTurn != expected {
+			if !dynamic && quarterTurn != expected {
 				t.Fatal("statue rotation changed camera pitch, blend, or swirl")
 			}
-			a.UpdateElapsed(rotatingModelPeriod * 3 / 4)
+			a.UpdateElapsed(a.period * 3 / 4)
 			if first != a.Render() {
 				t.Fatal("full yaw loop did not return to its initial frame")
 			}

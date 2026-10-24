@@ -378,6 +378,8 @@ func main() {
 	defer clock.stop()
 
 	switch *effect {
+	case "higgs-field":
+		runAnimation(animations.NewHiggsFieldEffect(width, height, *theme), clock)
 	case "ak-47-text":
 		var rifle *animations.AK47Animation
 		text, err := readAK47Artwork(*file)

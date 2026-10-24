@@ -67,4 +67,4 @@ jobs:
         run: go test -race -short -count=1 ./...
 
       - name: Performance budgets
-        run: go test -count=1 ./animations -run '^(TestANSILovePerformanceBudgets|TestRotatingModelPerformanceBudget)$'
+        run: go test -count=1 ./animations -run '^(TestANSILovePerformanceBudgets|TestRotatingModelPerformanceBudget|TestHiggsFieldPerformanceBudget)$'

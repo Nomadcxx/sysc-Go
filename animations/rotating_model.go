@@ -77,6 +77,7 @@ type rotatingModelSpec struct {
 	credit       string
 	displayScale float64
 	flight       bool
+	dissolve     bool
 	decode       sync.Once
 	points       []meshPoint
 }
@@ -94,7 +95,7 @@ var rotatingModelCatalog = map[string]*rotatingModelSpec{
 	"roman-gladiator":      {data: romanGladiatorData, credit: "Sculpture of a Roman gladiator / Virtual Museums of Małopolska / CC BY 4.0", displayScale: .49},
 	"grabfigur":            {data: grabfigurData, credit: "Grabfigur / noe-3d.at / CC BY-NC 4.0", displayScale: .58},
 	"laocoon-and-his-sons": {data: laocoonData, credit: "Laocoon and His Sons / Rigsters / CC BY 4.0", displayScale: .62},
-	"napoleon-bust":        {data: napoleonBustData, credit: "The bust of Napoleon Bonaparte / Virtual Museums of Małopolska / CC BY 4.0", displayScale: .62},
+	"napoleon-bust":        {data: napoleonBustData, credit: "The bust of Napoleon Bonaparte / Virtual Museums of Małopolska / CC BY 4.0", displayScale: .62, dissolve: true},
 	"brandenburg-gate":     {data: brandenburgGateData, credit: "Brandenburg Gate / Resinnnn / CC BY 4.0", displayScale: .96},
 	"louis-xiv":            {data: louisXIVData, credit: "Louis XIV / HoangHiepVu / CC BY 4.0", displayScale: .62},
 	"engel":                {data: engelData, credit: "Engel / noe-3d.at / CC BY-NC 4.0", displayScale: .62},
@@ -109,10 +110,11 @@ var rotatingModelCatalog = map[string]*rotatingModelSpec{
 	"fa-18e-super-hornet":  {data: fa18eSuperHornetData, credit: "F/A-18E Super Hornet (USA) / 42manako / CC BY-NC 4.0", displayScale: .82, flight: true},
 }
 
-// RotatingModelAnimation turns statues upright and banks aircraft through a flight loop.
+// RotatingModelAnimation turns, banks or dissolves a catalog model.
 type RotatingModelAnimation struct {
 	*meshSpin
-	spec *rotatingModelSpec
+	spec      *rotatingModelSpec
+	particles []meshPoint
 }
 
 // NewRotatingModelEffect creates an attributed model effect by catalog ID.
@@ -121,19 +123,45 @@ func NewRotatingModelEffect(id string, width, height int, theme string) (*Rotati
 	if !ok {
 		return nil, fmt.Errorf("unknown rotating model effect %q", id)
 	}
-	spin := newMeshSpin(width, height, theme, rotatingModelPeriod)
+	period := rotatingModelPeriod
+	if spec.dissolve {
+		period = higgsFieldPeriod
+	}
+	spin := newMeshSpin(width, height, theme, period)
 	return &RotatingModelAnimation{meshSpin: spin, spec: spec}, nil
 }
 
 func (a *RotatingModelAnimation) rasterize() *LogoSpinAnimation {
 	rotation := 2 * math.Pi * float64(a.elapsed) / float64(a.period)
+	points := a.spec.surface()
 	pose := meshPose{yaw: rotation}
 	if a.spec.flight {
 		pose.pitch = .30 * math.Sin(rotation)
 		pose.roll = .26 * math.Sin(2*rotation)
 		pose.lift, pose.liftRange = -.12*math.Sin(rotation), .12
 	}
-	return rasterizeMeshSpinAtPose(a.meshSpin, a.spec.surface(), pose, 0, 0, nil, 0, 0, a.spec.displayScale)
+	if a.spec.dissolve {
+		seconds := float64(a.elapsed) / float64(time.Second)
+		energy := logoSmooth((seconds-3)/4) * (1 - logoSmooth((seconds-13)/4))
+		if len(a.particles) != len(points) {
+			a.particles = make([]meshPoint, len(points))
+		}
+		for i, home := range points {
+			p := &a.particles[i]
+			*p = home
+			if energy == 0 {
+				continue
+			}
+			field := higgsParticle(i, len(points), rotation, home.position[1])
+			for k := range p.position {
+				p.position[k] += energy * (field.position[k] - home.position[k])
+				p.normal[k] += energy * (field.normal[k] - home.normal[k])
+			}
+		}
+		points = a.particles
+		pose.pitch = .18 * energy * math.Sin(rotation)
+	}
+	return rasterizeMeshSpinAtPose(a.meshSpin, points, pose, 0, 0, nil, 0, 0, a.spec.displayScale)
 }
 
 func (a *RotatingModelAnimation) Render() string {

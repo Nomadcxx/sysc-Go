@@ -19,6 +19,7 @@ type EffectMetadata struct {
 
 // EffectRegistry contains metadata for all available effects
 var EffectRegistry = []EffectMetadata{
+	{Name: "higgs-field", Description: "Standalone particle field with travelling waves and vortex motion", VersionAdded: "1.0.10", Category: "abstract"},
 	{Name: "ansi-love", Description: "warpus’ ansi love with full-piece scaling, heartbeat and camera tour", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "ak-47-text", RequiresText: true, Description: "Two AK-47 rotations, selected particle artwork and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "text"},
 	{Name: "ak-47", Description: "Lokeig's AK-47 in braille: two turns, particle swirl and reconstruction (CC BY-NC 4.0)", VersionAdded: "1.0.7", Category: "scene"},
@@ -30,7 +31,7 @@ var EffectRegistry = []EffectMetadata{
 	{Name: "roman-gladiator", Description: "Sculpture of a Roman gladiator by Virtual Museums of Małopolska rotating horizontally in braille (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "grabfigur", Description: "Grabfigur by noe-3d.at rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "laocoon-and-his-sons", Description: "Laocoon and His Sons by Rigsters rotating horizontally in braille (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
-	{Name: "napoleon-bust", Description: "Napoleon bust by Virtual Museums of Małopolska rotating horizontally in braille (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
+	{Name: "napoleon-bust", Description: "Napoleon bust by Virtual Museums of Małopolska dissolving into a particle field and reforming (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "brandenburg-gate", Description: "Brandenburg Gate by Resinnnn rotating horizontally in braille (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "louis-xiv", Description: "Louis XIV by HoangHiepVu rotating horizontally in braille (CC BY 4.0)", VersionAdded: "1.0.9", Category: "scene"},
 	{Name: "engel", Description: "Engel by noe-3d.at rotating horizontally in braille (CC BY-NC 4.0)", VersionAdded: "1.0.9", Category: "scene"},
