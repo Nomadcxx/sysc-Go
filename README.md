@@ -23,6 +23,7 @@ Standalone effects that do not require text input.
 - **SYSC Logo** (`sysc-logo`): spinning 3D braille wordmark
 - **Cross Logo** (`cross-logo`): spinning 3D braille Latin cross
 - **Logo Morph** (`logo-morph`): rotating SYSC wordmark and cross morph
+- **Higgs Field** (`higgs-field`): particle field with travelling waves and vortex motion
 - **AK-47** (`ak-47`): Lokeig's braille model with a particle swirl and reconstruction
 - **Australian L2A1 SAR** (`l2a1-sar`): notcplkerry's braille model with a particle swirl and reconstruction
 - **Jesus Christ Statue** (`jesus-christ-statue`): amcgi's braille model with continuous horizontal rotation (CC BY 4.0)
@@ -31,12 +32,23 @@ Standalone effects that do not require text input.
 - **Löwe** (`lowe`): noe-3d.at's braille model with continuous horizontal rotation (CC BY-NC 4.0)
 - **Sculpture of a Roman gladiator** (`roman-gladiator`): Virtual Museums of Małopolska's braille model with continuous horizontal rotation (CC BY 4.0)
 - **Grabfigur** (`grabfigur`): noe-3d.at's braille model with continuous horizontal rotation (CC BY-NC 4.0)
-- **F-14 Tomcat** (`f-14-tomcat`): bohmerang's braille model with continuous horizontal rotation (CC BY-NC-SA 4.0)
-- **F-15E Strike Eagle** (`f-15e-strike-eagle`): bohmerang's braille model with continuous horizontal rotation (CC BY-NC-SA 4.0)
-- **F-22 Raptor** (`f-22-raptor`): bohmerang's braille model with continuous horizontal rotation (CC BY-NC-SA 4.0)
-- **F/A-18E Super Hornet** (`fa-18e-super-hornet`): 42manako's braille model with continuous horizontal rotation (CC BY-NC 4.0)
+- **Laocoon and His Sons** (`laocoon-and-his-sons`): Rigsters' rotating braille model (CC BY 4.0)
+- **Napoleon Bust** (`napoleon-bust`): Virtual Museums of Małopolska's bust dissolves into a particle field and reforms (CC BY 4.0)
+- **Brandenburg Gate** (`brandenburg-gate`): Resinnnn's rotating braille model (CC BY 4.0)
+- **Louis XIV** (`louis-xiv`): HoangHiepVu's rotating braille model (CC BY 4.0)
+- **Engel** (`engel`): noe-3d.at's rotating braille model (CC BY-NC 4.0)
+- **St George** (`st-george`): VIMUNE's rotating braille model (CC BY-SA 4.0)
+- **Santa Muerte** (`santa-muerte`): Mateusz Woliński's rotating braille model (CC BY-SA 4.0)
+- **Aspasia** (`aspasia`): noe-3d.at's rotating braille model (CC BY-NC 4.0)
+- **St Nepomuk** (`st-nepomuk`): noe-3d.at's rotating braille model (CC BY-NC 4.0)
+- **Lion Statue** (`lion-statue`): Thomas Flynn's rotating braille model (CC0 1.0)
+- **F-14 Tomcat** (`f-14-tomcat`): bohmerang's braille aircraft banks, climbs and turns (CC BY-NC-SA 4.0)
+- **F-15E Strike Eagle** (`f-15e-strike-eagle`): bohmerang's braille aircraft banks, climbs and turns (CC BY-NC-SA 4.0)
+- **F-22 Raptor** (`f-22-raptor`): bohmerang's braille aircraft banks, climbs and turns (CC BY-NC-SA 4.0)
+- **F/A-18E Super Hornet** (`fa-18e-super-hornet`): 42manako's braille aircraft banks, climbs and turns (CC BY-NC 4.0)
 - **Great Wave** (`great-wave`): Hokusai's wave with animated ASCII foam and water
 - **Wasteland** (`wasteland`): animated ASCII scene after Valenberg
+- **ANSI Love** (`ansi-love`): warpus' artwork with a heartbeat pulse and a camera tour
 
 ### Text Effects
 Text effects animate ASCII input. The CLI uses `SYSC.txt` by default; pass `-file` to choose another file. Blackhole can also run in particle mode without text.
@@ -141,6 +153,15 @@ syscgo -effect ak-47 -theme kanagawa -duration 0
 # Australian L2A1 SAR: repeating 12-second cycle
 syscgo -effect l2a1-sar -theme kanagawa -duration 0
 
+# Higgs particle field: repeating 20-second cycle
+syscgo -effect higgs-field -theme tokyo-night -duration 0
+
+# Napoleon: dissolve into a particle field and reform over a 20-second cycle
+syscgo -effect napoleon-bust -theme nord -duration 0
+
+# ANSI Love artwork and camera tour
+syscgo -effect ansi-love -theme dracula -duration 0
+
 # Statue effects: continuous horizontal rotation
 syscgo -effect jesus-christ-statue -theme kanagawa -duration 0
 syscgo -effect jason -theme kanagawa -duration 0
@@ -149,7 +170,7 @@ syscgo -effect lowe -theme kanagawa -duration 0
 syscgo -effect roman-gladiator -theme kanagawa -duration 0
 syscgo -effect grabfigur -theme kanagawa -duration 0
 
-# Fighter aircraft: continuous horizontal rotation
+# Fighter aircraft: banking, climbing and turning
 syscgo -effect f-14-tomcat -theme kanagawa -duration 0
 syscgo -effect f-15e-strike-eagle -theme kanagawa -duration 0
 syscgo -effect f-22-raptor -theme kanagawa -duration 0
