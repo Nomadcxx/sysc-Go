@@ -394,8 +394,6 @@ func main() {
 		runAnimation(rifle, clock)
 	case "ak-47":
 		runAnimation(animations.NewAK47Effect(width, height, *theme), clock)
-	case "ansi-love":
-		runAnimation(animations.NewANSILoveEffect(width, height, *theme), clock)
 	case "l2a1-sar":
 		runAnimation(animations.NewL2A1SAREffect(width, height, *theme), clock)
 	case "jesus-christ-statue", "jason", "nymphe-der-flora", "lowe", "roman-gladiator", "grabfigur",

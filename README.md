@@ -48,7 +48,6 @@ Standalone effects that do not require text input.
 - **F/A-18E Super Hornet** (`fa-18e-super-hornet`): 42manako's braille aircraft banks, climbs and turns (CC BY-NC 4.0)
 - **Great Wave** (`great-wave`): Hokusai's wave with animated ASCII foam and water
 - **Wasteland** (`wasteland`): animated ASCII scene after Valenberg
-- **ANSI Love** (`ansi-love`): warpus' artwork with a heartbeat pulse and a camera tour
 
 ### Text Effects
 Text effects animate ASCII input. The CLI uses `SYSC.txt` by default; pass `-file` to choose another file. Blackhole can also run in particle mode without text.
@@ -158,9 +157,6 @@ syscgo -effect higgs-field -theme tokyo-night -duration 0
 
 # Napoleon: dissolve into a particle field and reform over a 20-second cycle
 syscgo -effect napoleon-bust -theme nord -duration 0
-
-# ANSI Love artwork and camera tour
-syscgo -effect ansi-love -theme dracula -duration 0
 
 # Statue effects: continuous horizontal rotation
 syscgo -effect jesus-christ-statue -theme kanagawa -duration 0

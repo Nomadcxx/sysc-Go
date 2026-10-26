@@ -18,7 +18,7 @@ func TestMeshBrailleShadowParticlesRetainThemeChroma(t *testing.T) {
 					t.Fatal(err)
 				}
 				a.UpdateElapsed(1400 * time.Millisecond)
-				cells, _, _ := parseANSILoveFrame(t, a.Render())
+				cells, _, _ := parseBrailleTruecolorFrame(t, a.Render())
 				var total float64
 				count := 0
 				for _, cell := range cells {
@@ -53,10 +53,13 @@ func TestMeshLightingShadesBrailleWithVisibleParticles(t *testing.T) {
 				l.canvas.depth[i], l.canvas.crgb[i], l.light[i] = 0, meshShade(light, l.canvas), light
 			}
 			bg := .2126*l.canvas.litBg[0] + .7152*l.canvas.litBg[1] + .0722*l.canvas.litBg[2]
-			cells, w, h := parseANSILoveFrame(t, l.braille(l.canvas))
+			cells, w, h := parseBrailleTruecolorFrame(t, l.braille(l.canvas))
 			var front, back float64
 			for i, cell := range cells {
-				coverage := float64(bits.OnesCount8(uint8(cell.ch-0x2800))) / 8
+				coverage := 0.0
+				if cell.ch >= 0x2800 && cell.ch <= 0x28ff {
+					coverage = float64(bits.OnesCount8(uint8(cell.ch-0x2800))) / 8
+				}
 				value := .2126*float64(cell.fg[0]) + .7152*float64(cell.fg[1]) + .0722*float64(cell.fg[2])
 				value = bg + (value-bg)*coverage
 				if i%w < w/2 {

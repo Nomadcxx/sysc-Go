@@ -338,8 +338,6 @@ func (m *Model) createAnimation() (animation animations.Animation) {
 		return animations.NewAK47Effect(width, height, themeName)
 	case "higgs-field":
 		return animations.NewHiggsFieldEffect(width, height, themeName)
-	case "ansi-love":
-		return animations.NewANSILoveEffect(width, height, themeName)
 	case "l2a1-sar":
 		return animations.NewL2A1SAREffect(width, height, themeName)
 	case "jesus-christ-statue", "jason", "nymphe-der-flora", "lowe", "roman-gladiator", "grabfigur",
