@@ -5,7 +5,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
 	"unicode/utf8"
+
+	"github.com/mattn/go-runewidth"
 )
 
 func sampleLogoPalette() []string {
@@ -267,12 +270,20 @@ func parseBrailleTruecolorFrame(t *testing.T, frame string) ([]brailleFrameCell,
 			frame = frame[match[1]:]
 			continue
 		}
-		if frame[0] != ' ' {
-			t.Fatalf("unexpected frame byte %q", frame[0])
+		r, n := utf8.DecodeRuneInString(frame)
+		if r == utf8.RuneError || unicode.IsControl(r) {
+			t.Fatalf("unexpected frame rune %U", r)
 		}
-		cells = append(cells, brailleFrameCell{ch: ' '})
-		lineWidth++
-		frame = frame[1:]
+		w := runewidth.RuneWidth(r)
+		if w < 1 {
+			t.Fatalf("unsupported zero-width frame rune %U", r)
+		}
+		cells = append(cells, brailleFrameCell{ch: r})
+		for range w - 1 {
+			cells = append(cells, brailleFrameCell{ch: ' '})
+		}
+		lineWidth += w
+		frame = frame[n:]
 	}
 	if width == 0 {
 		width = lineWidth
