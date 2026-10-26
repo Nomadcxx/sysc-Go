@@ -222,11 +222,66 @@ func TestLogoStyleModes(t *testing.T) {
 	}
 }
 
-// logoSpinCell is one lit braille dot cell: a true-colour escape, the glyph,
-// then a reset. Components are matched as plain decimal with no sign and no
-// padding, which is exactly what fmt's %d produced before compose() started
-// writing the bytes itself.
-var logoSpinCell = regexp.MustCompile("\x1b\\[38;2;(0|[1-9][0-9]*);(0|[1-9][0-9]*);(0|[1-9][0-9]*)m([\u2800-\u28ff])\x1b\\[0m")
+// brailleTruecolorCell is one lit Braille cell: a true-colour escape, the
+// glyph, then a reset. Components are plain decimal with no sign or padding.
+var brailleTruecolorCell = regexp.MustCompile("\x1b\\[38;2;(0|[1-9][0-9]*);(0|[1-9][0-9]*);(0|[1-9][0-9]*)m([\u2800-\u28ff])\x1b\\[0m")
+
+type brailleFrameCell struct {
+	ch rune
+	fg [3]uint8
+}
+
+func parseBrailleTruecolorFrame(t *testing.T, frame string) ([]brailleFrameCell, int, int) {
+	t.Helper()
+	cells := make([]brailleFrameCell, 0)
+	width, lineWidth, height := 0, 0, 1
+	for len(frame) > 0 {
+		if frame[0] == '\n' {
+			if width == 0 {
+				width = lineWidth
+			}
+			if lineWidth != width {
+				t.Fatal("unequal frame rows")
+			}
+			lineWidth = 0
+			height++
+			frame = frame[1:]
+			continue
+		}
+		if frame[0] == '\x1b' {
+			match := brailleTruecolorCell.FindStringSubmatchIndex(frame)
+			if match == nil || match[0] != 0 {
+				t.Fatal("invalid true-colour Braille cell")
+			}
+			var cell brailleFrameCell
+			for i := 0; i < 3; i++ {
+				component, err := strconv.Atoi(frame[match[2+i*2]:match[3+i*2]])
+				if err != nil || component > 255 {
+					t.Fatalf("invalid colour component in %q", frame[:match[1]])
+				}
+				cell.fg[i] = uint8(component)
+			}
+			cell.ch, _ = utf8.DecodeRuneInString(frame[match[8]:match[9]])
+			cells = append(cells, cell)
+			lineWidth++
+			frame = frame[match[1]:]
+			continue
+		}
+		if frame[0] != ' ' {
+			t.Fatalf("unexpected frame byte %q", frame[0])
+		}
+		cells = append(cells, brailleFrameCell{ch: ' '})
+		lineWidth++
+		frame = frame[1:]
+	}
+	if width == 0 {
+		width = lineWidth
+	}
+	if lineWidth != width {
+		t.Fatal("unequal final row")
+	}
+	return cells, width, height
+}
 
 // A frame is spaces and newlines with one such escape per lit cell. If the
 // hand-rolled formatter drifts — a dropped semicolon, a padded component, an
@@ -238,7 +293,7 @@ func TestLogoSpinFrameIsLayoutPlusTruecolourCells(t *testing.T) {
 	if strings.Contains(frame, "%!") {
 		t.Fatalf("frame carries a fmt error token: %q", frame)
 	}
-	cells := logoSpinCell.FindAllStringIndex(frame, -1)
+	cells := brailleTruecolorCell.FindAllStringIndex(frame, -1)
 	if len(cells) == 0 {
 		t.Fatal("no lit cells, so the escape path went untested")
 	}
@@ -248,7 +303,7 @@ func TestLogoSpinFrameIsLayoutPlusTruecolourCells(t *testing.T) {
 	for _, cell := range cells {
 		residue.WriteString(frame[end:cell[0]])
 		end = cell[1]
-		parts := logoSpinCell.FindStringSubmatch(frame[cell[0]:cell[1]])
+		parts := brailleTruecolorCell.FindStringSubmatch(frame[cell[0]:cell[1]])
 		for _, comp := range parts[1:4] {
 			n, err := strconv.Atoi(comp)
 			if err != nil || n > 255 {
