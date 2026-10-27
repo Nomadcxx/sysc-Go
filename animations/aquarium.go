@@ -5,8 +5,6 @@ import (
 	"math/rand"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // AquariumEffect implements an animated aquarium scene
@@ -43,6 +41,7 @@ type AquariumEffect struct {
 	canvas  [][]rune
 	colors  [][]string
 	builder strings.Builder
+	styles  cellColorCache
 }
 
 // Fish represents a swimming fish
@@ -257,7 +256,6 @@ func (a *AquariumEffect) initBuffers() {
 		a.canvas[i] = make([]rune, a.width)
 		a.colors[i] = make([]string, a.width)
 	}
-	a.builder.Grow(a.width * a.height * 4)
 }
 
 func (a *AquariumEffect) clearBuffers() {
@@ -1003,24 +1001,15 @@ func (a *AquariumEffect) Render() string {
 	}
 
 	// Convert to colored string
-	var lines []string
+	resetFrameBuilder(&a.builder)
 	for y := 0; y < a.height; y++ {
-		a.builder.Reset()
-		for x := 0; x < a.width; x++ {
-			char := a.canvas[y][x]
-			if char != ' ' && a.colors[y][x] != "" {
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(a.colors[y][x])).
-					Render(string(char))
-				a.builder.WriteString(styled)
-			} else {
-				a.builder.WriteRune(char)
-			}
+		if y > 0 {
+			a.builder.WriteByte('\n')
 		}
-		lines = append(lines, a.builder.String())
+		writeFrameRow(&a.builder, a.canvas[y], a.colors[y], &a.styles, false)
 	}
 
-	return strings.Join(lines, "\n")
+	return a.builder.String()
 }
 
 // Reset restarts the animation

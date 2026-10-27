@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // DecryptEffect implements a movie-style text decryption animation
@@ -26,8 +24,10 @@ type DecryptEffect struct {
 	frameCount             int
 	rng                    *rand.Rand
 
-	buffer  [][]string
-	builder strings.Builder
+	buffer      [][]rune
+	colors      [][]string
+	builder     strings.Builder
+	styleColors cellColorCache
 }
 
 // DecryptCharacter represents a single character in the decryption effect
@@ -131,17 +131,22 @@ func (d *DecryptEffect) init() {
 }
 
 func (d *DecryptEffect) initBuffers() {
-	d.buffer = make([][]string, d.height)
+	d.buffer = make([][]rune, d.height)
+	d.colors = make([][]string, d.height)
 	for i := range d.buffer {
-		d.buffer[i] = make([]string, d.width)
+		d.buffer[i] = make([]rune, d.width)
+		d.colors[i] = make([]string, d.width)
+		for j := range d.buffer[i] {
+			d.buffer[i][j] = ' '
+		}
 	}
-	d.builder.Grow(d.width * d.height * 4)
 }
 
 func (d *DecryptEffect) clearBuffers() {
-	for i := range d.buffer {
-		for j := range d.buffer[i] {
-			d.buffer[i][j] = " "
+	for _, char := range d.chars {
+		if char.y >= 0 && char.y < d.height && char.x >= 0 && char.x < d.width {
+			d.buffer[char.y][char.x] = ' '
+			d.colors[char.y][char.x] = ""
 		}
 	}
 }
@@ -535,18 +540,18 @@ func (d *DecryptEffect) Render() string {
 	// Render visible characters
 	for _, char := range d.chars {
 		if char.visible && char.y >= 0 && char.y < d.height && char.x >= 0 && char.x < d.width {
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color(char.color))
-			d.buffer[char.y][char.x] = style.Render(string(char.current))
+			d.buffer[char.y][char.x] = char.current
+			d.colors[char.y][char.x] = char.color
 		}
 	}
 
 	// Convert buffer to string
-	d.builder.Reset()
+	resetFrameBuilder(&d.builder)
 	for i, line := range d.buffer {
 		if i > 0 {
 			d.builder.WriteByte('\n')
 		}
-		d.builder.WriteString(strings.Join(line, ""))
+		writeFrameRow(&d.builder, line, d.colors[i], &d.styleColors, true)
 	}
 
 	return d.builder.String()
@@ -572,6 +577,7 @@ func (d *DecryptEffect) Reset() {
 // SetText updates the displayed text and reinitializes the decrypt animation.
 func (d *DecryptEffect) SetText(text string) {
 	d.text = normalizeMultilineText(text)
+	d.styleColors = nil
 	d.chars = d.chars[:0]
 	d.init()
 	d.phase = "typing"

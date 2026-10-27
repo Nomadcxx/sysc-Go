@@ -3,8 +3,6 @@ package animations
 import (
 	"math/rand"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // MatrixEffect implements Matrix digital rain animation using particle-based streaks
@@ -22,6 +20,7 @@ type MatrixEffect struct {
 	canvas  [][]rune
 	colors  [][]string
 	builder strings.Builder
+	styles  cellColorCache
 }
 
 // MatrixStreak represents a single vertical streak falling down the screen
@@ -92,7 +91,6 @@ func (m *MatrixEffect) initBuffers() {
 		m.canvas[i] = make([]rune, m.width)
 		m.colors[i] = make([]string, m.width)
 	}
-	m.builder.Grow(m.width * m.height * 4)
 }
 
 func (m *MatrixEffect) clearBuffers() {
@@ -107,6 +105,7 @@ func (m *MatrixEffect) clearBuffers() {
 // UpdatePalette changes the Matrix color palette (for theme switching)
 func (m *MatrixEffect) UpdatePalette(palette []string) {
 	m.palette = palette
+	m.styles = nil
 }
 
 // Resize reinitializes the Matrix effect with new dimensions
@@ -249,24 +248,15 @@ func (m *MatrixEffect) Render() string {
 	}
 
 	// Convert to colored string
-	var lines []string
+	resetFrameBuilder(&m.builder)
 	for y := 0; y < m.height; y++ {
-		m.builder.Reset()
-		for x := 0; x < m.width; x++ {
-			char := m.canvas[y][x]
-			if char != ' ' && m.colors[y][x] != "" {
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(m.colors[y][x])).
-					Render(string(char))
-				m.builder.WriteString(styled)
-			} else {
-				m.builder.WriteRune(char)
-			}
+		if y > 0 {
+			m.builder.WriteByte('\n')
 		}
-		lines = append(lines, m.builder.String())
+		writeFrameRow(&m.builder, m.canvas[y], m.colors[y], &m.styles, false)
 	}
 
-	return strings.Join(lines, "\n")
+	return m.builder.String()
 }
 
 // Reset restarts the animation from the beginning

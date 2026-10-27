@@ -6,8 +6,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // BeamTextEffect implements beams that travel across rows and columns, illuminating text
@@ -58,6 +56,7 @@ type BeamTextEffect struct {
 	canvas  [][]rune
 	colors  [][]string
 	builder strings.Builder
+	styles  cellColorCache
 }
 
 // BeamTextConfig holds configuration for the beam text effect
@@ -213,7 +212,6 @@ func (b *BeamTextEffect) initBuffers() {
 		b.canvas[i] = make([]rune, b.width)
 		b.colors[i] = make([]string, b.width)
 	}
-	b.builder.Grow(b.width * b.height * 4)
 }
 
 func (b *BeamTextEffect) clearBuffers() {
@@ -813,23 +811,12 @@ func (b *BeamTextEffect) Render() string {
 	}
 
 	// Convert to colored string
-	b.builder.Reset()
+	resetFrameBuilder(&b.builder)
 	for y := 0; y < b.height; y++ {
 		if y > 0 {
 			b.builder.WriteRune('\n')
 		}
-		for x := 0; x < b.width; x++ {
-			char := b.canvas[y][x]
-			if char != ' ' && b.colors[y][x] != "" {
-				// Characters with explicit colors
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(b.colors[y][x])).
-					Render(string(char))
-				b.builder.WriteString(styled)
-			} else {
-				b.builder.WriteRune(char)
-			}
-		}
+		writeFrameRow(&b.builder, b.canvas[y], b.colors[y], &b.styles, false)
 	}
 
 	return b.builder.String()
@@ -880,6 +867,7 @@ func (b *BeamTextEffect) Reset() {
 // SetText updates the displayed text and reinitializes the beam animation.
 func (b *BeamTextEffect) SetText(text string) {
 	b.text = normalizeMultilineText(text)
+	b.styles = nil
 	b.chars = b.chars[:0]
 	b.rowGroups = b.rowGroups[:0]
 	b.columnGroups = b.columnGroups[:0]

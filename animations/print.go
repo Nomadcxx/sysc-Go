@@ -2,9 +2,38 @@ package animations
 
 import (
 	"strings"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
+
+type printCell struct {
+	char  rune
+	text  string
+	color string
+}
+
+func writePrintRow(dst *strings.Builder, cells []printCell, cache *cellColorCache) {
+	for x := 0; x < len(cells); {
+		cell := cells[x]
+		switch {
+		case cell.color != "":
+			cache.writeRune(dst, cell.color, cell.char)
+			x++
+		case cell.text != "":
+			dst.WriteString(cell.text)
+			x++
+		case cell.char == ' ':
+			start := x
+			for x < len(cells) && cells[x].color == "" && cells[x].text == "" && cells[x].char == ' ' {
+				x++
+			}
+			writeBlankSpan(dst, x-start)
+		default:
+			if cell.char != 0 {
+				dst.WriteRune(cell.char)
+			}
+			x++
+		}
+	}
+}
 
 // PrintEffect creates a typewriter/printer effect for text
 type PrintEffect struct {
@@ -29,7 +58,9 @@ type PrintEffect struct {
 	holdFrames      int  // Frames to hold before looping
 
 	// Pre-allocated buffer for performance
-	buffer [][]string
+	buffer  [][]printCell
+	builder strings.Builder
+	styles  cellColorCache
 }
 
 // PrintConfig holds configuration for the print effect
@@ -115,9 +146,9 @@ func NewPrintEffect(config PrintConfig) *PrintEffect {
 	}
 
 	// Pre-allocate buffer for performance
-	buffer := make([][]string, height)
+	buffer := make([][]printCell, height)
 	for i := range buffer {
-		buffer[i] = make([]string, width)
+		buffer[i] = make([]printCell, width)
 	}
 
 	effect := &PrintEffect{
@@ -218,7 +249,7 @@ func (p *PrintEffect) Render() string {
 	// Clear pre-allocated buffer
 	for i := range p.buffer {
 		for j := range p.buffer[i] {
-			p.buffer[i][j] = " "
+			p.buffer[i][j] = printCell{char: ' '}
 		}
 	}
 
@@ -255,8 +286,7 @@ func (p *PrintEffect) Render() string {
 
 			// Calculate gradient color
 			color := p.getGradientColor(float64(charIdx) / float64(len(runes)))
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
-			p.buffer[y][x] = style.Render(string(runes[charIdx]))
+			p.buffer[y][x] = printCell{char: runes[charIdx], color: color}
 		}
 	}
 
@@ -280,8 +310,7 @@ func (p *PrintEffect) Render() string {
 					}
 
 					color := p.getGradientColor(float64(charIdx) / float64(len(runes)))
-					style := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
-					p.buffer[y][x] = style.Render(string(revealedRunes[charIdx]))
+					p.buffer[y][x] = printCell{char: revealedRunes[charIdx], color: color}
 				}
 
 				// Add trail effect
@@ -291,21 +320,21 @@ func (p *PrintEffect) Render() string {
 					if x >= p.width {
 						break
 					}
-					p.buffer[y][x] = trailSymbol
+					p.buffer[y][x] = printCell{text: trailSymbol}
 				}
 
 				// Add print head
 				headX := trailX + len(p.trailSymbols)
 				if headX < p.width {
-					p.buffer[y][headX] = p.printHeadSymbol
+					p.buffer[y][headX] = printCell{text: p.printHeadSymbol}
 				}
 			} else {
 				// Just starting - show trail and head at beginning
 				x := startX
 				if x < p.width && len(p.trailSymbols) > 0 {
-					p.buffer[y][x] = p.trailSymbols[0]
+					p.buffer[y][x] = printCell{text: p.trailSymbols[0]}
 					if x+1 < p.width {
-						p.buffer[y][x+1] = p.printHeadSymbol
+						p.buffer[y][x+1] = printCell{text: p.printHeadSymbol}
 					}
 				}
 			}
@@ -313,12 +342,14 @@ func (p *PrintEffect) Render() string {
 	}
 
 	// Convert buffer to string
-	var lines []string
-	for _, line := range p.buffer {
-		lines = append(lines, strings.Join(line, ""))
+	resetFrameBuilder(&p.builder)
+	for y, line := range p.buffer {
+		if y > 0 {
+			p.builder.WriteByte('\n')
+		}
+		writePrintRow(&p.builder, line, &p.styles)
 	}
-
-	return strings.Join(lines, "\n")
+	return p.builder.String()
 }
 
 // Helper to get gradient color for position
@@ -366,6 +397,7 @@ func (p *PrintEffect) Reset() {
 // SetText updates the displayed text and restarts the print animation.
 func (p *PrintEffect) SetText(text string) {
 	p.text = normalizeMultilineText(text)
+	p.styles = nil
 	p.Reset()
 }
 
@@ -375,9 +407,9 @@ func (p *PrintEffect) Resize(width, height int) {
 	p.height = height
 
 	// Re-allocate buffer for new dimensions
-	p.buffer = make([][]string, height)
+	p.buffer = make([][]printCell, height)
 	for i := range p.buffer {
-		p.buffer[i] = make([]string, width)
+		p.buffer[i] = make([]printCell, width)
 	}
 
 	// Recalculate max line width for centering

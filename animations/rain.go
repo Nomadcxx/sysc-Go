@@ -3,8 +3,6 @@ package animations
 import (
 	"math/rand"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // RainEffect implements ASCII character rain animation
@@ -20,6 +18,7 @@ type RainEffect struct {
 	canvas  [][]rune
 	colors  [][]string
 	builder strings.Builder
+	styles  cellColorCache
 }
 
 // RainDrop represents a single falling character
@@ -69,7 +68,6 @@ func (r *RainEffect) initBuffers() {
 		r.canvas[i] = make([]rune, r.width)
 		r.colors[i] = make([]string, r.width)
 	}
-	r.builder.Grow(r.width * r.height * 4)
 }
 
 func (r *RainEffect) clearBuffers() {
@@ -84,6 +82,7 @@ func (r *RainEffect) clearBuffers() {
 // UpdatePalette changes the rain color palette (for theme switching)
 func (r *RainEffect) UpdatePalette(palette []string) {
 	r.palette = palette
+	r.styles = nil
 }
 
 // Resize reinitializes the rain effect with new dimensions
@@ -150,25 +149,15 @@ func (r *RainEffect) Render() string {
 	}
 
 	// Convert to colored string
-	var lines []string
+	resetFrameBuilder(&r.builder)
 	for y := 0; y < r.height; y++ {
-		r.builder.Reset()
-		for x := 0; x < r.width; x++ {
-			char := r.canvas[y][x]
-			if char != ' ' && r.colors[y][x] != "" {
-				// Render colored character
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(r.colors[y][x])).
-					Render(string(char))
-				r.builder.WriteString(styled)
-			} else {
-				r.builder.WriteRune(char)
-			}
+		if y > 0 {
+			r.builder.WriteByte('\n')
 		}
-		lines = append(lines, r.builder.String())
+		writeFrameRow(&r.builder, r.canvas[y], r.colors[y], &r.styles, false)
 	}
 
-	return strings.Join(lines, "\n")
+	return r.builder.String()
 }
 
 // Reset restarts the animation from the beginning
