@@ -1,6 +1,7 @@
 package animations
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -100,5 +101,22 @@ func TestDecryptRenderKeepsColoredCellsAndBlankRows(t *testing.T) {
 	d.chars[0].visible = false
 	if got, want := d.Render(), "     \n     "; got != want {
 		t.Fatalf("blank frame = %q, want %q", got, want)
+	}
+}
+
+func TestCellColorCacheIsBounded(t *testing.T) {
+	var cache cellColorCache
+	var got strings.Builder
+	for i := 0; i < maxCellColorCacheEntries+64; i++ {
+		color := fmt.Sprintf("#%06x", i)
+		got.Reset()
+		cache.writeRune(&got, color, 'x')
+		want := lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render("x")
+		if got.String() != want {
+			t.Fatalf("color %q = %q, want %q", color, got.String(), want)
+		}
+		if len(cache) > maxCellColorCacheEntries {
+			t.Fatalf("cache holds %d colors, limit is %d", len(cache), maxCellColorCacheEntries)
+		}
 	}
 }

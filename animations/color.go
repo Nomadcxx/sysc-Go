@@ -12,6 +12,10 @@ import (
 const ansiReset = "\033[0m"
 const lipglossCellReset = "\033[m"
 
+// ponytail: Cache up to 256 colors per effect; overflow colors render uncached.
+// Add bounded eviction if a real palette needs reuse beyond this cap.
+const maxCellColorCacheEntries = 256
+
 type rgbColor struct {
 	r, g, b int
 }
@@ -123,7 +127,9 @@ func (c *cellColorCache) writeRune(dst *strings.Builder, color string, ch rune) 
 				entry.prefix, entry.suffix = styled[:i], styled[i+1:]
 			}
 		}
-		(*c)[color] = entry
+		if len(*c) < maxCellColorCacheEntries {
+			(*c)[color] = entry
+		}
 	}
 
 	dst.WriteString(entry.prefix)
