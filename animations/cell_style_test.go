@@ -119,4 +119,19 @@ func TestCellColorCacheIsBounded(t *testing.T) {
 			t.Fatalf("cache holds %d colors, limit is %d", len(cache), maxCellColorCacheEntries)
 		}
 	}
+	if len(cache) != maxCellColorCacheEntries {
+		t.Fatalf("cache holds %d colors, want it to reach its %d-entry cap", len(cache), maxCellColorCacheEntries)
+	}
+
+	for _, color := range []string{"196", "#fff", "ff79c6"} {
+		got.Reset()
+		cache.writeRune(&got, color, 'x')
+		want := lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render("x")
+		if got.String() != want {
+			t.Fatalf("overflow color %q = %q, want %q", color, got.String(), want)
+		}
+		if len(cache) != maxCellColorCacheEntries {
+			t.Fatalf("overflow color %q grew cache to %d entries", color, len(cache))
+		}
+	}
 }
