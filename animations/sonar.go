@@ -1,7 +1,6 @@
 package animations
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"strings"
@@ -268,6 +267,8 @@ func (s *SonarAnimation) onRing(x, y int, radius float64) bool {
 // ring > grid > void. Brighter sonar rings win when radii overlap.
 func (s *SonarAnimation) Render() string {
 	s.builder.Reset()
+	growANSIFrame(&s.builder, s.width, s.height)
+	paletteRGB := parsePalette(s.palette)
 
 	ashMap := make(map[[2]int]AshParticle, len(s.ashParticles))
 	for _, p := range s.ashParticles {
@@ -292,13 +293,19 @@ func (s *SonarAnimation) Render() string {
 
 	type ringHit struct {
 		intensity float64
+		prefix    string
 	}
-	ringMap := make(map[[2]int]ringHit)
+	ringCapacity := 0
+	if s.width > 0 && s.height > 0 {
+		ringCapacity = len(s.rings) * max(s.width, s.height) * 4
+	}
+	ringMap := make(map[[2]int]ringHit, ringCapacity)
 	for _, r := range s.rings {
 		radius, intensity := s.ringRadius(r)
 		if radius <= 0 {
 			continue
 		}
+		prefix := ansiColorPrefix(lerpRGB(paletteRGB[0], paletteRGB[1], intensity))
 		for y := 0; y < s.height; y++ {
 			dy := float64(y-s.centerY) * 2.0
 			if math.Abs(dy) > radius+1 {
@@ -307,7 +314,7 @@ func (s *SonarAnimation) Render() string {
 			for x := 0; x < s.width; x++ {
 				if s.onRing(x, y, radius) {
 					if prev, ok := ringMap[[2]int{x, y}]; !ok || intensity > prev.intensity {
-						ringMap[[2]int{x, y}] = ringHit{intensity: intensity}
+						ringMap[[2]int{x, y}] = ringHit{intensity: intensity, prefix: prefix}
 					}
 				}
 			}
@@ -315,41 +322,36 @@ func (s *SonarAnimation) Render() string {
 	}
 
 	scanY := s.scanRow()
-	gridColor := s.palette[0]
-	scanColor := s.palette[2]
+	gridColor := paletteRGB[0]
+	gridPrefix := ansiColorPrefix(gridColor)
+	scanPrefix := ansiColorPrefix(paletteRGB[2])
+	ashPrefixes := [2]string{ansiColorPrefix(paletteRGB[5]), ansiColorPrefix(paletteRGB[6])}
 
 	for y := 0; y < s.height; y++ {
 		for x := 0; x < s.width; x++ {
 			pos := [2]int{x, y}
 
 			if ap, ok := ashMap[pos]; ok {
-				var col string
+				prefix := ashPrefixes[1]
 				if ap.layer == 0 {
-					col = s.palette[5]
-				} else {
-					col = s.palette[6]
+					prefix = ashPrefixes[0]
 				}
-				r, g, b := hexToRGB(col)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ap.char)
+				writeANSIColorRuneWithPrefix(&s.builder, prefix, ap.char)
 				continue
 			}
 
 			if y == scanY {
-				r, g, b := hexToRGB(scanColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm─\033[0m", r, g, b)
+				writeANSIColorRuneWithPrefix(&s.builder, scanPrefix, '─')
 				continue
 			}
 
 			if h, ok := ringMap[pos]; ok {
-				col := hexLerp(s.palette[0], s.palette[1], h.intensity)
-				r, g, b := hexToRGB(col)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm·\033[0m", r, g, b)
+				writeANSIColorRuneWithPrefix(&s.builder, h.prefix, '·')
 				continue
 			}
 
 			if ch, ok := gridMap[pos]; ok {
-				r, g, b := hexToRGB(gridColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+				writeANSIColorRuneWithPrefix(&s.builder, gridPrefix, ch)
 				continue
 			}
 

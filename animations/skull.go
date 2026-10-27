@@ -1,7 +1,6 @@
 package animations
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"strings"
@@ -436,25 +435,10 @@ func (s *SkullAnimation) sonarRadius() (float64, float64) {
 	return radius, intensity
 }
 
-// hexLerp linearly interpolates between two hex colour strings.
-func hexLerp(from, to string, t float64) string {
-	if t <= 0 {
-		return from
-	}
-	if t >= 1 {
-		return to
-	}
-	r1, g1, b1 := hexToRGB(from)
-	r2, g2, b2 := hexToRGB(to)
-	r := r1 + int(math.Round(t*float64(r2-r1)))
-	g := g1 + int(math.Round(t*float64(g2-g1)))
-	b := b1 + int(math.Round(t*float64(b2-b1)))
-	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
-}
-
 // Render returns the current frame as a single string with ANSI escape codes.
 func (s *SkullAnimation) Render() string {
 	s.builder.Reset()
+	growANSIFrame(&s.builder, s.width, s.height)
 
 	// Build maps for fast per-cell lookup.
 	skullMap := make(map[[2]int]SkullChar, len(s.skullChars))
@@ -491,9 +475,12 @@ func (s *SkullAnimation) Render() string {
 	sonarR, sonarI := s.sonarRadius()
 
 	// Pre-resolved colours.
-	gridColor := s.palette[0]
-	scanColor := s.palette[2]
-	sonarColor := hexLerp(s.palette[0], s.palette[1], sonarI)
+	paletteRGB := parsePalette(s.palette)
+	skullPrefix := ansiColorPrefix(decodeHexRGB(s.skullColor))
+	gridPrefix := ansiColorPrefix(paletteRGB[0])
+	scanPrefix := ansiColorPrefix(paletteRGB[2])
+	sonarPrefix := ansiColorPrefix(lerpRGB(paletteRGB[0], paletteRGB[1], sonarI))
+	ashPrefixes := [2]string{ansiColorPrefix(paletteRGB[5]), ansiColorPrefix(paletteRGB[6])}
 
 	// Render line-by-line. Skull always paints on top; priority below.
 	for y := 0; y < s.height; y++ {
@@ -502,38 +489,31 @@ func (s *SkullAnimation) Render() string {
 
 			if sc, ok := skullMap[pos]; ok {
 				// Skull — always pure bright.
-				r, g, b := hexToRGB(s.skullColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, sc.char)
+				writeANSIColorRuneWithPrefix(&s.builder, skullPrefix, sc.char)
 				continue
 			}
 
 			if ap, ok := ashMap[pos]; ok {
-				var col string
+				prefix := ashPrefixes[1]
 				if ap.layer == 0 {
-					col = s.palette[5]
-				} else {
-					col = s.palette[6]
+					prefix = ashPrefixes[0]
 				}
-				r, g, b := hexToRGB(col)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ap.char)
+				writeANSIColorRuneWithPrefix(&s.builder, prefix, ap.char)
 				continue
 			}
 
 			if y == scanY {
-				r, g, b := hexToRGB(scanColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm─\033[0m", r, g, b)
+				writeANSIColorRuneWithPrefix(&s.builder, scanPrefix, '─')
 				continue
 			}
 
 			if sonarR > 0 && s.onSonarRing(x, y, sonarR) {
-				r, g, b := hexToRGB(sonarColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm·\033[0m", r, g, b)
+				writeANSIColorRuneWithPrefix(&s.builder, sonarPrefix, '·')
 				continue
 			}
 
 			if ch, ok := gridMap[pos]; ok {
-				r, g, b := hexToRGB(gridColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+				writeANSIColorRuneWithPrefix(&s.builder, gridPrefix, ch)
 				continue
 			}
 

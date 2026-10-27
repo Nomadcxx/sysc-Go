@@ -1,7 +1,6 @@
 package animations
 
 import (
-	"fmt"
 	"math/rand"
 	"strings"
 )
@@ -216,22 +215,22 @@ func (f *FireTextEffect) Update() {
 // Text areas are rendered as empty space (negative space effect)
 func (f *FireTextEffect) Render() string {
 	var output strings.Builder
+	growANSIFrame(&output, f.width, f.height)
+	prefixes := parseANSIPalette(f.palette)
 
 	// Always render full viewport height to anchor fire at bottom
 	for y := 0; y < f.height; y++ {
 		var currentColor string
-		var batchChars strings.Builder
+		colorOpen := false
 
 		for x := 0; x < f.width; x++ {
 			heat := f.buffer[y*f.width+x]
 
 			// Text mask areas are always empty (negative space)
 			if f.textMask[y][x] {
-				// Flush any pending batch
-				if batchChars.Len() > 0 {
-					r, g, b := hexToRGB(currentColor)
-					fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batchChars.String())
-					batchChars.Reset()
+				if colorOpen {
+					output.WriteString(ansiReset)
+					colorOpen = false
 				}
 				output.WriteString(" ")
 				currentColor = ""
@@ -240,11 +239,9 @@ func (f *FireTextEffect) Render() string {
 
 			// Skip very low heat (natural fade to background)
 			if heat < 5 {
-				// Flush any pending batch
-				if batchChars.Len() > 0 {
-					r, g, b := hexToRGB(currentColor)
-					fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batchChars.String())
-					batchChars.Reset()
+				if colorOpen {
+					output.WriteString(ansiReset)
+					colorOpen = false
 				}
 				output.WriteString(" ")
 				currentColor = ""
@@ -265,24 +262,21 @@ func (f *FireTextEffect) Render() string {
 			}
 			colorHex := f.palette[colorIndex]
 
-			// If color changed, flush previous batch and start new one
-			if colorHex != currentColor {
-				if batchChars.Len() > 0 {
-					r, g, b := hexToRGB(currentColor)
-					fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batchChars.String())
-					batchChars.Reset()
+			// Start a color run only when its palette entry changes.
+			if !colorOpen || colorHex != currentColor {
+				if colorOpen {
+					output.WriteString(ansiReset)
 				}
+				output.WriteString(prefixes[colorIndex])
 				currentColor = colorHex
+				colorOpen = true
 			}
 
-			// Add character to batch
-			batchChars.WriteRune(char)
+			output.WriteRune(char)
 		}
 
-		// Flush any remaining batch at end of line
-		if batchChars.Len() > 0 {
-			r, g, b := hexToRGB(currentColor)
-			fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batchChars.String())
+		if colorOpen {
+			output.WriteString(ansiReset)
 		}
 
 		output.WriteString("\n")

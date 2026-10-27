@@ -1,7 +1,6 @@
 package animations
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"strings"
@@ -223,6 +222,8 @@ func (c *CracktroAnimation) project(v vec3, scale float64) (int, int, float64) {
 
 func (c *CracktroAnimation) Render() string {
 	c.builder.Reset()
+	growANSIFrame(&c.builder, c.width, c.height)
+	paletteRGB := parsePalette(c.palette)
 
 	bootFade := 1.0
 	if c.phase == CracktroBoot {
@@ -252,7 +253,7 @@ func (c *CracktroAnimation) Render() string {
 		colorIdx  int
 		intensity float64
 	}
-	barMap := make(map[int]barHit)
+	barMap := make(map[int]barHit, len(c.bars)*5)
 	for _, bar := range c.bars {
 		centerY := float64(c.height)/2.0 + math.Sin(bar.phase)*float64(c.height)*0.38
 		for dy := -2; dy <= 2; dy++ {
@@ -272,7 +273,11 @@ func (c *CracktroAnimation) Render() string {
 	}
 
 	// Wireframe
-	wireMap := make(map[[2]int]wirePixel)
+	wireCapacity := 0
+	if c.width > 0 && c.height > 0 {
+		wireCapacity = len(c.cubeEdges) * min(c.width, c.height)
+	}
+	wireMap := make(map[[2]int]wirePixel, wireCapacity)
 	if bootFade > 0.5 {
 		outerScale := math.Min(float64(c.width)*0.18, float64(c.height)*0.6)
 		innerScale := outerScale * 0.5
@@ -285,7 +290,7 @@ func (c *CracktroAnimation) Render() string {
 		depth float64
 		dist  int // 1 = adjacent, 2 = further
 	}
-	glowMap := make(map[[2]int]glowHit)
+	glowMap := make(map[[2]int]glowHit, wireCapacity*4)
 	for pos, wp := range wireMap {
 		for dy := -1; dy <= 1; dy++ {
 			for dx := -1; dx <= 1; dx++ {
@@ -322,7 +327,11 @@ func (c *CracktroAnimation) Render() string {
 	type trailHit struct {
 		age int
 	}
-	trailMap := make(map[[2]int]trailHit)
+	trailCapacity := len(c.trails)
+	if remaining := c.maxTrails - trailCapacity; remaining > 0 {
+		trailCapacity += min(wireCapacity, remaining)
+	}
+	trailMap := make(map[[2]int]trailHit, trailCapacity)
 	for _, t := range c.trails {
 		pos := [2]int{t.x, t.y}
 		if _, isWire := wireMap[pos]; isWire {
@@ -342,21 +351,21 @@ func (c *CracktroAnimation) Render() string {
 			pos := [2]int{x, y}
 
 			if wp, ok := wireMap[pos]; ok {
-				col := c.cracktroSlot(5)
-				r, g, b := hexToRGB(col)
+				baseColor := cracktroSlotColor(paletteRGB, 5)
 				depthFactor := 0.5 + 0.5*(1.0-((wp.depth+1.0)/2.0))
 				pulse := 0.85 + 0.15*math.Sin(float64(c.frameCount)*0.12)
 				brightness := depthFactor * pulse * bootFade
-				r = cracktroClamp(int(float64(r)*brightness), 0, 255)
-				g = cracktroClamp(int(float64(g)*brightness), 0, 255)
-				b = cracktroClamp(int(float64(b)*brightness), 0, 255)
-				fmt.Fprintf(&c.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, wp.ch)
+				color := rgbColor{
+					uint8(cracktroClamp(int(float64(baseColor[0])*brightness), 0, 255)),
+					uint8(cracktroClamp(int(float64(baseColor[1])*brightness), 0, 255)),
+					uint8(cracktroClamp(int(float64(baseColor[2])*brightness), 0, 255)),
+				}
+				writeANSIColorRune(&c.builder, color, wp.ch)
 				continue
 			}
 
 			if gh, ok := glowMap[pos]; ok {
-				col := c.cracktroSlot(5)
-				r, g, b := hexToRGB(col)
+				baseColor := cracktroSlotColor(paletteRGB, 5)
 				depthFactor := 0.5 + 0.5*(1.0-((gh.depth+1.0)/2.0))
 				var glowIntensity float64
 				var ch rune
@@ -368,16 +377,17 @@ func (c *CracktroAnimation) Render() string {
 					ch = '\u2592' // ▒
 				}
 				brightness := depthFactor * glowIntensity * bootFade
-				r = cracktroClamp(int(float64(r)*brightness), 0, 255)
-				g = cracktroClamp(int(float64(g)*brightness), 0, 255)
-				b = cracktroClamp(int(float64(b)*brightness), 0, 255)
-				fmt.Fprintf(&c.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+				color := rgbColor{
+					uint8(cracktroClamp(int(float64(baseColor[0])*brightness), 0, 255)),
+					uint8(cracktroClamp(int(float64(baseColor[1])*brightness), 0, 255)),
+					uint8(cracktroClamp(int(float64(baseColor[2])*brightness), 0, 255)),
+				}
+				writeANSIColorRune(&c.builder, color, ch)
 				continue
 			}
 
 			if th, ok := trailMap[pos]; ok {
-				col := c.cracktroSlot(5)
-				r, g, b := hexToRGB(col)
+				baseColor := cracktroSlotColor(paletteRGB, 5)
 				var decay float64
 				var ch rune
 				switch th.age {
@@ -391,19 +401,22 @@ func (c *CracktroAnimation) Render() string {
 					decay = 0.08
 					ch = '\u2591' // ░
 				}
-				r = cracktroClamp(int(float64(r)*decay), 0, 255)
-				g = cracktroClamp(int(float64(g)*decay), 0, 255)
-				b = cracktroClamp(int(float64(b)*decay), 0, 255)
-				fmt.Fprintf(&c.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+				color := rgbColor{
+					uint8(cracktroClamp(int(float64(baseColor[0])*decay), 0, 255)),
+					uint8(cracktroClamp(int(float64(baseColor[1])*decay), 0, 255)),
+					uint8(cracktroClamp(int(float64(baseColor[2])*decay), 0, 255)),
+				}
+				writeANSIColorRune(&c.builder, color, ch)
 				continue
 			}
 
 			if bh, ok := barMap[y]; ok {
-				col := c.cracktroSlot(bh.colorIdx)
-				r, g, b := hexToRGB(col)
-				r = cracktroClamp(int(float64(r)*bh.intensity), 0, 255)
-				g = cracktroClamp(int(float64(g)*bh.intensity), 0, 255)
-				b = cracktroClamp(int(float64(b)*bh.intensity), 0, 255)
+				baseColor := cracktroSlotColor(paletteRGB, bh.colorIdx)
+				color := rgbColor{
+					uint8(cracktroClamp(int(float64(baseColor[0])*bh.intensity), 0, 255)),
+					uint8(cracktroClamp(int(float64(baseColor[1])*bh.intensity), 0, 255)),
+					uint8(cracktroClamp(int(float64(baseColor[2])*bh.intensity), 0, 255)),
+				}
 				var ch rune
 				if bh.intensity > 0.8 {
 					ch = '\u2588' // █
@@ -414,13 +427,12 @@ func (c *CracktroAnimation) Render() string {
 				} else {
 					ch = '\u2591' // ░
 				}
-				fmt.Fprintf(&c.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+				writeANSIColorRune(&c.builder, color, ch)
 				continue
 			}
 
 			if layer, ok := starMap[pos]; ok {
-				col := c.cracktroSlot(layer)
-				r, g, b := hexToRGB(col)
+				color := cracktroSlotColor(paletteRGB, layer)
 				var ch rune
 				switch layer {
 				case 0:
@@ -430,7 +442,7 @@ func (c *CracktroAnimation) Render() string {
 				case 2:
 					ch = '*'
 				}
-				fmt.Fprintf(&c.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+				writeANSIColorRune(&c.builder, color, ch)
 				continue
 			}
 
@@ -506,14 +518,14 @@ func (c *CracktroAnimation) drawEdge(wireMap map[[2]int]wirePixel, x0, y0 int, z
 	}
 }
 
-func (c *CracktroAnimation) cracktroSlot(i int) string {
-	if len(c.palette) == 0 {
-		return "#ffffff"
+func cracktroSlotColor(palette []rgbColor, i int) rgbColor {
+	if len(palette) == 0 {
+		return rgbColor{255, 255, 255}
 	}
-	if i >= len(c.palette) {
-		return c.palette[len(c.palette)-1]
+	if i >= len(palette) {
+		i = len(palette) - 1
 	}
-	return c.palette[i]
+	return palette[i]
 }
 
 func cracktroClamp(v, lo, hi int) int {
