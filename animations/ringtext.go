@@ -5,8 +5,6 @@ import (
 	"math/rand"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // GradientDirection specifies the direction of gradient application
@@ -78,6 +76,7 @@ type RingTextEffect struct {
 	canvas  [][]rune
 	colors  [][]string
 	builder strings.Builder
+	styles  cellColorCache
 }
 
 // RingTextCharacter represents a single character in the animation
@@ -213,7 +212,6 @@ func (e *RingTextEffect) initBuffers() {
 		e.canvas[i] = make([]rune, e.width)
 		e.colors[i] = make([]string, e.width)
 	}
-	e.builder.Grow(e.width * e.height * 4)
 }
 
 func (e *RingTextEffect) clearBuffers() {
@@ -573,26 +571,15 @@ func (e *RingTextEffect) Render() string {
 	}
 
 	// Build output (line-by-line like other effects)
-	var lines []string
+	resetFrameBuilder(&e.builder)
 	for y := 0; y < e.height; y++ {
-		e.builder.Reset()
-		for x := 0; x < e.width; x++ {
-			char := e.canvas[y][x]
-			color := e.colors[y][x]
-
-			if color != "" && char != ' ' {
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(color)).
-					Render(string(char))
-				e.builder.WriteString(styled)
-			} else {
-				e.builder.WriteRune(char)
-			}
+		if y > 0 {
+			e.builder.WriteByte('\n')
 		}
-		lines = append(lines, e.builder.String())
+		writeFrameRow(&e.builder, e.canvas[y], e.colors[y], &e.styles, false)
 	}
 
-	return strings.Join(lines, "\n")
+	return e.builder.String()
 }
 
 // Reset restarts the animation
@@ -620,6 +607,7 @@ func (e *RingTextEffect) Reset() {
 // SetText updates the displayed text and reinitializes the ring animation.
 func (e *RingTextEffect) SetText(text string) {
 	e.text = normalizeMultilineText(text)
+	e.styles = nil
 	e.init()
 }
 

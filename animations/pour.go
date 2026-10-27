@@ -6,8 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // PourEffect implements a character pouring animation from different directions
@@ -40,7 +38,10 @@ type PourEffect struct {
 	alternateDir   bool // Alternate pouring direction
 
 	// Pre-allocated buffer for performance
-	buffer [][]string
+	buffer      [][]rune
+	colors      [][]string
+	builder     strings.Builder
+	styleColors cellColorCache
 	// Cached RGB values for color interpolation (performance)
 	startColorRGB [3]int
 	colorCache    map[string][3]int
@@ -104,9 +105,11 @@ func NewPourEffect(config PourConfig) *PourEffect {
 	}
 
 	// Pre-allocate buffer for performance
-	buffer := make([][]string, height)
+	buffer := make([][]rune, height)
+	colors := make([][]string, height)
 	for i := range buffer {
-		buffer[i] = make([]string, width)
+		buffer[i] = make([]rune, width)
+		colors[i] = make([]string, width)
 	}
 
 	effect := &PourEffect{
@@ -133,6 +136,7 @@ func NewPourEffect(config PourConfig) *PourEffect {
 		display:                config.Display,
 		holdFrames:             holdFrames,
 		buffer:                 buffer,
+		colors:                 colors,
 		colorCache:             make(map[string][3]int),
 	}
 
@@ -546,7 +550,8 @@ func (p *PourEffect) Render() string {
 	// Clear pre-allocated buffer
 	for i := range p.buffer {
 		for j := range p.buffer[i] {
-			p.buffer[i][j] = " "
+			p.buffer[i][j] = ' '
+			p.colors[i][j] = ""
 		}
 	}
 
@@ -557,19 +562,21 @@ func (p *PourEffect) Render() string {
 			y := int(math.Round(char.currentY))
 
 			if y >= 0 && y < p.height && x >= 0 && x < p.width {
-				style := lipgloss.NewStyle().Foreground(lipgloss.Color(char.color))
-				p.buffer[y][x] = style.Render(string(char.original))
+				p.buffer[y][x] = char.original
+				p.colors[y][x] = char.color
 			}
 		}
 	}
 
 	// Convert buffer to string
-	var lines []string
-	for _, line := range p.buffer {
-		lines = append(lines, strings.Join(line, ""))
+	resetFrameBuilder(&p.builder)
+	for y, line := range p.buffer {
+		if y > 0 {
+			p.builder.WriteByte('\n')
+		}
+		writeFrameRow(&p.builder, line, p.colors[y], &p.styleColors, true)
 	}
-
-	return strings.Join(lines, "\n")
+	return p.builder.String()
 }
 
 // Resize updates the effect dimensions and reinitializes
@@ -578,9 +585,11 @@ func (p *PourEffect) Resize(width, height int) {
 	p.height = height
 
 	// Re-allocate buffer for new dimensions
-	p.buffer = make([][]string, height)
+	p.buffer = make([][]rune, height)
+	p.colors = make([][]string, height)
 	for i := range p.buffer {
-		p.buffer[i] = make([]string, width)
+		p.buffer[i] = make([]rune, width)
+		p.colors[i] = make([]string, width)
 	}
 
 	// Reinitialize with new dimensions
@@ -622,5 +631,6 @@ func (p *PourEffect) Reset() {
 // SetText updates the displayed text and reinitializes the pour animation.
 func (p *PourEffect) SetText(text string) {
 	p.text = text
+	p.styleColors = nil
 	p.init()
 }

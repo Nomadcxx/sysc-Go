@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss/v2"
 	"gonum.org/v1/gonum/spatial/r2"
 )
 
@@ -15,10 +14,9 @@ type Particle struct {
 	p0, p1, p2, p3   r2.Vec  // Bezier control points
 	t                float64 // Progress (0-1)
 	char             rune    // Character to display
-	style            lipgloss.Style
-	phase            int    // 0=launch, 1=explosion, 2=fall
-	color            string // Current color
-	targetX, targetY int    // Final position
+	phase            int     // 0=launch, 1=explosion, 2=fall
+	color            string  // Current color
+	targetX, targetY int     // Final position
 }
 
 // FireworksEffect implements fireworks animation
@@ -31,8 +29,9 @@ type FireworksEffect struct {
 	launchDelay   int
 	activeShells  int
 	canvas        [][]rune
-	styles        [][]lipgloss.Style
+	colors        [][]string
 	builder       strings.Builder
+	renderColors  cellColorCache
 }
 
 // NewFireworksEffect creates a new fireworks effect
@@ -89,15 +88,15 @@ func (fw *FireworksEffect) init() {
 func (fw *FireworksEffect) initBuffers() {
 	if fw.width <= 0 || fw.height <= 0 {
 		fw.canvas = nil
-		fw.styles = nil
+		fw.colors = nil
 		return
 	}
 
 	fw.canvas = make([][]rune, fw.height)
-	fw.styles = make([][]lipgloss.Style, fw.height)
+	fw.colors = make([][]string, fw.height)
 	for y := 0; y < fw.height; y++ {
 		fw.canvas[y] = make([]rune, fw.width)
-		fw.styles[y] = make([]lipgloss.Style, fw.width)
+		fw.colors[y] = make([]string, fw.width)
 	}
 }
 
@@ -105,7 +104,7 @@ func (fw *FireworksEffect) clearBuffers() {
 	for y := 0; y < fw.height; y++ {
 		for x := 0; x < fw.width; x++ {
 			fw.canvas[y][x] = ' '
-			fw.styles[y][x] = lipgloss.Style{}
+			fw.colors[y][x] = ""
 		}
 	}
 }
@@ -113,6 +112,7 @@ func (fw *FireworksEffect) clearBuffers() {
 // UpdatePalette changes the fireworks color palette
 func (fw *FireworksEffect) UpdatePalette(palette []string) {
 	fw.palette = palette
+	fw.renderColors = nil
 }
 
 // Resize reinitializes the fireworks effect with new dimensions
@@ -190,7 +190,6 @@ func (fw *FireworksEffect) launchShell(shellIndex int) {
 		} else {
 			p.color = "#FFFFFF"
 		}
-		p.style = lipgloss.NewStyle().Foreground(lipgloss.Color(p.color))
 	}
 }
 
@@ -229,7 +228,6 @@ func (fw *FireworksEffect) explodeShell(shellIndex int) {
 		// Assign a color for this explosion
 		if len(fw.palette) > 0 {
 			p.color = fw.palette[rand.Intn(len(fw.palette))]
-			p.style = lipgloss.NewStyle().Foreground(lipgloss.Color(p.color))
 		}
 	}
 }
@@ -345,7 +343,6 @@ func (fw *FireworksEffect) Update() {
 				}
 				p.color = fw.palette[fadeIdx]
 			}
-			p.style = lipgloss.NewStyle().Foreground(lipgloss.Color(p.color))
 		}
 	}
 
@@ -379,21 +376,21 @@ func (fw *FireworksEffect) Render() string {
 		return ""
 	}
 
-	if len(fw.canvas) != fw.height || len(fw.styles) != fw.height {
+	if len(fw.canvas) != fw.height || len(fw.colors) != fw.height {
 		fw.initBuffers()
 	}
 
 	fw.clearBuffers()
 
 	canvas := fw.canvas
-	styles := fw.styles
+	colors := fw.colors
 
 	for y := 0; y < fw.height; y++ {
-		if len(canvas[y]) != fw.width || len(styles[y]) != fw.width {
+		if len(canvas[y]) != fw.width || len(colors[y]) != fw.width {
 			fw.initBuffers()
 			fw.clearBuffers()
 			canvas = fw.canvas
-			styles = fw.styles
+			colors = fw.colors
 			break
 		}
 	}
@@ -407,21 +404,14 @@ func (fw *FireworksEffect) Render() string {
 		x, y := int(p.pos.X), int(p.pos.Y)
 		if x >= 0 && x < fw.width && y >= 0 && y < fw.height {
 			canvas[y][x] = p.char
-			styles[y][x] = p.style
+			colors[y][x] = p.color
 		}
 	}
 
 	// Convert to colored string
-	fw.builder.Reset()
+	resetFrameBuilder(&fw.builder)
 	for y := 0; y < fw.height; y++ {
-		for x := 0; x < fw.width; x++ {
-			char := canvas[y][x]
-			if char != ' ' {
-				fw.builder.WriteString(styles[y][x].Render(string(char)))
-			} else {
-				fw.builder.WriteRune(char)
-			}
-		}
+		writeFrameRow(&fw.builder, canvas[y], colors[y], &fw.renderColors, false)
 		if y < fw.height-1 {
 			fw.builder.WriteByte('\n')
 		}

@@ -4,8 +4,6 @@ import (
 	"math/rand"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // MatrixArtEffect implements Matrix rain that crystallizes into ASCII art
@@ -34,6 +32,7 @@ type MatrixArtEffect struct {
 	canvas  [][]rune
 	colors  [][]string
 	builder strings.Builder
+	styles  cellColorCache
 }
 
 // FrozenMatrixChar represents a matrix character that has frozen to form the art
@@ -174,7 +173,6 @@ func (m *MatrixArtEffect) initBuffers() {
 		m.canvas[i] = make([]rune, m.width)
 		m.colors[i] = make([]string, m.width)
 	}
-	m.builder.Grow(m.width * m.height * 4)
 }
 
 func (m *MatrixArtEffect) clearBuffers() {
@@ -324,24 +322,15 @@ func (m *MatrixArtEffect) Render() string {
 	}
 
 	// Convert to colored string
-	var lines []string
+	resetFrameBuilder(&m.builder)
 	for y := 0; y < m.height; y++ {
-		m.builder.Reset()
-		for x := 0; x < m.width; x++ {
-			char := m.canvas[y][x]
-			if char != ' ' && m.colors[y][x] != "" {
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(m.colors[y][x])).
-					Render(string(char))
-				m.builder.WriteString(styled)
-			} else {
-				m.builder.WriteRune(char)
-			}
+		if y > 0 {
+			m.builder.WriteByte('\n')
 		}
-		lines = append(lines, m.builder.String())
+		writeFrameRow(&m.builder, m.canvas[y], m.colors[y], &m.styles, false)
 	}
 
-	return strings.Join(lines, "\n")
+	return m.builder.String()
 }
 
 // Reset clears frozen characters to restart the formation

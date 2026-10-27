@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // BeamsEffect implements beams as a full-screen background animation
@@ -53,6 +51,7 @@ type BeamsEffect struct {
 	canvas  [][]rune
 	colors  [][]string
 	builder strings.Builder
+	styles  cellColorCache
 }
 
 // BeamCharacter represents a single character in the beams animation
@@ -200,7 +199,6 @@ func (b *BeamsEffect) initBuffers() {
 		b.canvas[i] = make([]rune, b.width)
 		b.colors[i] = make([]string, b.width)
 	}
-	b.builder.Grow(b.width * b.height * 4)
 }
 
 func (b *BeamsEffect) clearBuffers() {
@@ -657,22 +655,12 @@ func (b *BeamsEffect) Render() string {
 	}
 
 	// Convert to colored string
-	b.builder.Reset()
+	resetFrameBuilder(&b.builder)
 	for y := 0; y < b.height; y++ {
 		if y > 0 {
 			b.builder.WriteRune('\n')
 		}
-		for x := 0; x < b.width; x++ {
-			char := b.canvas[y][x]
-			if char != ' ' && b.colors[y][x] != "" {
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(b.colors[y][x])).
-					Render(string(char))
-				b.builder.WriteString(styled)
-			} else {
-				b.builder.WriteRune(char)
-			}
-		}
+		writeFrameRow(&b.builder, b.canvas[y], b.colors[y], &b.styles, false)
 	}
 
 	return b.builder.String()
