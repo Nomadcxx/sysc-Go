@@ -308,6 +308,9 @@ func setAnimationKeys(content string, owned [][2]string) string {
 	}
 
 	if sawAnimation {
+		if len(missing) > 0 && lastContent >= 0 && lineEnding(lines[lastContent]) == "" {
+			lines[lastContent] += ending
+		}
 		lines, _ = insertAt(lines, insertIndex(lines, len(lines), lastContent), missing, ending)
 	} else {
 		if len(lines) > 0 && lines[len(lines)-1] != "\n" && lines[len(lines)-1] != "\r\n" {
