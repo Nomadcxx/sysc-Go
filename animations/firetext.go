@@ -1,7 +1,7 @@
 package animations
 
 import (
-	"fmt"
+	"bytes"
 	"math/rand"
 	"strings"
 )
@@ -13,7 +13,9 @@ type FireTextEffect struct {
 	height  int      // Terminal height
 	buffer  []int    // Heat values (0-65), size = width * height
 	palette []string // Hex color codes from theme
-	chars   []rune   // Fire characters for density (8-level gradient)
+	colors  []ansiColor
+	chars   []rune // Fire characters for density (8-level gradient)
+	output  bytes.Buffer
 
 	// Text masking
 	text      string
@@ -32,6 +34,7 @@ func NewFireTextEffect(width, height int, palette []string, text string) *FireTe
 		width:   width,
 		height:  height,
 		palette: palette,
+		colors:  cacheANSIColors(palette),
 		text:    text,
 		// Enhanced 8-character gradient for smoother fire rendering
 		chars: []rune{' ', '░', '░', '▒', '▒', '▓', '▓', '█'},
@@ -126,12 +129,14 @@ func (f *FireTextEffect) init() {
 // UpdatePalette changes the fire color palette (for theme switching)
 func (f *FireTextEffect) UpdatePalette(palette []string) {
 	f.palette = palette
+	f.colors = cacheANSIColors(palette)
 }
 
 // Resize reinitializes the fire effect with new dimensions
 func (f *FireTextEffect) Resize(width, height int) {
 	f.width = width
 	f.height = height
+	f.colors = cacheANSIColors(f.palette)
 	f.parseText() // Re-parse to recenter text
 	f.init()
 }
@@ -215,12 +220,13 @@ func (f *FireTextEffect) Update() {
 // Render converts fire to colored block output with batched raw ANSI codes
 // Text areas are rendered as empty space (negative space effect)
 func (f *FireTextEffect) Render() string {
-	var output strings.Builder
+	f.output.Reset()
+	output := &f.output
 
 	// Always render full viewport height to anchor fire at bottom
 	for y := 0; y < f.height; y++ {
 		var currentColor string
-		var batchChars strings.Builder
+		colored := false
 
 		for x := 0; x < f.width; x++ {
 			heat := f.buffer[y*f.width+x]
@@ -228,10 +234,9 @@ func (f *FireTextEffect) Render() string {
 			// Text mask areas are always empty (negative space)
 			if f.textMask[y][x] {
 				// Flush any pending batch
-				if batchChars.Len() > 0 {
-					r, g, b := hexToRGB(currentColor)
-					fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batchChars.String())
-					batchChars.Reset()
+				if colored {
+					output.WriteString(ansiReset)
+					colored = false
 				}
 				output.WriteString(" ")
 				currentColor = ""
@@ -241,10 +246,9 @@ func (f *FireTextEffect) Render() string {
 			// Skip very low heat (natural fade to background)
 			if heat < 5 {
 				// Flush any pending batch
-				if batchChars.Len() > 0 {
-					r, g, b := hexToRGB(currentColor)
-					fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batchChars.String())
-					batchChars.Reset()
+				if colored {
+					output.WriteString(ansiReset)
+					colored = false
 				}
 				output.WriteString(" ")
 				currentColor = ""
@@ -266,35 +270,30 @@ func (f *FireTextEffect) Render() string {
 			colorHex := f.palette[colorIndex]
 
 			// If color changed, flush previous batch and start new one
-			if colorHex != currentColor {
-				if batchChars.Len() > 0 {
-					r, g, b := hexToRGB(currentColor)
-					fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batchChars.String())
-					batchChars.Reset()
+			if !colored || colorHex != currentColor {
+				if colored {
+					output.WriteString(ansiReset)
 				}
+				output.WriteString(f.colors[colorIndex].prefix)
 				currentColor = colorHex
+				colored = true
 			}
 
 			// Add character to batch
-			batchChars.WriteRune(char)
+			output.WriteRune(char)
 		}
 
 		// Flush any remaining batch at end of line
-		if batchChars.Len() > 0 {
-			r, g, b := hexToRGB(currentColor)
-			fmt.Fprintf(&output, "\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, batchChars.String())
+		if colored {
+			output.WriteString(ansiReset)
 		}
 
-		output.WriteString("\n")
+		if y < f.height-1 {
+			output.WriteByte('\n')
+		}
 	}
 
-	// Remove trailing newline
-	result := output.String()
-	if len(result) > 0 && result[len(result)-1] == '\n' {
-		result = result[:len(result)-1]
-	}
-
-	return result
+	return output.String()
 }
 
 // SetText updates the displayed text and rebuilds the fire around it.

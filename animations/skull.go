@@ -1,7 +1,7 @@
 package animations
 
 import (
-	"fmt"
+	"bytes"
 	"math"
 	"math/rand"
 	"strings"
@@ -92,8 +92,9 @@ type SkullAnimation struct {
 	width      int
 	height     int
 	palette    []string
+	colors     []ansiColor
 	theme      string
-	skullColor string // Always bright — skull stays white through every phase.
+	skullColor ansiColor // Brightest slot — skull stays white through every phase.
 
 	// Skull state
 	skullChars   []SkullChar
@@ -116,17 +117,19 @@ type SkullAnimation struct {
 	gridStartFrame int
 	holdStartFrame int
 
-	builder strings.Builder
+	builder bytes.Buffer
 }
 
 // NewSkullEffect creates a new skull scene effect.
 func NewSkullEffect(width, height int, palette []string, theme string) *SkullAnimation {
+	colors := cacheANSIColors(palette)
 	s := &SkullAnimation{
 		width:          width,
 		height:         height,
 		palette:        palette,
+		colors:         colors,
 		theme:          theme,
-		skullColor:     palette[4], // Brightest slot — white in every theme
+		skullColor:     colors[4],
 		phase:          PhaseDrip,
 		frameCount:     0,
 		gridStartFrame: -1,
@@ -436,22 +439,6 @@ func (s *SkullAnimation) sonarRadius() (float64, float64) {
 	return radius, intensity
 }
 
-// hexLerp linearly interpolates between two hex colour strings.
-func hexLerp(from, to string, t float64) string {
-	if t <= 0 {
-		return from
-	}
-	if t >= 1 {
-		return to
-	}
-	r1, g1, b1 := hexToRGB(from)
-	r2, g2, b2 := hexToRGB(to)
-	r := r1 + int(math.Round(t*float64(r2-r1)))
-	g := g1 + int(math.Round(t*float64(g2-g1)))
-	b := b1 + int(math.Round(t*float64(b2-b1)))
-	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
-}
-
 // Render returns the current frame as a single string with ANSI escape codes.
 func (s *SkullAnimation) Render() string {
 	s.builder.Reset()
@@ -491,9 +478,9 @@ func (s *SkullAnimation) Render() string {
 	sonarR, sonarI := s.sonarRadius()
 
 	// Pre-resolved colours.
-	gridColor := s.palette[0]
-	scanColor := s.palette[2]
-	sonarColor := hexLerp(s.palette[0], s.palette[1], sonarI)
+	gridColor := s.colors[0]
+	scanColor := s.colors[2]
+	sonarColor := lerpRGB(gridColor.rgbColor, s.colors[1].rgbColor, sonarI)
 
 	// Render line-by-line. Skull always paints on top; priority below.
 	for y := 0; y < s.height; y++ {
@@ -502,38 +489,33 @@ func (s *SkullAnimation) Render() string {
 
 			if sc, ok := skullMap[pos]; ok {
 				// Skull — always pure bright.
-				r, g, b := hexToRGB(s.skullColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, sc.char)
+				writeANSIRune(&s.builder, s.skullColor, sc.char)
 				continue
 			}
 
 			if ap, ok := ashMap[pos]; ok {
-				var col string
+				var color ansiColor
 				if ap.layer == 0 {
-					col = s.palette[5]
+					color = s.colors[5]
 				} else {
-					col = s.palette[6]
+					color = s.colors[6]
 				}
-				r, g, b := hexToRGB(col)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ap.char)
+				writeANSIRune(&s.builder, color, ap.char)
 				continue
 			}
 
 			if y == scanY {
-				r, g, b := hexToRGB(scanColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm─\033[0m", r, g, b)
+				writeANSIRune(&s.builder, scanColor, '─')
 				continue
 			}
 
 			if sonarR > 0 && s.onSonarRing(x, y, sonarR) {
-				r, g, b := hexToRGB(sonarColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm·\033[0m", r, g, b)
+				writeRGBRune(&s.builder, sonarColor, '·')
 				continue
 			}
 
 			if ch, ok := gridMap[pos]; ok {
-				r, g, b := hexToRGB(gridColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+				writeANSIRune(&s.builder, gridColor, ch)
 				continue
 			}
 

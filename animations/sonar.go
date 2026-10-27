@@ -1,10 +1,9 @@
 package animations
 
 import (
-	"fmt"
+	"bytes"
 	"math"
 	"math/rand"
-	"strings"
 )
 
 // SonarRing is a single expanding pulse. Birth frame stores when it was
@@ -19,6 +18,7 @@ type SonarRing struct {
 type SonarAnimation struct {
 	width, height int
 	palette       []string
+	colors        []ansiColor
 	theme         string
 
 	centerX int
@@ -45,7 +45,7 @@ type SonarAnimation struct {
 	gridDuration   int
 	holdStartFrame int
 
-	builder strings.Builder
+	builder bytes.Buffer
 }
 
 // NewSonarEffect builds the sonar scene. It reuses the skull palette layout
@@ -56,6 +56,7 @@ func NewSonarEffect(width, height int, palette []string, theme string) *SonarAni
 		width:          width,
 		height:         height,
 		palette:        palette,
+		colors:         cacheANSIColors(palette),
 		theme:          theme,
 		centerX:        width / 2,
 		centerY:        height / 2,
@@ -315,41 +316,37 @@ func (s *SonarAnimation) Render() string {
 	}
 
 	scanY := s.scanRow()
-	gridColor := s.palette[0]
-	scanColor := s.palette[2]
+	gridColor := s.colors[0]
+	scanColor := s.colors[2]
 
 	for y := 0; y < s.height; y++ {
 		for x := 0; x < s.width; x++ {
 			pos := [2]int{x, y}
 
 			if ap, ok := ashMap[pos]; ok {
-				var col string
+				var color ansiColor
 				if ap.layer == 0 {
-					col = s.palette[5]
+					color = s.colors[5]
 				} else {
-					col = s.palette[6]
+					color = s.colors[6]
 				}
-				r, g, b := hexToRGB(col)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ap.char)
+				writeANSIRune(&s.builder, color, ap.char)
 				continue
 			}
 
 			if y == scanY {
-				r, g, b := hexToRGB(scanColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm─\033[0m", r, g, b)
+				writeANSIRune(&s.builder, scanColor, '─')
 				continue
 			}
 
 			if h, ok := ringMap[pos]; ok {
-				col := hexLerp(s.palette[0], s.palette[1], h.intensity)
-				r, g, b := hexToRGB(col)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm·\033[0m", r, g, b)
+				color := lerpRGB(gridColor.rgbColor, s.colors[1].rgbColor, h.intensity)
+				writeRGBRune(&s.builder, color, '·')
 				continue
 			}
 
 			if ch, ok := gridMap[pos]; ok {
-				r, g, b := hexToRGB(gridColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+				writeANSIRune(&s.builder, gridColor, ch)
 				continue
 			}
 
@@ -381,6 +378,7 @@ func (s *SonarAnimation) Reset() {
 func (s *SonarAnimation) Resize(width, height int) {
 	s.width = width
 	s.height = height
+	s.colors = cacheANSIColors(s.palette)
 	s.centerX = width / 2
 	s.centerY = height / 2
 	dx := float64(width) / 2.0
