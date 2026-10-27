@@ -82,7 +82,8 @@ type Model struct {
 	bitShowFontList   bool     // Font browser open
 
 	// Styles
-	styles Styles
+	styles    Styles
+	viewCache *viewRenderCache
 }
 
 // Styles holds lipgloss styles for the TUI
@@ -209,6 +210,7 @@ func NewModel() Model {
 		bitColorPicker:    false,
 		bitShowFontList:   false,
 		styles:            NewStyles(),
+		viewCache:         &viewRenderCache{},
 	}
 }
 
