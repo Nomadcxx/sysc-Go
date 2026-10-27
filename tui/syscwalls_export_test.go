@@ -545,6 +545,31 @@ func TestUpdateSyscWallsConfigAnimationLastSectionNoTrailingNewline(t *testing.T
 	}
 }
 
+func TestUpdateSyscWallsConfigInsertsFileAfterUnterminatedTheme(t *testing.T) {
+	const art = "/walls/notrail.txt"
+	for _, tt := range []struct {
+		name   string
+		ending string
+	}{
+		{name: "LF", ending: "\n"},
+		{name: "CRLF", ending: "\r\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			in := strings.Join([]string{"[animation]", "effect = fire", "theme = nord"}, tt.ending)
+			path := writeConfig(t, in, 0o600)
+
+			if err := updateSyscWallsConfig(path, art); err != nil {
+				t.Fatalf("updateSyscWallsConfig error = %v", err)
+			}
+
+			want := strings.Join([]string{"[animation]", "effect = beam-text", "theme = nord", "file = " + art}, tt.ending) + tt.ending
+			if got := readConfig(t, path); got != want {
+				t.Fatalf("config = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func TestUpdateSyscWallsConfigInsertedBeforeTrailingBlanks(t *testing.T) {
 	const art = "/walls/blank.txt"
 	in := "[animation]\neffect = fire\n\n\n[terminal]\nkitty = true\n"
