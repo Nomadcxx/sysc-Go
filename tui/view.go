@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"strings"
+	"sync"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -17,6 +19,40 @@ const (
 	// so the canvas content height is terminal height minus this budget.
 	mainViewChromeRows = 8
 )
+
+type viewRenderCache struct {
+	mu sync.Mutex
+
+	borderWidth  int
+	borderTheme  int
+	topBorder    string
+	bottomBorder string
+	leftBorder   string
+	rightBorder  string
+
+	chromeKey   runningChromeKey
+	chromeValid bool
+	selectors   string
+	guidance    string
+	help        string
+}
+
+type runningChromeKey struct {
+	width, height int
+	animation     int
+	theme         int
+	file          int
+	duration      int
+	focus         int
+	bitFontCount  int
+}
+
+type canvasBorder struct {
+	top, bottom string
+	left, right string
+}
+
+var viewSpaceBlock = strings.Repeat(" ", 256)
 
 // terminalTooSmall reports whether a sized terminal is below the TUI minimum.
 // Width 0 means the first window-size message has not arrived; View shows "Loading...".
@@ -55,6 +91,9 @@ func (m Model) View() string {
 	if m.editorMode {
 		return m.renderEditorView()
 	}
+	if m.animationRunning && m.currentAnim != nil {
+		return m.renderRunningView()
+	}
 
 	var sections []string
 
@@ -84,11 +123,12 @@ func (m Model) View() string {
 
 // renderCanvas renders the animation preview viewport
 func (m Model) renderCanvas() string {
-	var content string
 	if m.animationRunning && m.currentAnim != nil {
-		// Render actual animation frame (raw content)
-		content = m.currentAnim.Render()
-	} else if m.animationError != "" {
+		return m.renderAnimationCanvas(m.currentAnim.Render())
+	}
+
+	var content string
+	if m.animationError != "" {
 		content = "Cannot start animation:\n" + ansi.Strip(m.animationError)
 	} else {
 		// Show welcome/instructions
@@ -113,6 +153,173 @@ func (m Model) renderCanvas() string {
 		Width(viewportWidth).
 		Height(viewportHeight).
 		Render(content)
+}
+
+func (m Model) renderAnimationCanvas(frame string) string {
+	var builder strings.Builder
+	viewportWidth := max(1, m.width-10)
+	viewportHeight := max(1, m.height-mainViewChromeRows)
+	builder.Grow(len(frame) + (viewportWidth+2)*(viewportHeight+2))
+	rows := 0
+	m.writeAnimationCanvas(&builder, frame, 0, 0, &rows)
+	return builder.String()
+}
+
+func (m Model) renderRunningView() string {
+	frame := m.currentAnim.Render()
+	selectors, guidance, help := m.cachedRunningChrome()
+
+	contentWidth := max(m.width-8, lipgloss.Width(selectors), lipgloss.Width(guidance), lipgloss.Width(help))
+	contentLeft := max(0, (m.width-contentWidth)/2)
+	contentRight := max(0, m.width-contentWidth-contentLeft)
+	var builder strings.Builder
+	builder.Grow(len(frame) + m.width*m.height)
+	rows := 0
+	m.writeAnimationCanvas(&builder, frame, contentLeft, contentRight+contentWidth-(m.width-8), &rows)
+	appendRunningSection(&builder, selectors, contentWidth, contentLeft, contentRight, m.height, &rows)
+	appendRunningSection(&builder, guidance, contentWidth, contentLeft, contentRight, m.height, &rows)
+	appendRunningSection(&builder, help, contentWidth, contentLeft, contentRight, m.height, &rows)
+	for rows < m.height {
+		if rows > 0 {
+			builder.WriteByte('\n')
+		}
+		writeViewSpaces(&builder, m.width)
+		rows++
+	}
+	return builder.String()
+}
+
+func (m Model) writeAnimationCanvas(dst *strings.Builder, frame string, leftPadding, rightPadding int, rows *int) {
+	viewportHeight := max(1, m.height-mainViewChromeRows)
+	viewportWidth := max(1, m.width-10)
+	border := m.cachedCanvasBorder(viewportWidth)
+	lines := strings.Split(frame, "\n")
+
+	if *rows > 0 {
+		dst.WriteByte('\n')
+	}
+	writeViewSpaces(dst, leftPadding)
+	dst.WriteString(border.top)
+	writeViewSpaces(dst, rightPadding)
+	(*rows)++
+	for y := 0; y < viewportHeight; y++ {
+		dst.WriteByte('\n')
+		writeViewSpaces(dst, leftPadding)
+		dst.WriteString(border.left)
+		line := ""
+		if y < len(lines) {
+			line = lines[y]
+		}
+		lineWidth := ansi.StringWidth(line)
+		if lineWidth > viewportWidth {
+			line = ansi.Truncate(line, viewportWidth, "")
+			lineWidth = viewportWidth
+		}
+		dst.WriteString(line)
+		writeViewSpaces(dst, viewportWidth-lineWidth)
+		dst.WriteString("\033[0m")
+		dst.WriteString(border.right)
+		writeViewSpaces(dst, rightPadding)
+		(*rows)++
+	}
+	dst.WriteByte('\n')
+	writeViewSpaces(dst, leftPadding)
+	dst.WriteString(border.bottom)
+	writeViewSpaces(dst, rightPadding)
+	(*rows)++
+}
+
+func (m Model) cachedCanvasBorder(width int) canvasBorder {
+	if m.viewCache == nil {
+		return newCanvasBorder(width)
+	}
+
+	cache := m.viewCache
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if cache.borderWidth != width || cache.borderTheme != m.selectedTheme {
+		border := newCanvasBorder(width)
+		cache.borderWidth = width
+		cache.borderTheme = m.selectedTheme
+		cache.topBorder = border.top
+		cache.bottomBorder = border.bottom
+		cache.leftBorder = border.left
+		cache.rightBorder = border.right
+	}
+	return canvasBorder{top: cache.topBorder, bottom: cache.bottomBorder, left: cache.leftBorder, right: cache.rightBorder}
+}
+
+func newCanvasBorder(width int) canvasBorder {
+	border := lipgloss.RoundedBorder()
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("#88C0D0"))
+	return canvasBorder{
+		top:    style.Render(border.TopLeft + strings.Repeat(border.Top, width) + border.TopRight),
+		bottom: style.Render(border.BottomLeft + strings.Repeat(border.Bottom, width) + border.BottomRight),
+		left:   style.Render(border.Left),
+		right:  style.Render(border.Right),
+	}
+}
+
+func (m Model) cachedRunningChrome() (selectors, guidance, help string) {
+	if m.viewCache == nil {
+		return m.renderSelectors(), m.renderGuidance(), m.renderHelp()
+	}
+
+	key := runningChromeKey{
+		width: m.width, height: m.height,
+		animation: m.selectedAnimation, theme: m.selectedTheme,
+		file: m.selectedFile, duration: m.selectedDuration,
+		focus: m.focusedSelector, bitFontCount: len(m.bitFonts),
+	}
+	cache := m.viewCache
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if !cache.chromeValid || cache.chromeKey != key {
+		cache.chromeKey = key
+		cache.chromeValid = true
+		cache.selectors = m.renderSelectors()
+		cache.guidance = m.renderGuidance()
+		cache.help = m.renderHelp()
+	}
+	return cache.selectors, cache.guidance, cache.help
+}
+
+func appendRunningSection(dst *strings.Builder, section string, contentWidth, contentLeft, contentRight, maxRows int, rows *int) {
+	for start := 0; start <= len(section); {
+		if *rows >= maxRows {
+			return
+		}
+		end := strings.IndexByte(section[start:], '\n')
+		line := section[start:]
+		if end >= 0 {
+			line = section[start : start+end]
+		}
+		lineWidth := ansi.StringWidth(line)
+		if lineWidth > contentWidth {
+			line = ansi.Truncate(line, contentWidth, "")
+			lineWidth = contentWidth
+		}
+		if *rows > 0 {
+			dst.WriteByte('\n')
+		}
+		writeViewSpaces(dst, contentLeft)
+		dst.WriteString(line)
+		writeViewSpaces(dst, contentWidth-lineWidth)
+		writeViewSpaces(dst, contentRight)
+		(*rows)++
+		if end < 0 {
+			return
+		}
+		start += end + 1
+	}
+}
+
+func writeViewSpaces(dst *strings.Builder, count int) {
+	for count >= len(viewSpaceBlock) {
+		dst.WriteString(viewSpaceBlock)
+		count -= len(viewSpaceBlock)
+	}
+	dst.WriteString(viewSpaceBlock[:count])
 }
 
 // renderWelcome renders the welcome screen
