@@ -17,20 +17,8 @@ on:
       # Go tests read text art and fixtures from assets/ and testdata/.
       - 'assets/**'
       - '**/testdata/**'
+  # Keep this unfiltered so the required `test` check runs on every PR.
   pull_request:
-    paths:
-      - '**'
-      - '!**/*.md'
-      - '!docs/**'
-      - '!LICENSE'
-      - '!**/*.png'
-      - '!**/*.jpg'
-      - '!**/*.jpeg'
-      - '!**/*.gif'
-      - '!**/*.svg'
-      - '!**/*.webp'
-      - 'assets/**'
-      - '**/testdata/**'
 
 # Supersede in-flight runs for the same branch or PR so a burst of pushes does
 # not queue a full build each. Default-branch pushes are exempt: every merge to
