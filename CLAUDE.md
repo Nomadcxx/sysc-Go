@@ -114,7 +114,7 @@ When adding a new effect:
 
 ### Key Dependencies
 
-- `github.com/charmbracelet/lipgloss/v2` - Terminal styling (animations)
+- `charm.land/lipgloss/v2` - Terminal styling (animations)
 - `github.com/charmbracelet/bubbletea` + `bubbles` + `lipgloss` v1 - TUI
 - `golang.org/x/term` - Terminal size detection
 - `gonum.org/v1/gonum` - Math for physics-based effects
