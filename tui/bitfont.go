@@ -42,6 +42,14 @@ func parseBitFont(data []byte) (*BitFont, error) {
 	if len(font.Characters) == 0 {
 		return nil, fmt.Errorf("font must have at least one character")
 	}
+	if strings.Contains(font.License, "FIGlet") {
+		for char, rows := range font.Characters {
+			for i, row := range rows {
+				rows[i] = strings.ReplaceAll(row, "$", " ")
+			}
+			font.Characters[char] = rows
+		}
+	}
 
 	return &font, nil
 }
