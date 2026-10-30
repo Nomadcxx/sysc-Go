@@ -290,8 +290,7 @@ func logoSDF(name string) []float64 {
 		return f
 	}
 	strokes := logoShapeStrokes(name)
-	if strokes == nil {
-		logoSDFCache[name] = nil
+	if len(strokes) == 0 {
 		return nil
 	}
 	f := logoBake(strokes)
@@ -428,6 +427,9 @@ func logoEdges(name string) []logoEdge {
 		return e
 	}
 	e := logoBuildEdges(name)
+	if len(e) == 0 {
+		return nil
+	}
 	logoEdgeCache[name] = e
 	return e
 }
@@ -446,7 +448,7 @@ type LogoSpinConfig struct {
 	Shape   string   // "sysc" | "cross" | "justice" | "sysc-cross" | "cross-sysc"
 	Palette []string // GetLogoPalette(theme)
 	Theme   string
-	Style   string // "edge" (default: crisp 3D wireframe), "ring" (contour bands; old "wire"), "solid" (beveled plate)
+	Style   string // "edge" (default: crisp 3D wireframe), "ring" (contour bands; legacy "wire" alias), "solid" (beveled plate)
 }
 
 // LogoSpinAnimation renders a vector shape as a spinning 3D braille plate.
@@ -469,7 +471,6 @@ type LogoSpinAnimation struct {
 	depth []float64
 	crgb  []uint32
 	dots  []uint8
-	count []uint8
 
 	litShadow, litKey, litFill, litRim, litHigh, litBg [3]float64
 }
@@ -546,10 +547,8 @@ func (l *LogoSpinAnimation) initBuffers() {
 	cells := l.width * l.height
 	if cap(l.dots) < cells {
 		l.dots = make([]uint8, cells)
-		l.count = make([]uint8, cells)
 	}
 	l.dots = l.dots[:cells]
-	l.count = l.count[:cells]
 	if cap(l.shape) < logoGrid*logoGrid {
 		l.shape = make([]float64, logoGrid*logoGrid)
 	}
@@ -649,7 +648,6 @@ func (l *LogoSpinAnimation) Render() string {
 	}
 	for i := range l.dots {
 		l.dots[i] = 0
-		l.count[i] = 0
 	}
 
 	// The plate swings ±6.4° about X once per turn and breathes on Z once per

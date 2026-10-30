@@ -207,12 +207,54 @@ func TestLogoEdgeGeometry(t *testing.T) {
 	}
 }
 
+func TestLogoShapeCachesSkipUnknownNames(t *testing.T) {
+	const name = "unregistered-cache-test-shape"
+
+	logoSDFMu.Lock()
+	delete(logoSDFCache, name)
+	logoSDFMu.Unlock()
+	logoEdgeMu.Lock()
+	delete(logoEdgeCache, name)
+	logoEdgeMu.Unlock()
+	t.Cleanup(func() {
+		logoSDFMu.Lock()
+		delete(logoSDFCache, name)
+		logoSDFMu.Unlock()
+		logoEdgeMu.Lock()
+		delete(logoEdgeCache, name)
+		logoEdgeMu.Unlock()
+	})
+
+	if logoSDF(name) != nil {
+		t.Error("unknown shape returned an SDF")
+	}
+	logoSDFMu.Lock()
+	_, sdfCached := logoSDFCache[name]
+	logoSDFMu.Unlock()
+	if sdfCached {
+		t.Error("unknown shape was retained in the SDF cache")
+	}
+
+	if logoEdges(name) != nil {
+		t.Error("unknown shape returned edges")
+	}
+	logoEdgeMu.Lock()
+	_, edgesCached := logoEdgeCache[name]
+	logoEdgeMu.Unlock()
+	if edgesCached {
+		t.Error("unknown shape was retained in the edge cache")
+	}
+}
+
 func TestLogoStyleModes(t *testing.T) {
 	for _, style := range []string{"", "edge", "ring", "wire", "solid"} {
 		l := NewLogoSpinEffect(LogoSpinConfig{Width: 40, Height: 15, Shape: "justice", Style: style})
 		l.Update()
 		if out := l.Render(); out == "" {
 			t.Errorf("style %q: empty render", style)
+		}
+		if style == "wire" && l.mode != logoModeRing {
+			t.Errorf("legacy wire style mode = %d, want ring mode %d", l.mode, logoModeRing)
 		}
 	}
 	m := NewLogoSpinEffect(LogoSpinConfig{Width: 40, Height: 15, Shape: "sysc-cross", Style: "edge"})
