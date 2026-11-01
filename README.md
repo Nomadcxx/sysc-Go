@@ -71,6 +71,9 @@ Text effects animate ASCII input. The CLI uses `SYSC.txt` by default; pass `-fil
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-Go/master/install.sh | sudo bash
 ```
+It runs as root, so it only uses a `go` and `git` that only root can change, such as a
+distribution package or Go's tarball in `/usr/local/go`. For a Go from a version manager in
+your home directory, use the interactive installer below.
 
 **Via interactive installer:**
 ```bash
