@@ -62,12 +62,20 @@ type DecryptConfig struct {
 	FinalGradientDirection string
 }
 
+// defaultCiphertextColors stand in for an empty DecryptConfig.CiphertextColors.
+var defaultCiphertextColors = []string{"#008000", "#00cb00", "#00ff00"}
+
 // NewDecryptEffect creates a new decrypt effect with given configuration
 func NewDecryptEffect(config DecryptConfig) *DecryptEffect {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	if config.TypingSpeed <= 0 {
 		config.TypingSpeed = 1
+	}
+	// Each character draws its ciphertext colour from this list, so an empty
+	// one from a host's config would panic in rand.Intn (audit sysc-2371).
+	if len(config.CiphertextColors) == 0 {
+		config.CiphertextColors = defaultCiphertextColors
 	}
 
 	effect := &DecryptEffect{
