@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/Nomadcxx/sysc-Go/internal/termtext"
 	"strings"
 	"sync"
 
@@ -346,7 +347,7 @@ func (m Model) renderSelectors() string {
 	selectors := []string{
 		m.renderSelector(0, "Animation", m.animations[m.selectedAnimation]),
 		m.renderSelector(1, "Theme", m.themes[m.selectedTheme]),
-		m.renderSelector(2, "File", m.files[m.selectedFile]),
+		m.renderSelector(2, "File", termtext.Printable(m.files[m.selectedFile])),
 		m.renderSelector(3, "Duration", m.durations[m.selectedDuration]),
 	}
 
@@ -474,7 +475,7 @@ func (m Model) renderGuidance() string {
 			guidance += " • Custom text editor"
 		} else if fileName != "(disabled)" && fileName != "" {
 			// Truncate long filenames
-			displayName := fileName
+			displayName := termtext.Printable(fileName)
 			if len(displayName) > 20 {
 				displayName = displayName[:17] + "..."
 			}

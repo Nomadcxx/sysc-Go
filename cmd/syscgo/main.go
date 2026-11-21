@@ -14,6 +14,7 @@ import (
 	"github.com/Nomadcxx/sysc-Go/animations"
 	"github.com/Nomadcxx/sysc-Go/internal/artfile"
 	"github.com/Nomadcxx/sysc-Go/internal/termcell"
+	"github.com/Nomadcxx/sysc-Go/internal/termtext"
 	"golang.org/x/term"
 )
 
@@ -108,12 +109,14 @@ func assetSearchPaths(filename, home, binaryDir string) []string {
 }
 
 // resolveTextFile reads text from a file, falling back to the shared SYSC.txt asset search.
+// Every read goes through artfile.Read: art packs are downloaded, and an
+// unbounded file sizes the canvas (audit sysc-2370).
 // warning is set when the requested path was missing and the SYSC.txt fallback was used.
 func resolveTextFile(file string) (text string, warning string, err error) {
 	if file != "" {
-		data, readErr := os.ReadFile(file)
+		data, readErr := artfile.Read(file)
 		if readErr == nil {
-			return string(data), "", nil
+			return data, "", nil
 		}
 
 		// A bare name like SYSC2.txt or an exported art file is not a cwd path:
@@ -122,32 +125,32 @@ func resolveTextFile(file string) (text string, warning string, err error) {
 		// probed with a traversal-like relative path.
 		if !filepath.IsAbs(file) && filepath.Base(file) == file {
 			if assetPath := findAssetFile(file); assetPath != "" {
-				data, assetErr := os.ReadFile(assetPath)
+				data, assetErr := artfile.Read(assetPath)
 				if assetErr == nil {
-					return string(data), "", nil
+					return data, "", nil
 				}
 			}
 		}
 
 		fallbackPath := findAssetFile("SYSC.txt")
 		if fallbackPath != "" {
-			data, readErr = os.ReadFile(fallbackPath)
+			data, readErr = artfile.Read(fallbackPath)
 			if readErr == nil {
-				warning = fmt.Sprintf("Warning: Could not read %s, using %s\n", file, fallbackPath)
-				return string(data), warning, nil
+				warning = fmt.Sprintf("Warning: Could not read %s, using %s\n", termtext.Printable(file), termtext.Printable(fallbackPath))
+				return data, warning, nil
 			}
 		}
 
-		return "", "", fmt.Errorf("Error: Could not read file %s and could not find fallback SYSC.txt", file)
+		return "", "", fmt.Errorf("Error: Could not read file %s and could not find fallback SYSC.txt", termtext.Printable(file))
 	}
 
 	fallbackPath := findAssetFile("SYSC.txt")
 	if fallbackPath != "" {
-		data, readErr := os.ReadFile(fallbackPath)
+		data, readErr := artfile.Read(fallbackPath)
 		if readErr == nil {
-			return string(data), "", nil
+			return data, "", nil
 		}
-		return "", "", fmt.Errorf("Error: Could not read SYSC.txt from %s", fallbackPath)
+		return "", "", fmt.Errorf("Error: Could not read SYSC.txt from %s", termtext.Printable(fallbackPath))
 	}
 
 	return "", "", fmt.Errorf("Error: Could not find SYSC.txt in any asset location")
@@ -387,7 +390,7 @@ func main() {
 			rifle, err = animations.NewAK47TextEffect(width, height, *theme, text)
 		}
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, termtext.Printable(err.Error()))
 			fmt.Print("\033[?25h")
 			os.Exit(1)
 		}
@@ -462,7 +465,7 @@ func main() {
 	case "logo-morph":
 		runLogoSpin(width, height, *theme, "sysc-cross", clock)
 	default:
-		fmt.Printf("Unknown effect: %s\n", *effect)
+		fmt.Printf("Unknown effect: %s\n", termtext.Printable(*effect))
 		fmt.Println("Available: " + strings.Join(animations.GetEffectNames(), ", "))
 		os.Exit(1)
 	}

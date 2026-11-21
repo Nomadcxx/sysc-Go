@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // BeamTextEffect implements beams that travel across rows and columns, illuminating text
@@ -174,17 +175,25 @@ func NewBeamTextEffect(config BeamTextConfig) *BeamTextEffect {
 	return b
 }
 
-// calculateTextDimensions returns the width and height needed to fit the text
+// The auto-sized canvas is bounded: every cell holds live state, so text a
+// library caller passes unchecked must not size an allocation without end
+// (audit sysc-2370). Text past the bound is cropped.
+const (
+	maxAutoWidth  = 1024
+	maxAutoHeight = 512
+)
+
+// calculateTextDimensions returns the width and height needed to fit the
+// text, within maxAutoWidth by maxAutoHeight.
 func calculateTextDimensions(text string) (int, int) {
 	lines := strings.Split(text, "\n")
 	maxWidth := 0
 	for _, line := range lines {
-		runes := []rune(line)
-		if len(runes) > maxWidth {
-			maxWidth = len(runes)
+		if n := utf8.RuneCountInString(line); n > maxWidth {
+			maxWidth = n
 		}
 	}
-	return maxWidth, len(lines)
+	return min(maxWidth, maxAutoWidth), min(len(lines), maxAutoHeight)
 }
 
 // init initializes characters and beam groups
