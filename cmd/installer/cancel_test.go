@@ -349,37 +349,28 @@ func TestSecondCancelQuitsEvenWhenTaskIgnoresContext(t *testing.T) {
 // cancel from continuing on to the rest of the asset tree. A context that is
 // already cancelled exits at the first guard and never reaches them.
 //
-// b.txt is a FIFO, so the loop parks inside copyFile reading it. That holds
-// the copy open long enough to cancel deterministically instead of racing a
-// goroutine against three tiny writes.
+// The copy of b.txt is held open until the cancel is in place, so the cancel
+// lands deterministically mid-tree instead of racing three tiny writes. (A
+// FIFO used to do this; copyFile now refuses anything but a regular file.)
 func TestCancelMidCopyStopsBeforeTheRestOfTheAssets(t *testing.T) {
 	src := t.TempDir()
 	share := t.TempDir()
 	mustWrite(t, filepath.Join(src, "a.txt"), "a")
+	mustWrite(t, filepath.Join(src, "b.txt"), "b")
 	mustWrite(t, filepath.Join(src, "c.txt"), "c")
-	if err := syscall.Mkfifo(filepath.Join(src, "b.txt"), 0o600); err != nil {
-		t.Skipf("mkfifo unsupported: %v", err)
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// ReadDir yields sorted names, so a.txt copies first and the loop then
-	// blocks on the b.txt FIFO. Unblock it once the cancel is in place.
-	go func() {
-		first := filepath.Join(share, "assets", "a.txt")
-		for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
-			if _, err := os.Stat(first); err == nil {
-				break
-			}
-			time.Sleep(time.Millisecond)
+	// ReadDir yields sorted names, so a.txt copies first and b.txt is held.
+	saved := copyAsset
+	t.Cleanup(func() { copyAsset = saved })
+	copyAsset = func(from, to string) error {
+		if filepath.Base(from) == "b.txt" {
+			cancel()
 		}
-		cancel()
-		if f, err := os.OpenFile(filepath.Join(src, "b.txt"), os.O_WRONLY, 0o600); err == nil {
-			_, _ = f.WriteString("b")
-			_ = f.Close()
-		}
-	}()
+		return saved(from, to)
+	}
 
 	err := installAssetFiles(ctx, src, share)
 	if !errors.Is(err, context.Canceled) {

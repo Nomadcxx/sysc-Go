@@ -316,3 +316,60 @@ func TestBuildStagedDisablesBuildVCS(t *testing.T) {
 		t.Fatalf("go build args %q lack -buildvcs=false; root builds over a user checkout fail", args)
 	}
 }
+
+// The root installer publishes assets world-readable; a symlink or special
+// file in the tree must never be followed into that copy (audit sysc-2369).
+func TestCopyFileRefusesLinksAndSpecialFiles(t *testing.T) {
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "shadow")
+	if err := os.WriteFile(secret, []byte("root:secret"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "evil.txt")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(dir, "out.txt")
+	if err := copyFile(link, dst); err == nil {
+		t.Fatal("copyFile followed a symlink")
+	}
+	if _, err := os.Stat(dst); !os.IsNotExist(err) {
+		t.Fatal("a refused asset was installed")
+	}
+
+	fifo := filepath.Join(dir, "pipe.txt")
+	if err := syscall.Mkfifo(fifo, 0600); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- copyFile(fifo, dst) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("copyFile accepted a FIFO")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("copyFile hung on a FIFO")
+	}
+}
+
+func TestInstallAssetFilesRefusesASymlinkedAsset(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "ok.txt"), []byte("art"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	secret := filepath.Join(t.TempDir(), "id_ed25519")
+	if err := os.WriteFile(secret, []byte("PRIVATE"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(src, "zz-key.txt")); err != nil {
+		t.Fatal(err)
+	}
+	share := filepath.Join(t.TempDir(), "share")
+	if err := installAssetFiles(context.Background(), src, share); err == nil {
+		t.Fatal("installAssetFiles copied through a symlinked asset")
+	}
+	if data, err := os.ReadFile(filepath.Join(share, "assets", "zz-key.txt")); err == nil {
+		t.Fatalf("symlink target published: %q", data)
+	}
+}
