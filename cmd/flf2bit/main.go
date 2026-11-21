@@ -162,25 +162,44 @@ func parseHeader(header string) (*FIGletFont, error) {
 		Hardblank: hardblank,
 	}
 
-	// Parse numeric fields
-	if len(parts) > 1 {
-		meta.Height, _ = strconv.Atoi(parts[1])
+	// Parse numeric fields. A font is untrusted input (art packs ship them),
+	// and Height sizes allocations, so every field is checked before use
+	// (audit sysc-2373).
+	fields := []struct {
+		name     string
+		dst      *int
+		min, max int
+	}{
+		{"height", &meta.Height, 1, maxFontHeight},
+		{"baseline", &meta.Baseline, 0, maxFontHeight},
+		{"max length", &meta.MaxLength, 0, maxFontLineLength},
+		{"old layout", &meta.OldLayout, -1, 63},
+		{"comment lines", &meta.CommentLines, 0, maxCommentLines},
 	}
-	if len(parts) > 2 {
-		meta.Baseline, _ = strconv.Atoi(parts[2])
-	}
-	if len(parts) > 3 {
-		meta.MaxLength, _ = strconv.Atoi(parts[3])
-	}
-	if len(parts) > 4 {
-		meta.OldLayout, _ = strconv.Atoi(parts[4])
-	}
-	if len(parts) > 5 {
-		meta.CommentLines, _ = strconv.Atoi(parts[5])
+	for i, f := range fields {
+		if len(parts) <= i+1 {
+			if f.name == "height" {
+				return nil, fmt.Errorf("header %q has no height", header)
+			}
+			break
+		}
+		v, err := strconv.Atoi(parts[i+1])
+		if err != nil || v < f.min || v > f.max {
+			return nil, fmt.Errorf("header %q: %s %q is not between %d and %d", header, f.name, parts[i+1], f.min, f.max)
+		}
+		*f.dst = v
 	}
 
 	return meta, nil
 }
+
+// Bounds on a FIGlet header. Real fonts are under 20 rows high with lines
+// under a few hundred columns.
+const (
+	maxFontHeight     = 1024
+	maxFontLineLength = 4096
+	maxCommentLines   = 100000
+)
 
 func readCharacter(scanner *bufio.Scanner, meta *FIGletFont) ([]string, error) {
 	lines := make([]string, 0, meta.Height)
