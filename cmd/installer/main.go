@@ -766,13 +766,13 @@ func removeAssets(m *model) error {
 	return nil
 }
 
-// copyFile copies a single file. The destination mode is assetMode rather than
+// copyFile installs one asset. The destination mode is assetMode rather than
 // the source's: a checkout made under a restrictive umask carries 0600 files,
 // and copying those modes verbatim installs assets nobody else can read.
-// copyFile installs one asset. The installer runs as root and installs assets
-// world-readable, so it copies only a regular file and never follows a
-// symlink: a link in the tree to /etc/shadow would otherwise publish it
-// (audit sysc-2369). O_NONBLOCK keeps a planted FIFO from hanging the open.
+// Because the installer runs as root and assets end up world-readable, it
+// copies only a regular file and never follows a symlink: a link in the tree
+// to /etc/shadow would otherwise publish it (audit sysc-2369). O_NONBLOCK
+// keeps a planted FIFO from hanging the open.
 func copyFile(src, dst string) error {
 	f, err := os.OpenFile(src, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
