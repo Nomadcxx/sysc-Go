@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -263,5 +264,22 @@ func TestAssetSearchPathsIncludeUserDataDir(t *testing.T) {
 	}
 	if dataIdx > shareIdx {
 		t.Errorf("user data dir at %d comes after the system share at %d: %v", dataIdx, shareIdx, paths)
+	}
+}
+
+// A -file larger than the art bound is not loaded; the fallback art is used
+// with a warning (audit sysc-2370).
+func TestResolveTextFileRefusesOversizedArt(t *testing.T) {
+	withInstallShare(t, "SYSC fallback\n")
+	big := filepath.Join(t.TempDir(), "huge.txt")
+	if err := os.WriteFile(big, bytes.Repeat([]byte("#"), 32<<20), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	text, warning, err := resolveTextFile(big)
+	if err != nil {
+		t.Fatalf("resolveTextFile: %v", err)
+	}
+	if text != "SYSC fallback\n" || warning == "" {
+		t.Fatalf("oversized art loaded: %d bytes, warning %q", len(text), warning)
 	}
 }

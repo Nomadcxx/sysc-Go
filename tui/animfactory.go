@@ -448,13 +448,12 @@ func (m *Model) loadTextFile(filename string) string {
 		return "SYSC" // fallback
 	}
 
-	filePath := getAssetPath(filename)
-	data, err := os.ReadFile(filePath)
+	text, err := artfile.Read(getAssetPath(filename))
 	if err != nil {
-		return "SYSC" // fallback on error
+		return "SYSC" // fallback on error, including art over the 64 KiB bound
 	}
 
-	return string(data)
+	return text
 }
 
 // getGradientStops returns gradient color stops for the given theme

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -660,7 +661,7 @@ func installAssetFiles(ctx context.Context, srcAssets, shareRoot string) error {
 				if err := ensureDir(fontsDst); err != nil {
 					return fmt.Errorf("failed to create directory: %v", err)
 				}
-				if err := copyFile(filepath.Join(src, font.Name()), filepath.Join(fontsDst, font.Name())); err != nil {
+				if err := copyAsset(filepath.Join(src, font.Name()), filepath.Join(fontsDst, font.Name())); err != nil {
 					return err
 				}
 			}
@@ -669,7 +670,7 @@ func installAssetFiles(ctx context.Context, srcAssets, shareRoot string) error {
 		if !strings.EqualFold(filepath.Ext(entry.Name()), ".txt") {
 			continue
 		}
-		if err := copyFile(src, filepath.Join(assetsDst, entry.Name())); err != nil {
+		if err := copyAsset(src, filepath.Join(assetsDst, entry.Name())); err != nil {
 			return err
 		}
 	}
@@ -765,16 +766,45 @@ func removeAssets(m *model) error {
 	return nil
 }
 
-// copyFile copies a single file. The destination mode is assetMode rather than
+// copyFile installs one asset. The destination mode is assetMode rather than
 // the source's: a checkout made under a restrictive umask carries 0600 files,
 // and copying those modes verbatim installs assets nobody else can read.
+// Because the installer runs as root and assets end up world-readable, it
+// copies only a regular file and never follows a symlink: a link in the tree
+// to /etc/shadow would otherwise publish it (audit sysc-2369). O_NONBLOCK
+// keeps a planted FIFO from hanging the open.
 func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
+	f, err := os.OpenFile(src, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return fmt.Errorf("asset %s: %w", src, err)
+	}
+	defer f.Close()
+	info, err := f.Stat()
 	if err != nil {
 		return err
 	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("asset %s is not a regular file", src)
+	}
+	if info.Size() > maxAssetBytes {
+		return fmt.Errorf("asset %s is larger than %d bytes", src, maxAssetBytes)
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxAssetBytes+1))
+	if err != nil {
+		return err
+	}
+	if int64(len(data)) > maxAssetBytes {
+		return fmt.Errorf("asset %s is larger than %d bytes", src, maxAssetBytes)
+	}
 	return installFileAtomic(dst, data, assetMode)
 }
+
+// copyAsset is copyFile; a test replaces it to hold a copy open mid-tree.
+var copyAsset = copyFile
+
+// maxAssetBytes bounds one installed text or font asset; the largest shipped
+// one is well under a megabyte.
+const maxAssetBytes = 16 << 20
 
 // buildOutputDir is the temp directory that receives syscgo and syscgo-tui
 // before they are copied to /usr/local/bin. Building here avoids leaving
