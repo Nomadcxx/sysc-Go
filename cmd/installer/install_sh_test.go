@@ -187,6 +187,37 @@ func requireSudo(t *testing.T) {
 	}
 }
 
+// TestInstallScriptRunsToolchainAsInvokingUser guards the privilege boundary:
+// clone and build use the invoking user's PATH, so they must drop root before
+// executing anything found there. The installer itself still needs root.
+func TestInstallScriptRunsToolchainAsInvokingUser(t *testing.T) {
+	script, err := os.ReadFile(filepath.Join("..", "..", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(script)
+	for _, want := range []string{
+		`run_toolchain_as_invoker "$GIT_BIN" clone`,
+		`run_toolchain_as_invoker "$GO_BIN" build`,
+		`sudo -n -u "$SUDO_USER" -H env`,
+		`sudo -n -u "$SUDO_USER" -H mktemp -d`,
+		`./install-syscgo --yes`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("install.sh does not contain %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"\n\"$GIT_BIN\" clone",
+		"\n\"$GO_BIN\" build",
+		"\nrun_toolchain_as_invoker ./install-syscgo",
+	} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("install.sh still contains %q", forbidden)
+		}
+	}
+}
+
 func scriptCmd(t *testing.T, bin, logPath, statePath string) *exec.Cmd {
 	t.Helper()
 	script, err := filepath.Abs(filepath.Join("..", "..", "install.sh"))
@@ -207,7 +238,7 @@ func scriptCmd(t *testing.T, bin, logPath, statePath string) *exec.Cmd {
 // under set -e, which looks like an install.sh bug rather than a harness gap.
 // git and go stay out on purpose so a test can never clone or build for real.
 var installScriptTools = []string{
-	"bash", "mktemp", "rm", "chmod", "mkdir", "cat", "pwd", "cp", "mv",
+	"bash", "env", "mktemp", "rm", "chmod", "mkdir", "cat", "pwd", "cp", "mv",
 	"basename", "dirname", "getent", "cut", "sed", "tail", "find", "sort",
 }
 
