@@ -166,6 +166,15 @@ func effectFileText(effect, file string) (string, string, error) {
 	return resolveTextFile(file)
 }
 
+// exitWithError restores the cursor hidden by main's terminal setup, prints msg
+// and exits 1. Use it instead of os.Exit after setup: os.Exit skips main's
+// deferred cursor restore.
+func exitWithError(msg string) {
+	fmt.Print("\033[?25h")
+	fmt.Println(msg)
+	os.Exit(1)
+}
+
 // presentTextFile prints a fallback warning and exits on error, matching readTextFile.
 func presentTextFile(text, warning string, err error) string {
 	if warning != "" {
@@ -173,10 +182,19 @@ func presentTextFile(text, warning string, err error) string {
 		time.Sleep(time.Second)
 	}
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		exitWithError(err.Error())
 	}
 	return text
+}
+
+// isKnownEffect reports whether name is dispatched by main's effect switch.
+func isKnownEffect(name string) bool {
+	for _, known := range animations.GetEffectNames() {
+		if name == known {
+			return true
+		}
+	}
+	return false
 }
 
 // readTextFile reads text from a file with fallback to SYSC.txt.
@@ -367,6 +385,14 @@ func main() {
 		return
 	}
 
+	// Validate before touching the terminal so a typo never clears the screen
+	// or leaves the cursor hidden.
+	if !isKnownEffect(*effect) {
+		fmt.Printf("Unknown effect: %s\n", termtext.Printable(*effect))
+		fmt.Println("Available: " + strings.Join(animations.GetEffectNames(), ", "))
+		os.Exit(1)
+	}
+
 	// Get terminal size. A 0x0 winsize is not an error on some fds.
 	width, height := fallbackTerminalSize(term.GetSize(int(os.Stdout.Fd())))
 
@@ -390,9 +416,7 @@ func main() {
 			rifle, err = animations.NewAK47TextEffect(width, height, *theme, text)
 		}
 		if err != nil {
-			fmt.Fprintln(os.Stderr, termtext.Printable(err.Error()))
-			fmt.Print("\033[?25h")
-			os.Exit(1)
+			exitWithError(termtext.Printable(err.Error()))
 		}
 		runAnimation(rifle, clock)
 	case "ak-47":
@@ -404,8 +428,7 @@ func main() {
 		"f-14-tomcat", "f-15e-strike-eagle", "f-22-raptor", "fa-18e-super-hornet":
 		model, err := animations.NewRotatingModelEffect(*effect, width, height, *theme)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			exitWithError(err.Error())
 		}
 		runAnimation(model, clock)
 	case "great-wave", "wasteland":
@@ -415,8 +438,7 @@ func main() {
 		}
 		scene, err := create(width, height, *theme)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			exitWithError(err.Error())
 		}
 		runAnimation(scene, clock)
 	case "fire":
@@ -465,9 +487,7 @@ func main() {
 	case "logo-morph":
 		runLogoSpin(width, height, *theme, "sysc-cross", clock)
 	default:
-		fmt.Printf("Unknown effect: %s\n", termtext.Printable(*effect))
-		fmt.Println("Available: " + strings.Join(animations.GetEffectNames(), ", "))
-		os.Exit(1)
+		exitWithError("Unknown effect: " + termtext.Printable(*effect))
 	}
 }
 
@@ -985,8 +1005,7 @@ func runBeamText(width, height int, theme string, file string, auto bool, displa
 	// Read text from file
 	text := readTextFile(file)
 	if text == "" {
-		fmt.Println("beam-text effect requires -file flag")
-		os.Exit(1)
+		exitWithError("beam-text effect requires non-empty text (-file)")
 	}
 
 	// Don't wrap text - ASCII art needs to be preserved as-is
