@@ -5,10 +5,14 @@
 set -e
 
 TEMP_DIR=""
+ROOT_TEMP=""
 cleanup() {
+    cd /
     if [ -n "$TEMP_DIR" ]; then
-        cd /
         rm -rf "$TEMP_DIR"
+    fi
+    if [ -n "$ROOT_TEMP" ]; then
+        rm -rf "$ROOT_TEMP"
     fi
 }
 trap cleanup EXIT
@@ -20,6 +24,15 @@ echo ""
 if [ "$EUID" -ne 0 ]; then
     echo "Error: This script must be run as root"
     echo "Usage: curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-Go/master/install.sh | sudo bash"
+    exit 1
+fi
+
+# Root may have been reached with su or a root shell, where SUDO_USER is unset.
+# If it is set, the invoking user's toolchain must run through sudo; say so
+# instead of failing later with a bare "sudo: command not found".
+if [ "$EUID" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ] && ! command -v sudo >/dev/null 2>&1; then
+    echo "Error: sudo is not installed, so the toolchain cannot run as $SUDO_USER"
+    echo "Run this installer through sudo as $SUDO_USER, or as root with SUDO_USER unset"
     exit 1
 fi
 
@@ -206,6 +219,19 @@ echo "Building installer..."
 # so a different `go` earlier on PATH cannot replace it.
 run_toolchain_as_invoker "$GO_BIN" build -o install-syscgo ./cmd/installer/
 
+# The build tree belongs to the invoking user. Root must not run the binary
+# from there after the build, or the user can replace it between the build and
+# the exec. Copy it into a private directory under the sticky /tmp and run
+# only that copy.
+ROOT_TEMP="$(mktemp -d /tmp/sysc-installer.XXXXXX)"
+if [ -z "$ROOT_TEMP" ]; then
+    echo "Error: could not create a private installer directory"
+    exit 1
+fi
+cp ./install-syscgo "$ROOT_TEMP/install-syscgo"
+chmod 0755 "$ROOT_TEMP/install-syscgo"
+INSTALLER="$ROOT_TEMP/install-syscgo"
+
 echo "Running installer..."
 # The trusted, freshly built installer needs root for the system install; do
 # not run it with the invoking user's PATH.
@@ -214,11 +240,11 @@ if [ -n "$INVOKER_HOME" ] && [ -d "$INVOKER_HOME/.asdf" ]; then
     ASDF_DIR="$INVOKER_HOME/.asdf" \
         ASDF_DATA_DIR="${ASDF_DATA_DIR:-$INVOKER_HOME/.asdf}" \
         MISE_DATA_DIR="${USER_MISE_DATA_DIR:-$INVOKER_HOME/.local/share/mise}" \
-        ./install-syscgo --yes
+        "$INSTALLER" --yes
 elif [ -n "$USER_MISE_DATA_DIR" ]; then
-    MISE_DATA_DIR="$USER_MISE_DATA_DIR" ./install-syscgo --yes
+    MISE_DATA_DIR="$USER_MISE_DATA_DIR" "$INSTALLER" --yes
 else
-    ./install-syscgo --yes
+    "$INSTALLER" --yes
 fi
 
 echo ""

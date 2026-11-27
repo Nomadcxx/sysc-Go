@@ -32,6 +32,7 @@ if [ "$1" = "build" ]; then
   cat > install-syscgo << 'EOF'
 #!/bin/bash
 echo "installer $*" >> "$LOG"
+echo "$0" > "$LOG.installer"
 EOF
   chmod +x install-syscgo
 fi
@@ -53,8 +54,20 @@ fi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(strings.TrimSpace(string(tempPath))); !os.IsNotExist(err) {
-		t.Fatalf("temp dir %s still exists after success", strings.TrimSpace(string(tempPath)))
+	buildDir := strings.TrimSpace(string(tempPath))
+	if _, err := os.Stat(buildDir); !os.IsNotExist(err) {
+		t.Fatalf("temp dir %s still exists after success", buildDir)
+	}
+	installerPath, err := os.ReadFile(logPath + ".installer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	installer := strings.TrimSpace(string(installerPath))
+	if strings.HasPrefix(installer, buildDir+string(os.PathSeparator)) {
+		t.Fatalf("installer ran from the user-writable build tree: %s", installer)
+	}
+	if _, err := os.Stat(filepath.Dir(installer)); !os.IsNotExist(err) {
+		t.Fatalf("private installer directory %s still exists after success", filepath.Dir(installer))
 	}
 }
 
@@ -201,7 +214,11 @@ func TestInstallScriptRunsToolchainAsInvokingUser(t *testing.T) {
 		`run_toolchain_as_invoker "$GO_BIN" build`,
 		`sudo -n -u "$SUDO_USER" -H env`,
 		`sudo -n -u "$SUDO_USER" -H mktemp -d`,
-		`./install-syscgo --yes`,
+		`mktemp -d /tmp/sysc-installer.XXXXXX`,
+		`cp ./install-syscgo "$ROOT_TEMP/install-syscgo"`,
+		`chmod 0755 "$ROOT_TEMP/install-syscgo"`,
+		`"$INSTALLER" --yes`,
+		`sudo is not installed, so the toolchain cannot run as $SUDO_USER`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("install.sh does not contain %q", want)
@@ -211,6 +228,7 @@ func TestInstallScriptRunsToolchainAsInvokingUser(t *testing.T) {
 		"\n\"$GIT_BIN\" clone",
 		"\n\"$GO_BIN\" build",
 		"\nrun_toolchain_as_invoker ./install-syscgo",
+		"./install-syscgo --yes",
 	} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("install.sh still contains %q", forbidden)
@@ -224,10 +242,31 @@ func scriptCmd(t *testing.T, bin, logPath, statePath string) *exec.Cmd {
 	if err != nil {
 		t.Fatal(err)
 	}
+	path := isolatedPath(t, bin)
+	// The outer sudo starts install.sh as root. Inside, this stub answers the
+	// user's login-environment query and drops sudo's flags for clone/build,
+	// so the test does not need a second passwordless sudo rule.
+	writeStub(t, bin, "sudo", `#!/bin/bash
+if [ "$5" = "bash" ] && [ "$6" = "-lc" ]; then
+  printf '__SYSC_PATH__%s\n' "$TEST_PATH"
+  printf '__SYSC_MISE_DATA_DIR__%s\n' "$TEST_MISE_DATA_DIR"
+  exit 0
+fi
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -n|-H) shift ;;
+    -u) shift 2 ;;
+    *) break ;;
+  esac
+done
+exec "$@"
+`)
 	cmd := exec.Command("sudo", "-n", "env",
-		"PATH="+isolatedPath(t, bin),
+		"PATH="+path,
 		"LOG="+logPath,
 		"STATE="+statePath,
+		"TEST_PATH="+path,
+		"TEST_MISE_DATA_DIR=",
 		"bash", script,
 	)
 	return cmd
@@ -237,6 +276,7 @@ func scriptCmd(t *testing.T, bin, logPath, statePath string) *exec.Cmd {
 // in step with install.sh: a tool missing here is a 127 that aborts the script
 // under set -e, which looks like an install.sh bug rather than a harness gap.
 // git and go stay out on purpose so a test can never clone or build for real.
+// sudo is supplied by the harness stub in scriptCmd, so it is not listed here.
 var installScriptTools = []string{
 	"bash", "env", "mktemp", "rm", "chmod", "mkdir", "cat", "pwd", "cp", "mv",
 	"basename", "dirname", "getent", "cut", "sed", "tail", "find", "sort",
