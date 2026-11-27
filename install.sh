@@ -5,10 +5,14 @@
 set -e
 
 TEMP_DIR=""
+ROOT_TEMP=""
 cleanup() {
+    cd /
     if [ -n "$TEMP_DIR" ]; then
-        cd /
         rm -rf "$TEMP_DIR"
+    fi
+    if [ -n "$ROOT_TEMP" ]; then
+        rm -rf "$ROOT_TEMP"
     fi
 }
 trap cleanup EXIT
@@ -20,6 +24,15 @@ echo ""
 if [ "$EUID" -ne 0 ]; then
     echo "Error: This script must be run as root"
     echo "Usage: curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-Go/master/install.sh | sudo bash"
+    exit 1
+fi
+
+# Root may have been reached with su or a root shell, where SUDO_USER is unset.
+# If it is set, the invoking user's toolchain must run through sudo; say so
+# instead of failing later with a bare "sudo: command not found".
+if [ "$EUID" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ] && ! command -v sudo >/dev/null 2>&1; then
+    echo "Error: sudo is not installed, so the toolchain cannot run as $SUDO_USER"
+    echo "Run this installer through sudo as $SUDO_USER, or as root with SUDO_USER unset"
     exit 1
 fi
 
@@ -163,34 +176,76 @@ toolchain_path() {
 
 TOOL_PATH="$(toolchain_path)"
 
-# Create temp directory
-TEMP_DIR=$(mktemp -d)
+# The candidate path is the invoking user's login PATH first, which may
+# contain user-writable Go, Git, and shim directories. Run clone and build as
+# that user so a writable tool can never execute with root privileges.
+run_toolchain_as_invoker() {
+    local env_args=(PATH="$TOOL_PATH")
+    if [ -n "$INVOKER_HOME" ] && [ -d "$INVOKER_HOME/.asdf" ]; then
+        env_args+=(
+            ASDF_DIR="$INVOKER_HOME/.asdf"
+            ASDF_DATA_DIR="${ASDF_DATA_DIR:-$INVOKER_HOME/.asdf}"
+            MISE_DATA_DIR="${USER_MISE_DATA_DIR:-$INVOKER_HOME/.local/share/mise}"
+        )
+    elif [ -n "$USER_MISE_DATA_DIR" ]; then
+        env_args+=(MISE_DATA_DIR="$USER_MISE_DATA_DIR")
+    fi
+    if [ "$EUID" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        sudo -n -u "$SUDO_USER" -H env "${env_args[@]}" "$@"
+    else
+        env "${env_args[@]}" "$@"
+    fi
+}
+
+# Create the build directory owned by the invoking user when root is building
+# on their behalf, so the unprivileged clone and build can write to it.
+if [ "$EUID" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+    TEMP_DIR="$(sudo -n -u "$SUDO_USER" -H mktemp -d)"
+else
+    TEMP_DIR="$(mktemp -d)"
+fi
+if [ -z "$TEMP_DIR" ]; then
+    echo "Error: could not create a build directory"
+    exit 1
+fi
 cd "$TEMP_DIR"
 
 echo "Cloning sysc-Go..."
-"$GIT_BIN" clone https://github.com/Nomadcxx/sysc-Go.git
+run_toolchain_as_invoker "$GIT_BIN" clone https://github.com/Nomadcxx/sysc-Go.git
 cd sysc-Go
 
 echo "Building installer..."
 # PATH covers shim helpers (asdf, mise). The binary itself is absolute,
 # so a different `go` earlier on PATH cannot replace it.
-run_with_toolchain() {
-    if [ -n "$INVOKER_HOME" ] && [ -d "$INVOKER_HOME/.asdf" ]; then
-        ASDF_DIR="$INVOKER_HOME/.asdf" \
-            ASDF_DATA_DIR="${ASDF_DATA_DIR:-$INVOKER_HOME/.asdf}" \
-            MISE_DATA_DIR="${USER_MISE_DATA_DIR:-$INVOKER_HOME/.local/share/mise}" \
-            PATH="$TOOL_PATH" "$@"
-    elif [ -n "$USER_MISE_DATA_DIR" ]; then
-        MISE_DATA_DIR="$USER_MISE_DATA_DIR" PATH="$TOOL_PATH" "$@"
-    else
-        PATH="$TOOL_PATH" "$@"
-    fi
-}
-run_with_toolchain "$GO_BIN" build -o install-syscgo ./cmd/installer/
+run_toolchain_as_invoker "$GO_BIN" build -o install-syscgo ./cmd/installer/
+
+# The build tree belongs to the invoking user. Root must not run the binary
+# from there after the build, or the user can replace it between the build and
+# the exec. Copy it into a private directory under the sticky /tmp and run
+# only that copy.
+ROOT_TEMP="$(mktemp -d /tmp/sysc-installer.XXXXXX)"
+if [ -z "$ROOT_TEMP" ]; then
+    echo "Error: could not create a private installer directory"
+    exit 1
+fi
+cp ./install-syscgo "$ROOT_TEMP/install-syscgo"
+chmod 0755 "$ROOT_TEMP/install-syscgo"
+INSTALLER="$ROOT_TEMP/install-syscgo"
 
 echo "Running installer..."
+# The trusted, freshly built installer needs root for the system install; do
+# not run it with the invoking user's PATH.
 # --yes skips the Bubble Tea welcome screen. curl | bash has no TTY input.
-run_with_toolchain ./install-syscgo --yes
+if [ -n "$INVOKER_HOME" ] && [ -d "$INVOKER_HOME/.asdf" ]; then
+    ASDF_DIR="$INVOKER_HOME/.asdf" \
+        ASDF_DATA_DIR="${ASDF_DATA_DIR:-$INVOKER_HOME/.asdf}" \
+        MISE_DATA_DIR="${USER_MISE_DATA_DIR:-$INVOKER_HOME/.local/share/mise}" \
+        "$INSTALLER" --yes
+elif [ -n "$USER_MISE_DATA_DIR" ]; then
+    MISE_DATA_DIR="$USER_MISE_DATA_DIR" "$INSTALLER" --yes
+else
+    "$INSTALLER" --yes
+fi
 
 echo ""
 echo "Installation complete."
